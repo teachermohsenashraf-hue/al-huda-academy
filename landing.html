@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0D6B4F">
+<title>ربّانيون — منصة تعليم القرآن وبناء الإنسان</title>
+<meta name="description" content="منصة متكاملة لتعليم القرآن الكريم بمنهج الحصون الخمسة — حلقات فردية، متابعة يومية، وبناء إنسان ربّاني.">
+
+<!-- خطوط: أميري للعناوين، IBM Plex Arabic للنصوص -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+/* ═══════════════════════════════════════════════════════════
+   ربّانيون — نظام التصميم
+   الهوية: أخضر زمردي عميق + ذهبي عتيق + كريمي دافئ
+   الفكرة المميّزة: الحصون الخمسة كعمارة بصرية — التحصين والطمأنينة
+   ═══════════════════════════════════════════════════════════ */
+:root{
+  --emerald:#0D6B4F;        /* الأخضر الزمردي العميق */
+  --emerald-2:#13987A;      /* زمردي أفتح */
+  --emerald-deep:#08503B;   /* الأعمق */
+  --gold:#BF9A45;           /* ذهبي عتيق */
+  --gold-soft:#D9BD78;      /* ذهبي فاتح */
+  --gold-glow:#F3D98B;      /* وهج ذهبي */
+  --cream:#FBF8F1;          /* كريمي دافئ */
+  --cream-2:#F3ECDD;        /* كريمي أغمق */
+  --ink:#1C2B25;            /* حبر داكن مخضرّ */
+  --ink-soft:#52635B;       /* حبر هادئ */
+  --line:rgba(13,107,79,0.12);
+  --shadow-e:0 25px 50px -12px rgba(13,107,79,0.22);
+  --shadow-g:0 14px 34px -6px rgba(191,154,69,0.32);
+}
+/* الوضع الليلي */
+html.dark{
+  --emerald:#1BA888;
+  --emerald-2:#22C49E;
+  --cream:#0C1A15;
+  --cream-2:#11241D;
+  --ink:#EAF3EF;
+  --ink-soft:#9DB3AB;
+  --line:rgba(34,196,158,0.16);
+}
+
+*{ margin:0; padding:0; box-sizing:border-box; }
+html{ scroll-behavior:smooth; }
+body{
+  font-family:'IBM Plex Sans Arabic',sans-serif;
+  background:var(--cream); color:var(--ink);
+  line-height:1.8; overflow-x:hidden;
+  transition:background .5s ease, color .5s ease;
+}
+h1,h2,h3,.amiri{ font-family:'Amiri',serif; }
+a{ text-decoration:none; color:inherit; cursor:pointer; }
+img{ max-width:100%; display:block; }
+section{ position:relative; }
+.wrap{ max-width:1240px; margin:0 auto; padding:0 24px; }
+
+/* ═══════════ PRELOADER ═══════════ */
+#preloader{
+  position:fixed; inset:0; z-index:9999;
+  background:var(--emerald-deep);
+  display:grid; place-items:center;
+  transition:clip-path 1s cubic-bezier(.77,0,.18,1), opacity .4s ease .9s;
+  clip-path:circle(150% at 50% 50%);
+}
+#preloader.done{ clip-path:circle(0% at 50% 50%); opacity:0; pointer-events:none; }
+.pre-inner{ text-align:center; }
+.pre-logo{
+  font-family:'Amiri',serif; font-weight:700; font-size:clamp(48px,10vw,86px);
+  color:var(--cream); letter-spacing:2px; min-height:1.2em;
+}
+.pre-logo .cursor{ display:inline-block; width:3px; height:0.85em; background:var(--gold-glow); margin-inline-start:6px; vertical-align:middle; animation:blink .7s steps(1) infinite; }
+@keyframes blink{ 50%{ opacity:0; } }
+.pre-ring{
+  width:70px; height:70px; margin:26px auto 0;
+  border:2px solid rgba(191,154,69,0.25); border-top-color:var(--gold);
+  border-radius:50%; animation:spin 1s linear infinite;
+}
+@keyframes spin{ to{ transform:rotate(360deg); } }
+.pre-tagline{ margin-top:18px; color:var(--gold-soft); font-size:14px; letter-spacing:3px; opacity:0; animation:fadeIn .6s ease 1s forwards; }
+
+/* ═══════════ NAVBAR ═══════════ */
+.nav{
+  position:fixed; top:0; inset-inline:0; z-index:900;
+  padding:18px 0; transition:all .4s ease;
+}
+.nav.scrolled{
+  padding:11px 0; background:color-mix(in srgb, var(--cream) 82%, transparent);
+  backdrop-filter:blur(16px); box-shadow:0 6px 24px rgba(0,0,0,0.06);
+  border-bottom:1px solid var(--line);
+}
+.nav-in{ display:flex; align-items:center; justify-content:space-between; gap:20px; }
+.brand{ display:flex; align-items:center; gap:12px; }
+.brand-mark{
+  width:46px; height:46px; flex-shrink:0; position:relative;
+  display:grid; place-items:center;
+  background:linear-gradient(140deg,var(--emerald),var(--emerald-2));
+  border-radius:14px; box-shadow:0 6px 16px rgba(13,107,79,0.3);
+}
+.brand-mark span{ font-family:'Amiri',serif; font-weight:700; font-size:26px; color:var(--cream); }
+.brand-mark::after{ content:''; position:absolute; inset:-3px; border:1.5px solid var(--gold); border-radius:16px; opacity:.55; }
+.brand-txt b{ font-family:'Amiri',serif; font-size:23px; color:var(--ink); display:block; line-height:1.1; }
+.brand-txt small{ font-size:11px; color:var(--ink-soft); }
+.nav-links{ display:flex; align-items:center; gap:6px; }
+.nav-links a.lnk{ padding:9px 15px; border-radius:10px; font-size:15px; font-weight:500; color:var(--ink-soft); transition:all .25s ease; }
+.nav-links a.lnk:hover{ color:var(--emerald); background:color-mix(in srgb,var(--emerald) 8%, transparent); }
+.nav-cta{
+  padding:10px 22px !important; border-radius:999px;
+  background:linear-gradient(135deg,var(--emerald),var(--emerald-2));
+  color:var(--cream) !important; font-weight:600;
+  box-shadow:0 8px 20px rgba(13,107,79,0.28); transition:all .3s ease !important;
+}
+.nav-cta:hover{ transform:translateY(-2px) scale(1.03); box-shadow:0 12px 26px rgba(13,107,79,0.4); }
+.theme-btn{
+  width:42px; height:42px; border-radius:12px; border:1px solid var(--line);
+  background:transparent; cursor:pointer; display:grid; place-items:center;
+  color:var(--ink); transition:all .3s ease; font-size:19px;
+}
+.theme-btn:hover{ transform:rotate(180deg); border-color:var(--gold); color:var(--gold); }
+.burger{ display:none; flex-direction:column; gap:5px; width:42px; height:42px; border:none; background:transparent; cursor:pointer; justify-content:center; align-items:center; }
+.burger span{ width:24px; height:2.5px; background:var(--ink); border-radius:2px; transition:all .3s ease; }
+.burger.open span:nth-child(1){ transform:translateY(7.5px) rotate(45deg); }
+.burger.open span:nth-child(2){ opacity:0; }
+.burger.open span:nth-child(3){ transform:translateY(-7.5px) rotate(-45deg); }
+
+/* ═══════════ HERO ═══════════ */
+.hero{
+  min-height:100vh; display:flex; align-items:center;
+  padding:120px 0 80px; overflow:hidden;
+  background:
+    radial-gradient(ellipse at 75% 20%, rgba(19,152,122,0.10), transparent 55%),
+    radial-gradient(ellipse at 20% 80%, rgba(191,154,69,0.10), transparent 50%),
+    var(--cream);
+}
+.hero-grid{ display:grid; grid-template-columns:1.15fr 0.85fr; gap:50px; align-items:center; }
+.hero-eyebrow{
+  display:inline-flex; align-items:center; gap:9px;
+  padding:8px 16px; border-radius:999px;
+  background:color-mix(in srgb,var(--emerald) 10%, transparent);
+  border:1px solid var(--line); color:var(--emerald);
+  font-size:13.5px; font-weight:600; margin-bottom:24px;
+}
+.hero-eyebrow .pulse{ width:8px; height:8px; border-radius:50%; background:var(--gold); box-shadow:0 0 0 0 rgba(191,154,69,0.6); animation:ping 2s infinite; }
+@keyframes ping{ 0%{ box-shadow:0 0 0 0 rgba(191,154,69,0.5); } 70%{ box-shadow:0 0 0 10px rgba(191,154,69,0); } 100%{ box-shadow:0 0 0 0 rgba(191,154,69,0); } }
+.hero h1{
+  font-size:clamp(44px,6.5vw,82px); line-height:1.08; font-weight:700;
+  color:var(--ink); margin-bottom:10px; letter-spacing:-1px;
+}
+.hero h1 .word{ display:inline-block; opacity:0; transform:translateY(28px); }
+.hero h1 .gold{
+  background:linear-gradient(95deg,var(--gold-glow),var(--gold),var(--gold-glow));
+  background-size:200% auto; -webkit-background-clip:text; background-clip:text;
+  -webkit-text-fill-color:transparent; animation:shimmer 3.5s linear infinite;
+}
+@keyframes shimmer{ to{ background-position:200% center; } }
+.hero-ayah{
+  font-family:'Amiri',serif; font-size:clamp(18px,2.3vw,25px); color:var(--emerald);
+  margin:16px 0 18px; opacity:0; padding-inline-start:18px;
+  border-inline-start:3px solid var(--gold);
+}
+.hero-lead{ font-size:clamp(16px,1.7vw,18.5px); color:var(--ink-soft); max-width:540px; margin-bottom:32px; opacity:0; }
+.hero-cta{ display:flex; gap:14px; flex-wrap:wrap; opacity:0; }
+.btn-primary{
+  display:inline-flex; align-items:center; gap:10px; position:relative; overflow:hidden;
+  padding:15px 32px; border-radius:999px; font-size:16.5px; font-weight:600;
+  background:linear-gradient(135deg,var(--emerald),var(--emerald-2));
+  color:var(--cream); box-shadow:var(--shadow-e); border:none; cursor:pointer;
+  transition:transform .3s ease, box-shadow .3s ease;
+}
+.btn-primary:hover{ transform:translateY(-3px); box-shadow:0 30px 55px -12px rgba(13,107,79,0.4); }
+.btn-primary::after{ content:''; position:absolute; top:0; inset-inline-start:-120%; width:70%; height:100%; background:linear-gradient(110deg,transparent,rgba(255,255,255,0.4),transparent); transform:skewX(-20deg); transition:inset-inline-start .6s ease; }
+.btn-primary:hover::after{ inset-inline-start:160%; }
+.btn-ghost{
+  display:inline-flex; align-items:center; gap:10px;
+  padding:15px 28px; border-radius:999px; font-size:16px; font-weight:600;
+  background:transparent; color:var(--emerald); border:1.5px solid var(--emerald);
+  cursor:pointer; transition:all .3s ease;
+}
+.btn-ghost:hover{ background:var(--emerald); color:var(--cream); transform:translateY(-3px); }
+.hero-trust{ display:flex; gap:28px; margin-top:40px; opacity:0; }
+.hero-trust .ht b{ font-family:'Amiri',serif; font-size:30px; color:var(--emerald); display:block; line-height:1; }
+.hero-trust .ht span{ font-size:13px; color:var(--ink-soft); }
+.hero-trust .ht-sep{ width:1px; background:var(--line); }
+
+/* الحصن البصري — العنصر المميّز في البطل */
+.hero-art{ position:relative; display:grid; place-items:center; }
+.fortress{
+  position:relative; width:min(420px,90%); aspect-ratio:1;
+  display:grid; place-items:center;
+}
+.fortress-ring{
+  position:absolute; border-radius:50%; border:1.5px solid var(--line);
+}
+.fortress-ring.r1{ inset:0; animation:spin 50s linear infinite; }
+.fortress-ring.r1::before{ content:''; position:absolute; top:-5px; inset-inline-start:50%; width:10px; height:10px; background:var(--gold); border-radius:50%; box-shadow:0 0 12px var(--gold); }
+.fortress-ring.r2{ inset:42px; border-style:dashed; border-color:color-mix(in srgb,var(--gold) 35%, transparent); animation:spin 38s linear infinite reverse; }
+.fortress-ring.r3{ inset:84px; border-color:var(--line); }
+.fortress-core{
+  width:54%; aspect-ratio:1; border-radius:32px; position:relative; z-index:2;
+  background:linear-gradient(145deg,var(--emerald),var(--emerald-deep));
+  display:grid; place-items:center; box-shadow:var(--shadow-e);
+  animation:floatY 5s ease-in-out infinite;
+}
+.fortress-core::after{ content:''; position:absolute; inset:-2px; border:1.5px solid var(--gold); border-radius:34px; opacity:.5; }
+.fortress-core .ar{ font-family:'Amiri',serif; font-size:clamp(56px,9vw,82px); color:var(--cream); }
+@keyframes floatY{ 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-12px); } }
+/* بطاقات إحصاء عائمة */
+.float-stat{
+  position:absolute; z-index:3; padding:13px 18px; border-radius:16px;
+  background:color-mix(in srgb,var(--cream) 75%, transparent); backdrop-filter:blur(14px);
+  border:1px solid var(--line); box-shadow:0 12px 30px rgba(0,0,0,0.08);
+  display:flex; align-items:center; gap:11px; animation:floatY 4s ease-in-out infinite;
+}
+.float-stat .ic{ width:38px; height:38px; border-radius:11px; display:grid; place-items:center; font-size:20px; background:color-mix(in srgb,var(--emerald) 12%, transparent); }
+.float-stat b{ font-family:'Amiri'; font-size:19px; color:var(--emerald); display:block; line-height:1; }
+.float-stat span{ font-size:11.5px; color:var(--ink-soft); }
+.fs-1{ top:8%; inset-inline-start:-4%; animation-delay:.2s; }
+.fs-2{ top:46%; inset-inline-end:-8%; animation-delay:1.1s; }
+.fs-3{ bottom:6%; inset-inline-start:6%; animation-delay:.6s; }
+
+.scroll-cue{ position:absolute; bottom:26px; inset-inline-start:50%; transform:translateX(50%); color:var(--gold); animation:floatY 2s ease-in-out infinite; font-size:24px; }
+
+/* ═══════════ عام للأقسام ═══════════ */
+.sec{ padding:100px 0; }
+.sec-dark{ background:linear-gradient(165deg,var(--emerald-deep),var(--emerald)); color:var(--cream); }
+.sec-cream{ background:var(--cream-2); }
+.sec-head{ text-align:center; max-width:680px; margin:0 auto 60px; }
+.tag{
+  display:inline-block; padding:7px 18px; border-radius:999px; font-size:13px; font-weight:600;
+  background:color-mix(in srgb,var(--gold) 16%, transparent); color:var(--gold);
+  margin-bottom:16px; letter-spacing:.5px;
+}
+.sec-dark .tag{ background:rgba(243,217,139,0.16); color:var(--gold-glow); }
+.sec-head h2{ font-size:clamp(32px,4.5vw,52px); line-height:1.15; margin-bottom:14px; }
+.sec-head p{ font-size:17px; color:var(--ink-soft); }
+.sec-dark .sec-head p{ color:rgba(251,248,241,0.78); }
+
+/* أدوات الكشف عند التمرير */
+.reveal{ opacity:0; transform:translateY(34px); transition:opacity .8s cubic-bezier(.22,.61,.36,1), transform .8s cubic-bezier(.22,.61,.36,1); }
+.reveal.in{ opacity:1; transform:translateY(0); }
+@media (prefers-reduced-motion: reduce){ *{ animation:none !important; transition:none !important; } .reveal{ opacity:1; transform:none; } }
+
+/* ═══════════ شريط الثقة (Marquee) ═══════════ */
+.trust-bar{ padding:30px 0; background:var(--cream); border-block:1px solid var(--line); overflow:hidden; }
+.marquee{ display:flex; gap:60px; width:max-content; animation:marquee 28s linear infinite; }
+.marquee .mq{ display:flex; align-items:center; gap:10px; font-size:16px; font-weight:600; color:var(--ink-soft); white-space:nowrap; }
+.marquee .mq .d{ color:var(--gold); font-size:20px; }
+@keyframes marquee{ to{ transform:translateX(50%); } }
+
+/* ═══════════ الحصون الخمسة ═══════════ */
+.husoon-grid{ display:grid; grid-template-columns:repeat(5,1fr); gap:22px; }
+.hisn{
+  background:var(--cream); border:1px solid var(--line); border-radius:24px; padding:32px 22px;
+  position:relative; transition:transform .35s cubic-bezier(.22,.61,.36,1), box-shadow .35s ease, border-color .35s ease;
+}
+.sec-dark .hisn{ background:rgba(255,255,255,0.06); border-color:rgba(255,255,255,0.12); }
+.hisn:hover{ transform:translateY(-10px); box-shadow:var(--shadow-e); border-color:var(--gold); }
+.hisn-num{
+  position:absolute; top:18px; inset-inline-end:18px; width:30px; height:30px; border-radius:50%;
+  background:linear-gradient(135deg,var(--gold),var(--gold-soft)); color:var(--emerald-deep);
+  display:grid; place-items:center; font-weight:700; font-family:'Amiri'; font-size:16px;
+}
+.hisn-ic{
+  width:66px; height:66px; border-radius:20px; display:grid; place-items:center; font-size:32px;
+  background:color-mix(in srgb,var(--emerald) 12%, transparent); margin-bottom:18px;
+  transition:transform .35s ease;
+}
+.sec-dark .hisn-ic{ background:rgba(243,217,139,0.14); }
+.hisn:hover .hisn-ic{ transform:scale(1.12) rotate(-6deg); }
+.hisn h3{ font-size:21px; margin-bottom:8px; color:inherit; }
+.hisn p{ font-size:14px; color:var(--ink-soft); line-height:1.7; }
+.sec-dark .hisn p{ color:rgba(251,248,241,0.72); }
+
+/* ═══════════ المسارات ═══════════ */
+.paths-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:24px; }
+.path-card{
+  background:var(--cream); border:1px solid var(--line); border-radius:24px; padding:30px;
+  position:relative; overflow:hidden; cursor:default;
+  transition:transform .35s cubic-bezier(.22,.61,.36,1), box-shadow .35s ease, border-color .35s ease;
+}
+.path-card:hover{ transform:translateY(-8px) scale(1.015); box-shadow:var(--shadow-e); border-color:var(--emerald); }
+.path-card .pc-fill{ position:absolute; inset-inline:0; bottom:0; height:var(--fill,40%); background:linear-gradient(0deg,color-mix(in srgb,var(--emerald) 9%, transparent),transparent); pointer-events:none; transition:height .5s ease; }
+.path-card.featured{ border:2px solid var(--gold); box-shadow:var(--shadow-g); }
+.pc-badge{ position:absolute; top:16px; inset-inline-end:16px; padding:5px 13px; border-radius:999px; background:linear-gradient(135deg,var(--gold),var(--gold-soft)); color:var(--emerald-deep); font-size:12px; font-weight:700; }
+.pc-icon{ font-size:40px; margin-bottom:14px; position:relative; z-index:2; }
+.path-card h3{ font-size:23px; margin-bottom:8px; position:relative; z-index:2; }
+.path-card .pc-meta{ display:flex; gap:14px; margin:14px 0; position:relative; z-index:2; flex-wrap:wrap; }
+.path-card .pc-meta span{ font-size:13px; color:var(--ink-soft); display:flex; align-items:center; gap:5px; }
+.path-card .pc-meta b{ color:var(--emerald); }
+.pc-cta{ display:inline-block; margin-top:6px; color:var(--emerald); font-weight:600; font-size:15px; position:relative; z-index:2; opacity:0; transform:translateX(10px); transition:all .3s ease; }
+.path-card:hover .pc-cta{ opacity:1; transform:translateX(0); }
+.smart-note{
+  margin-top:36px; padding:22px 26px; border-radius:18px; display:flex; gap:16px; align-items:flex-start;
+  background:color-mix(in srgb,var(--gold) 9%, var(--cream)); border-inline-start:4px solid var(--gold);
+}
+.smart-note .sn-ic{ font-size:28px; flex-shrink:0; }
+.smart-note b{ color:var(--emerald); }
+.smart-note p{ font-size:15px; color:var(--ink-soft); }
+
+/* ═══════════ كيف نعمل (Timeline) ═══════════ */
+.timeline{ position:relative; max-width:860px; margin:0 auto; }
+.timeline::before{ content:''; position:absolute; inset-inline-start:50%; top:0; bottom:0; width:2px; background:var(--line); transform:translateX(50%); }
+.tl-step{ position:relative; display:grid; grid-template-columns:1fr auto 1fr; gap:24px; align-items:center; margin-bottom:14px; }
+.tl-card{ background:var(--cream); border:1px solid var(--line); border-radius:18px; padding:20px 24px; box-shadow:0 6px 18px rgba(0,0,0,0.04); }
+.tl-card h4{ font-family:'Amiri'; font-size:20px; color:var(--emerald); margin-bottom:5px; }
+.tl-card p{ font-size:14px; color:var(--ink-soft); }
+.tl-dot{ width:62px; height:62px; border-radius:50%; background:linear-gradient(140deg,var(--emerald),var(--emerald-2)); display:grid; place-items:center; font-size:26px; color:var(--cream); box-shadow:0 8px 20px rgba(13,107,79,0.3); z-index:2; flex-shrink:0; position:relative; }
+.tl-dot::after{ content:attr(data-n); position:absolute; font-family:'Amiri'; font-size:64px; color:var(--line); z-index:-1; inset-inline-start:50%; top:50%; transform:translate(50%,-50%); }
+.tl-card:empty{ visibility:hidden; }
+
+/* ═══════════ الأسعار ═══════════ */
+.price-toggle{ display:flex; align-items:center; justify-content:center; gap:14px; margin-bottom:40px; }
+.price-toggle span{ font-weight:600; color:var(--ink-soft); }
+.price-toggle span.on{ color:var(--emerald); }
+.switch{ width:54px; height:30px; border-radius:999px; background:var(--emerald); position:relative; cursor:pointer; transition:background .3s; }
+.switch .knob{ position:absolute; top:3px; inset-inline-end:3px; width:24px; height:24px; border-radius:50%; background:#fff; transition:inset-inline-end .3s; }
+.switch.year .knob{ inset-inline-end:27px; }
+.save-badge{ padding:4px 11px; border-radius:999px; background:color-mix(in srgb,var(--gold) 18%, transparent); color:var(--gold); font-size:12px; font-weight:700; }
+.pricing-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:24px; align-items:center; }
+.price-card{ background:var(--cream); border:1px solid var(--line); border-radius:26px; padding:36px 30px; text-align:center; transition:transform .35s ease, box-shadow .35s ease; }
+.price-card:hover{ transform:translateY(-6px); box-shadow:var(--shadow-e); }
+.price-card.pop{ background:linear-gradient(180deg,color-mix(in srgb,var(--emerald) 7%, var(--cream)),var(--cream)); border:2px solid var(--gold); box-shadow:var(--shadow-g); transform:scale(1.04); }
+.price-card.pop:hover{ transform:scale(1.04) translateY(-6px); }
+.pc-name{ font-family:'Amiri'; font-size:24px; color:var(--emerald); margin-bottom:6px; }
+.pc-pop-badge{ display:inline-block; padding:5px 15px; border-radius:999px; background:linear-gradient(135deg,var(--gold),var(--gold-soft)); color:var(--emerald-deep); font-size:12px; font-weight:700; margin-bottom:12px; }
+.pc-price{ font-family:'Amiri'; font-size:46px; color:var(--ink); line-height:1; margin:10px 0; }
+.pc-price small{ font-size:16px; color:var(--ink-soft); font-family:'IBM Plex Sans Arabic'; }
+.pc-feats{ list-style:none; margin:24px 0; text-align:start; display:flex; flex-direction:column; gap:12px; }
+.pc-feats li{ display:flex; align-items:center; gap:10px; font-size:14.5px; color:var(--ink-soft); }
+.pc-feats li .ck{ color:var(--emerald); font-weight:700; }
+.price-card .btn-primary{ width:100%; justify-content:center; }
+
+/* ═══════════ FAQ ═══════════ */
+.faq-list{ max-width:780px; margin:0 auto; display:flex; flex-direction:column; gap:14px; }
+.faq-item{ background:var(--cream); border:1px solid var(--line); border-radius:16px; overflow:hidden; transition:border-color .3s ease; }
+.faq-item:hover{ border-color:color-mix(in srgb,var(--emerald) 30%, transparent); }
+.faq-q{ padding:20px 24px; display:flex; align-items:center; justify-content:space-between; gap:14px; cursor:pointer; font-weight:600; font-size:16.5px; color:var(--emerald); }
+.faq-q .ar{ transition:transform .35s ease; color:var(--gold); flex-shrink:0; }
+.faq-item.open .faq-q .ar{ transform:rotate(180deg); }
+.faq-a{ max-height:0; overflow:hidden; transition:max-height .4s ease, padding .4s ease; padding:0 24px; }
+.faq-item.open .faq-a{ max-height:240px; padding:0 24px 22px; }
+.faq-a p{ color:var(--ink-soft); font-size:15px; line-height:1.8; }
+
+/* ═══════════ CTA النهائي ═══════════ */
+.cta-final{ padding:90px 0; background:linear-gradient(135deg,var(--emerald-deep),var(--emerald) 60%,#0a5840); color:var(--cream); text-align:center; position:relative; overflow:hidden; }
+.cta-final::before{ content:''; position:absolute; inset:0; background-image:url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M40 0l11 29 29 11-29 11-11 29-11-29L0 40l29-11z' fill='%23ffffff' fill-opacity='0.04'/%3E%3C/svg%3E"); }
+.cta-final .wrap{ position:relative; z-index:2; }
+.cta-final h2{ font-size:clamp(32px,5vw,52px); margin-bottom:14px; }
+.cta-final p{ font-size:18px; opacity:.85; margin-bottom:32px; }
+.cta-big{
+  display:inline-flex; align-items:center; gap:12px; padding:18px 44px; border-radius:999px;
+  background:linear-gradient(135deg,var(--gold-glow),var(--gold)); color:var(--emerald-deep);
+  font-weight:700; font-size:19px; box-shadow:var(--shadow-g); border:none; cursor:pointer;
+  transition:transform .3s ease, box-shadow .3s ease;
+}
+.cta-big:hover{ transform:translateY(-4px) scale(1.04); box-shadow:0 24px 50px -8px rgba(191,154,69,0.5); }
+
+/* ═══════════ FOOTER ═══════════ */
+.footer{ background:var(--emerald-deep); color:rgba(251,248,241,0.82); padding:60px 0 26px; }
+html.dark .footer{ background:#081912; }
+.foot-grid{ display:grid; grid-template-columns:1.4fr 1fr 1.3fr; gap:36px; margin-bottom:40px; }
+.foot-col h4{ font-family:'Amiri'; font-size:20px; color:var(--gold-glow); margin-bottom:16px; }
+.foot-brand{ display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+.foot-brand .bm{ width:44px; height:44px; border-radius:13px; background:linear-gradient(140deg,var(--emerald),var(--emerald-2)); display:grid; place-items:center; font-family:'Amiri'; font-size:24px; color:var(--cream); }
+.foot-brand b{ font-family:'Amiri'; font-size:22px; color:var(--cream); }
+.foot-col p{ font-size:14px; line-height:1.8; }
+.foot-col a{ display:block; font-size:14.5px; padding:6px 0; transition:color .25s, padding-inline-start .25s; }
+.foot-col a:hover{ color:var(--gold-glow); padding-inline-start:6px; }
+
+
+
+
+
+
+
+.foot-bottom{ text-align:center; padding-top:24px; border-top:1px solid rgba(255,255,255,0.1); font-size:13.5px; color:rgba(251,248,241,0.6); }
+
+/* ═══════════ RESPONSIVE ═══════════ */
+@media (max-width:1024px){
+  .hero-grid{ grid-template-columns:1fr; gap:40px; }
+  .hero-art{ order:-1; }
+  .fortress{ width:min(340px,80%); }
+  .husoon-grid{ grid-template-columns:repeat(2,1fr); }
+  .paths-grid,.pricing-grid{ grid-template-columns:repeat(2,1fr); }
+  .foot-grid{ grid-template-columns:1fr 1fr; gap:28px; }
+}
+@media (max-width:680px){
+  .nav-links{ position:fixed; inset:0 0 auto; top:0; flex-direction:column; align-items:stretch; gap:4px; padding:90px 24px 30px; background:var(--cream); transform:translateY(-110%); transition:transform .4s cubic-bezier(.77,0,.18,1); box-shadow:0 20px 40px rgba(0,0,0,0.12); }
+  .nav-links.open{ transform:translateY(0); }
+  .nav-links a.lnk{ font-size:17px; padding:14px 16px; }
+  .nav-cta{ text-align:center; margin-top:8px; }
+  .burger{ display:flex; }
+  .husoon-grid,.paths-grid,.pricing-grid{ grid-template-columns:1fr; }
+  .price-card.pop{ transform:none; }
+  .timeline::before{ inset-inline-start:31px; }
+  .tl-step{ grid-template-columns:auto 1fr; gap:16px; }
+  .tl-card.left:empty, .tl-card.right:empty{ display:none; }
+  .tl-step:nth-child(odd) .tl-card.right, .tl-step:nth-child(even) .tl-card.left{ visibility:visible; }
+  .tl-dot{ width:54px; height:54px; font-size:22px; }
+  .foot-grid{ grid-template-columns:1fr; }
+  .hero-trust{ gap:18px; }
+  .pyr-level{ width:100% !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════ PRELOADER ═══════════ -->
+<div id="preloader">
+  <div class="pre-inner">
+    <div class="pre-logo" id="preLogo"><span class="cursor"></span></div>
+    <div class="pre-ring"></div>
+    <div class="pre-tagline">كونوا ربّانيين</div>
+  </div>
+</div>
+
+<!-- ═══════════ NAVBAR ═══════════ -->
+<nav class="nav" id="nav">
+  <div class="wrap nav-in">
+    <a class="brand" href="#top">
+      <div class="brand-mark"><span>ر</span></div>
+      <div class="brand-txt"><b>ربّانيون</b><small>منصة القرآن وبناء الإنسان</small></div>
+    </a>
+    <div class="nav-links" id="navLinks">
+      <a class="lnk" href="#husoon">الحصون الخمسة</a>
+      <a class="lnk" href="#paths">المسارات</a>
+      <a class="lnk" href="#how">كيف نعمل</a>
+      <a class="lnk" href="#pricing">الأسعار</a>
+      <a class="lnk" href="#faq">الأسئلة</a>
+      <a class="lnk nav-cta" href="index.html#signup">ابدأ رحلتك</a>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <button class="theme-btn" id="themeBtn" aria-label="الوضع الليلي">🌙</button>
+      <button class="burger" id="burger" aria-label="القائمة"><span></span><span></span><span></span></button>
+    </div>
+  </div>
+</nav>
+
+<!-- ═══════════ HERO ═══════════ -->
+<header class="hero" id="top">
+  <div class="wrap hero-grid">
+    <div class="hero-text">
+      <div class="hero-eyebrow"><span class="pulse"></span> أكاديمية إلكترونية لتعليم القرآن وبناء الإنسان</div>
+      <h1><span class="word">كونوا</span> <span class="word gold">ربّانيين</span></h1>
+      <div class="hero-ayah">﴿ كونوا ربّانيين بما كنتم تُعلّمون الكتاب وبما كنتم تدرسون ﴾</div>
+      <p class="hero-lead">حلقات قرآن فرديّة بمنهج إتقان واضح، ومتابعة يومية عبر الحصون الخمسة — وكل خطوة في رحلة المتعلّم أمام عينيك.</p>
+      <div class="hero-cta">
+        <a class="btn-primary" href="index.html#signup">ابدأ رحلتك الآن <span>←</span></a>
+        <a class="btn-ghost" href="#husoon">▶ كيف نعمل</a>
+      </div>
+      <div class="hero-trust">
+        <div class="ht"><b id="c1">5</b><span>حصون للإتقان</span></div>
+        <div class="ht-sep"></div>
+        <div class="ht"><b id="c2">6</b><span>مسارات متدرّجة</span></div>
+        <div class="ht-sep"></div>
+        <div class="ht"><b id="c3">1:1</b><span>حلقات فرديّة</span></div>
+      </div>
+    </div>
+    <div class="hero-art">
+      <div class="fortress">
+        <div class="fortress-ring r1"></div>
+        <div class="fortress-ring r2"></div>
+        <div class="fortress-ring r3"></div>
+        <div class="fortress-core"><span class="ar">ﭐ</span></div>
+        <div class="float-stat fs-1"><div class="ic">📖</div><div><b>الحفظ</b><span>الجديد اليومي</span></div></div>
+        <div class="float-stat fs-2"><div class="ic">🔁</div><div><b>المراجعة</b><span>القريب والبعيد</span></div></div>
+        <div class="float-stat fs-3"><div class="ic">📊</div><div><b>المتابعة</b><span>الدورية لتقدمك</span></div></div>
+      </div>
+    </div>
+  </div>
+  <a class="scroll-cue" href="#husoon">⌄</a>
+</header>
+
+<!-- بقية الأقسام تُضاف هنا -->
+
+<!-- ═══════════ شريط الثقة ═══════════ -->
+<div class="trust-bar">
+  <div class="marquee">
+    <div class="mq">🕌 منهج إتقان أصيل <span class="d">✦</span></div>
+    <div class="mq">🔒 بيئة آمنة ومنضبطة <span class="d">✦</span></div>
+    <div class="mq">👤 حلقات فرديّة 1:1 <span class="d">✦</span></div>
+    <div class="mq">📊 متابعة يومية دقيقة <span class="d">✦</span></div>
+    <div class="mq">👨‍👩‍👧 ولي الأمر يتابع لحظياً <span class="d">✦</span></div>
+    <div class="mq">⚖️ فصل بين الجنسين <span class="d">✦</span></div>
+    <!-- تكرار للسلاسة -->
+    <div class="mq">🕌 منهج إتقان أصيل <span class="d">✦</span></div>
+    <div class="mq">🔒 بيئة آمنة ومنضبطة <span class="d">✦</span></div>
+    <div class="mq">👤 حلقات فرديّة 1:1 <span class="d">✦</span></div>
+    <div class="mq">📊 متابعة يومية دقيقة <span class="d">✦</span></div>
+    <div class="mq">👨‍👩‍👧 ولي الأمر يتابع لحظياً <span class="d">✦</span></div>
+    <div class="mq">⚖️ فصل بين الجنسين <span class="d">✦</span></div>
+  </div>
+</div>
+
+<!-- ═══════════ الحصون الخمسة ═══════════ -->
+<section class="sec sec-dark" id="husoon">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="tag">قلب المنهج</div>
+      <h2>الحصون الخمسة</h2>
+      <p>ليس المهمّ كم تحفظ، بل كم يبقى معك. خمس مهامّ يومية تُحصّن المحفوظ من الضياع.</p>
+    </div>
+    <div class="husoon-grid">
+      <div class="hisn reveal"><div class="hisn-num">١</div><div class="hisn-ic">📖</div><h3>الحفظ الجديد</h3><p>المقدار اليومي بطريقة التغييب والربط لتثبيت أوّليّ متين.</p></div>
+      <div class="hisn reveal"><div class="hisn-num">٢</div><div class="hisn-ic">🔁</div><h3>مراجعة القريب</h3><p>تعهّد آخر ما حُفِظ حتى عشر صفحات قبل الحفظ الجديد.</p></div>
+      <div class="hisn reveal"><div class="hisn-num">٣</div><div class="hisn-ic">📕</div><h3>القراءة اليومية</h3><p>قراءة وجهين من المصحف لتليين الحفظ وزيادة الأُنس بالكتاب.</p></div>
+      <div class="hisn reveal"><div class="hisn-num">٤</div><div class="hisn-ic">🏛️</div><h3>مراجعة البعيد</h3><p>تثبيت المحفوظ القديم موزّعاً على أيام الأسبوع بانتظام.</p></div>
+      <div class="hisn reveal"><div class="hisn-num">٥</div><div class="hisn-ic">🎧</div><h3>ورد السماع</h3><p>سماع وجهين يومياً بصوت قارئ متقن للضبط ومنع الخطأ.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ المسارات ═══════════ -->
+<section class="sec" id="paths">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="tag">حفظ القرآن</div>
+      <h2>اختر مسارك</h2>
+      <p>ستة مسارات متدرّجة، كل مسار بخطّة إتقان كاملة ومدّة متوقّعة واضحة.</p>
+    </div>
+    <div class="paths-grid">
+      <div class="path-card reveal" style="--fill:35%"><div class="pc-fill"></div><div class="pc-icon">🌙</div><h3>جزء عمّ وتبارك</h3><div class="pc-meta"><span>⏱ <b>٤–٥ أشهر</b></span><span>📄 نصف صفحة يومياً</span></div><p style="position:relative;z-index:2;font-size:14px;color:var(--ink-soft)">بداية مباركة لمن يريد إتقان قصار السور.</p><span class="pc-cta">ابدأ هذا المسار ←</span></div>
+
+      <div class="path-card featured reveal" style="--fill:55%"><div class="pc-fill"></div><div class="pc-badge">الأكثر طلباً</div><div class="pc-icon">⭐</div><h3>الزهراوان</h3><div class="pc-meta"><span>⏱ <b>١٠–١٢ شهراً</b></span><span>📄 نصف صفحة</span></div><p style="position:relative;z-index:2;font-size:14px;color:var(--ink-soft)">سورتا البقرة وآل عمران — نور لصاحبهما يوم القيامة.</p><span class="pc-cta">ابدأ هذا المسار ←</span></div>
+
+      <div class="path-card reveal" style="--fill:50%"><div class="pc-fill"></div><div class="pc-icon">📖</div><h3>المفصّل</h3><div class="pc-meta"><span>⏱ <b>سنة – سنة ونصف</b></span><span>📄 نصف–صفحة</span></div><p style="position:relative;z-index:2;font-size:14px;color:var(--ink-soft)">من ق إلى الناس، أكثر ما يُتلى في الصلوات.</p><span class="pc-cta">ابدأ هذا المسار ←</span></div>
+
+      <div class="path-card reveal" style="--fill:60%"><div class="pc-fill"></div><div class="pc-icon">🌿</div><h3>ربع القرآن</h3><div class="pc-meta"><span>⏱ <b>٨–١٠ أشهر</b></span><span>📄 صفحة يومياً</span></div><p style="position:relative;z-index:2;font-size:14px;color:var(--ink-soft)">خطوة جادّة نحو حفظ كتاب الله كاملاً.</p><span class="pc-cta">ابدأ هذا المسار ←</span></div>
+
+      <div class="path-card reveal" style="--fill:78%"><div class="pc-fill"></div><div class="pc-icon">✦</div><h3>نصف القرآن</h3><div class="pc-meta"><span>⏱ <b>سنة ونصف – سنتان</b></span><span>📄 صفحة–صفحتان</span></div><p style="position:relative;z-index:2;font-size:14px;color:var(--ink-soft)">منتصف الطريق إلى شرف حملة القرآن.</p><span class="pc-cta">ابدأ هذا المسار ←</span></div>
+
+      <div class="path-card reveal" style="--fill:100%"><div class="pc-fill"></div><div class="pc-icon">🕌</div><h3>القرآن كاملاً</h3><div class="pc-meta"><span>⏱ <b>سنتان – ثلاث</b></span><span>📄 صفحتان يومياً</span></div><p style="position:relative;z-index:2;font-size:14px;color:var(--ink-soft)">الغاية الكبرى: أن تكون من أهل الله وخاصّته.</p><span class="pc-cta">ابدأ هذا المسار ←</span></div>
+    </div>
+    <div class="smart-note reveal">
+      <div class="sn-ic">💡</div>
+      <p><b>ميزة ذكيّة:</b> يراعي النظام أنّ كثيراً من المتعلّمين قد حفظوا من سورة الناس حتى البيّنة، فيُعامل هذا الجزء كـ«مراجعة ماضٍ» ويبدأ الحفظ الجديد ممّا بعده — توفيراً للوقت ومنعاً للتكرار.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ كيف نعمل ═══════════ -->
+<section class="sec sec-cream" id="how">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="tag">رحلة المتعلّم</div>
+      <h2>رحلتك خطوة بخطوة</h2>
+      <p>من التسجيل حتى أوّل حصّة مع معلّمك — مسار واضح وسلس.</p>
+    </div>
+    <div class="timeline">
+      <div class="tl-step reveal"><div class="tl-card left"><h4>التسجيل</h4><p>أنشئ حسابك بخطوات بسيطة وابدأ رحلتك.</p></div><div class="tl-dot" data-n="١">📝</div><div class="tl-card right"></div></div>
+      <div class="tl-step reveal"><div class="tl-card left"></div><div class="tl-dot" data-n="٢">🗺️</div><div class="tl-card right"><h4>اختيار المسار</h4><p>اختر مسارك فتظهر لك خطّته المتوقّعة ومدّته.</p></div></div>
+      <div class="tl-step reveal"><div class="tl-card left"><h4>الاستبيان</h4><p>أخبرنا عن خبرتك السابقة وصعوباتك لنناسبك.</p></div><div class="tl-dot" data-n="٣">📋</div><div class="tl-card right"></div></div>
+      <div class="tl-step reveal"><div class="tl-card left"></div><div class="tl-dot" data-n="٤">💳</div><div class="tl-card right"><h4>الاشتراك</h4><p>ارفع إيصالك فيؤكّده المشرف ويُفعّل اشتراكك.</p></div></div>
+      <div class="tl-step reveal"><div class="tl-card left"><h4>اختيار المعلّم</h4><p>تظهر لك المعلّمون المناسبون فتختار معلّمك.</p></div><div class="tl-dot" data-n="٥">🧑‍🏫</div><div class="tl-card right"></div></div>
+      <div class="tl-step reveal"><div class="tl-card left"></div><div class="tl-dot" data-n="٦">💬</div><div class="tl-card right"><h4>بدء التواصل</h4><p>نسّق مع معلّمك مواعيد حلقتك الخاصّة.</p></div></div>
+      <div class="tl-step reveal"><div class="tl-card left"><h4>إنشاء الحلقة</h4><p>يُنشئ معلّمك حلقتك الفرديّة الخاصّة بك.</p></div><div class="tl-dot" data-n="٧">🕌</div><div class="tl-card right"></div></div>
+      <div class="tl-step reveal"><div class="tl-card left"></div><div class="tl-dot" data-n="٨">▶️</div><div class="tl-card right"><h4>أوّل حصّة</h4><p>تدخل حصّتك عبر رابط مباشر، وتبدأ رحلة الإتقان.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ الأسعار ═══════════ -->
+<section class="sec sec-cream" id="pricing">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="tag">الاشتراك</div>
+      <h2>اختر خطّتك</h2>
+      <p>اشتراك شهريّ مرن يناسب التزامك ووقتك. كل الخطط تشمل المتابعة الكاملة.</p>
+    </div>
+    <div class="price-toggle reveal">
+      <span class="on" id="lblMonth">شهريّ</span>
+      <div class="switch" id="priceSwitch"><div class="knob"></div></div>
+      <span id="lblYear">سنويّ</span>
+      <span class="save-badge">وفّر ٢٠٪</span>
+    </div>
+    <div class="pricing-grid">
+      <div class="price-card reveal">
+        <div class="pc-name">المسار الأساسي</div>
+        <div class="pc-price"><span class="amt" data-m="150" data-y="1440">١٥٠</span><small> ج/شهر</small></div>
+        <ul class="pc-feats">
+          <li><span class="ck">✓</span> حصّتان أسبوعياً</li>
+          <li><span class="ck">✓</span> حلقة فرديّة خاصّة</li>
+          <li><span class="ck">✓</span> متابعة الحصون الخمسة</li>
+          <li><span class="ck">✓</span> تقارير دوريّة لوليّ الأمر</li>
+        </ul>
+        <a class="btn-primary" href="index.html#signup">اشترك الآن</a>
+      </div>
+      <div class="price-card pop reveal">
+        <div class="pc-pop-badge">الأكثر اختياراً</div>
+        <div class="pc-name">المسار المتقدّم</div>
+        <div class="pc-price"><span class="amt" data-m="225" data-y="2160">٢٢٥</span><small> ج/شهر</small></div>
+        <ul class="pc-feats">
+          <li><span class="ck">✓</span> ثلاث حصص أسبوعياً</li>
+          <li><span class="ck">✓</span> حلقة فرديّة خاصّة</li>
+          <li><span class="ck">✓</span> متابعة يومية ومحادثة مباشرة</li>
+          <li><span class="ck">✓</span> واجبات ووِرد سماع مخصّص</li>
+          <li><span class="ck">✓</span> أولويّة اختيار المعلّم</li>
+        </ul>
+        <a class="btn-primary" href="index.html#signup">اشترك الآن</a>
+      </div>
+      <div class="price-card reveal">
+        <div class="pc-name">المسار المكثّف</div>
+        <div class="pc-price"><span class="amt" data-m="300" data-y="2880">٣٠٠</span><small> ج/شهر</small></div>
+        <ul class="pc-feats">
+          <li><span class="ck">✓</span> أربع حصص أسبوعياً</li>
+          <li><span class="ck">✓</span> حلقة فرديّة خاصّة</li>
+          <li><span class="ck">✓</span> متابعة مكثّفة وتقارير أسبوعية</li>
+          <li><span class="ck">✓</span> خطّة إتقان مسرّعة</li>
+        </ul>
+        <a class="btn-primary" href="index.html#signup">اشترك الآن</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ الأسئلة الشائعة ═══════════ -->
+<section class="sec" id="faq">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="tag">استفسارات</div>
+      <h2>الأسئلة الشائعة</h2>
+      <p>أجوبة عن أكثر ما يسأل عنه المتعلّمون وأولياء الأمور.</p>
+    </div>
+    <div class="faq-list">
+      <div class="faq-item reveal"><div class="faq-q">كيف تضمن الحصون الخمسة ثبات الحفظ؟ <span class="ar">⌄</span></div><div class="faq-a"><p>الحصون الخمسة توزّع جهد المتعلّم اليومي بين الحفظ الجديد ومراجعة القريب والبعيد والقراءة والسماع. هذا التوازن يمنع نسيان المحفوظ القديم أثناء إضافة الجديد، فيبقى الحفظ متيناً ومتراكماً لا متناثراً.</p></div></div>
+      <div class="faq-item reveal"><div class="faq-q">هل الحلقات فرديّة أم جماعية؟ <span class="ar">⌄</span></div><div class="faq-a"><p>الحلقات فرديّة تماماً (1:1). لكل متعلّم حلقته الخاصّة مع معلّمه، مما يضمن عناية كاملة ومتابعة دقيقة بعيداً عن زحام المجموعات.</p></div></div>
+      <div class="faq-item reveal"><div class="faq-q">كيف يتمّ الفصل بين الجنسين؟ <span class="ar">⌄</span></div><div class="faq-a"><p>النظام يراعي الفصل تلقائياً: الطالب يُوجَّه لمعلّمين ومشرفين من جنسه، والطالبة كذلك. ولا تظهر قنوات التواصل إلا بين من يجوز بينهم التواصل وفق الضوابط.</p></div></div>
+      <div class="faq-item reveal"><div class="faq-q">ما آليّة متابعة وليّ الأمر؟ <span class="ar">⌄</span></div><div class="faq-a"><p>لوليّ الأمر لوحة خاصّة يتابع منها حلقات أبنائه، حصصهم، تقاريرهم، وحالة حصونهم اليومية لحظياً. وإن كان الابن صغيراً، يمكنه متابعة حفظه نيابةً عنه.</p></div></div>
+      <div class="faq-item reveal"><div class="faq-q">هل يمكن تغيير المعلّم؟ <span class="ar">⌄</span></div><div class="faq-a"><p>نعم. يمكن نقل المتعلّم إلى معلّم آخر من نفس المسار ونفس الجنس عند الحاجة، مع الحفاظ على سجلّ تقدّمه كاملاً.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ CTA النهائي ═══════════ -->
+<section class="cta-final">
+  <div class="wrap reveal">
+    <h2>ابدأ رحلتك الربّانية اليوم</h2>
+    <p>انضمّ إلى رحلة إتقان كتاب الله وبناء الإنسان.</p>
+    <a class="cta-big" href="index.html#signup">سجّل الآن <span>←</span></a>
+  </div>
+</section>
+
+<!-- ═══════════ FOOTER ═══════════ -->
+<footer class="footer">
+  <div class="wrap">
+    <div class="foot-grid foot-grid-3">
+      <div class="foot-col">
+        <div class="foot-brand"><div class="bm">ر</div><b>ربّانيون</b></div>
+        <p>منصّة متكاملة لتعليم القرآن الكريم بمنهج الحصون الخمسة، وبناء إنسان ربّانيّ متّصل بكتابه.</p>
+      </div>
+      <div class="foot-col">
+        <h4>روابط سريعة</h4>
+        <a href="#husoon">الحصون الخمسة</a>
+        <a href="#paths">المسارات</a>
+        <a href="#how">كيف نعمل</a>
+        <a href="#pricing">الأسعار</a>
+      </div>
+      <div class="foot-col">
+        <h4>الدعم</h4>
+        <a href="#faq">الأسئلة الشائعة</a>
+        <a href="index.html#login">تسجيل الدخول</a>
+        <a href="https://wa.me/201227958232" target="_blank">💬 تواصل معنا عبر واتساب</a>
+      </div>
+    </div>
+    <div class="foot-bottom">© 2026 ربّانيون — منصّة تعليم القرآن وبناء الإنسان · جميع الحقوق محفوظة</div>
+  </div>
+</footer>
+
+<script>
+/* PRELOADER: تكوين الاسم حرفاً حرفاً */
+(function(){
+  const name='ربّانيون', el=document.getElementById('preLogo');
+  let i=0;
+  function type(){
+    if(i<=name.length){ el.innerHTML=name.slice(0,i)+'<span class="cursor"></span>'; i++; setTimeout(type,180); }
+    else { setTimeout(()=>{ document.getElementById('preloader').classList.add('done'); document.body.style.overflow=''; },650); }
+  }
+  document.body.style.overflow='hidden'; setTimeout(type,400);
+})();
+
+/* NAVBAR */
+const nav=document.getElementById('nav'), burger=document.getElementById('burger'), navLinks=document.getElementById('navLinks');
+window.addEventListener('scroll',()=>{ nav.classList.toggle('scrolled',window.scrollY>50); },{passive:true});
+burger.addEventListener('click',()=>{ burger.classList.toggle('open'); navLinks.classList.toggle('open'); });
+navLinks.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{ burger.classList.remove('open'); navLinks.classList.remove('open'); }));
+
+/* الوضع الليلي */
+const themeBtn=document.getElementById('themeBtn');
+themeBtn.addEventListener('click',()=>{
+  document.documentElement.classList.toggle('dark');
+  themeBtn.textContent=document.documentElement.classList.contains('dark')?'☀️':'🌙';
+});
+
+/* كشف العناصر عند التمرير */
+const io=new IntersectionObserver((entries)=>{
+  entries.forEach((e,idx)=>{ if(e.isIntersecting){ setTimeout(()=>e.target.classList.add('in'),(idx%4)*80); io.unobserve(e.target); } });
+},{threshold:0.12, rootMargin:'0px 0px -50px 0px'});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+/* أنيميشن البطل (بعد الـ preloader) */
+window.addEventListener('load',()=>{
+  setTimeout(()=>{
+    document.querySelectorAll('.hero h1 .word').forEach((w,i)=>{
+      setTimeout(()=>{ w.style.transition='opacity .7s ease, transform .7s cubic-bezier(.22,.61,.36,1)'; w.style.opacity='1'; w.style.transform='translateY(0)'; }, i*180);
+    });
+    ['.hero-ayah','.hero-lead','.hero-cta','.hero-trust'].forEach((s,i)=>{
+      const el=document.querySelector(s);
+      if(el) setTimeout(()=>{ el.style.transition='opacity .8s ease'; el.style.opacity='1'; }, 500+i*150);
+    });
+  },2200);
+});
+
+/* FAQ */
+document.querySelectorAll('.faq-item').forEach(item=>{
+  item.querySelector('.faq-q').addEventListener('click',()=>{
+    const open=item.classList.contains('open');
+    document.querySelectorAll('.faq-item').forEach(i=>i.classList.remove('open'));
+    if(!open) item.classList.add('open');
+  });
+});
+
+/* تبديل الأسعار */
+const sw=document.getElementById('priceSwitch'), lblM=document.getElementById('lblMonth'), lblY=document.getElementById('lblYear');
+const arNum=n=>String(n).replace(/[0-9]/g,d=>'٠١٢٣٤٥٦٧٨٩'[d]);
+sw.addEventListener('click',()=>{
+  sw.classList.toggle('year');
+  const isYear=sw.classList.contains('year');
+  lblM.classList.toggle('on',!isYear); lblY.classList.toggle('on',isYear);
+  document.querySelectorAll('.amt').forEach(a=>{
+    a.textContent=arNum(isYear?a.dataset.y:a.dataset.m);
+    a.nextElementSibling.textContent=isYear?' ج/سنة':' ج/شهر';
+  });
+});
+</script>
+
+</body>
+</html>

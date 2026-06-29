@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "routes": [
+    {
+      "src": "^/$",
+      "dest": "/landing.html"
+    },
+    {
+      "src": "^/dashboard$",
+      "dest": "/index.html"
+    },
+    {
+      "src": "^/admin$",
+      "dest": "/index.html"
+    }
+  ]
+}
