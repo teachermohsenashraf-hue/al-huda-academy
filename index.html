@@ -1950,7 +1950,7 @@ function signupForm(){
     <div class="afield"><label>بلد الإقامة الحالي <span class="req">*</span></label><select id="suResidence">${COUNTRIES.map(c=>`<option value="${c}" ${c==='مصر'?'selected':''}>${c}</option>`).join('')}</select></div>
   </div>
   <div id="studentExtra" class="${SIGNUP_ROLE==='student'?'':'hidden'}">
-    <div class="afield"><label>المسار الذي تريده <span class="req">*</span></label><select id="suTrack"><option value="both">المساران (تربية + حفظ)</option><option value="quran">حفظ القرآن</option><option value="tarbiya">التربية وبناء الشخصية</option></select></div>
+    <div class="afield"><label>المسار الذي تريده <span class="req">*</span></label><select id="suTrack"><option value="quran" selected>مسار حفظ القرآن</option><option value="tarbiya" disabled>مسار التربية (سيتوفر قريباً)</option></select></div>
     <div class="afield"><label>بريد وليّ أمرك (اختياري — للربط)</label><input id="suParentEmail" type="email" placeholder="بريد ولي الأمر إن كان مسجلاً"></div>
   </div>
   <div class="arow">
@@ -2074,19 +2074,19 @@ const PAGES = {};
 const MENUS = {
   admin:{ skin:'s-gold', title:'لوحة المدير', sections:[
     {label:'الرئيسية', items:[['dash','🏠','لوحة القيادة'],['analytics','📈','التحليلات']]},
-    {label:'الإدارة', items:[['users','👥','المستخدمون'],['tracks','🎓','المسارات والدورات'],['staff','👨‍🏫','الطاقم'],['content','📚','المحتوى'],['unassigned','⚠️','طلاب بدون حلقة']]},
+    {label:'الإدارة', items:[['users','👥','المستخدمون'],['tracks','🎓','المسارات والدورات'],['staff','👨‍🏫','الطاقم'],['content','📚','المحتوى'],['unassigned','⚠️','طلاب بدون حلقة'],['leads','📋','تسجيلات معلّقة']]},
     {label:'قسم القرآن', items:[['qsystems','🕋','أنظمة القرآن'],['qfortresses','🛡️','الحصون والمحطات'],['qimport','📥','استيراد Excel']]},
     {label:'المالية', items:[['finance','💳','المدفوعات']]},
   ]},
   executive:{ skin:'s-navy', title:'لوحة المدير التنفيذي', sections:[
     {label:'القيادة', items:[['dash','🏛️','نظرة تنفيذية'],['analytics','📈','التحليلات']]},
-    {label:'الإشراف', items:[['team','👔','فريق الإشراف'],['staff','👨‍🏫','المعلمون والحلقات'],['students','🧒','الطلاب']]},
+    {label:'الإشراف', items:[['team','👔','فريق الإشراف'],['staff','👨‍🏫','المعلمون والحلقات'],['students','🧒','الطلاب'],['leads','📋','تسجيلات معلّقة']]},
     {label:'قسم القرآن', items:[['qsystems','🕋','أنظمة القرآن']]},
     {label:'المالية', items:[['finance','💳','المدفوعات']]},
   ]},
   supervisor:{ skin:'s-navy', title:'لوحة المشرف', sections:[
     {label:'الإشراف', items:[['dash','🏠','نظرة عامة'],['groups','👥','الحلقات'],['groupreport','📋','تقارير الحلقات'],['staff','👨‍🏫','المعلمون']]},
-    {label:'الطلاب', items:[['students','🧒','كل الطلاب'],['transfer','🔄','نقل طالب'],['cases','⚠️','الحالات المتعثّرة']]},
+    {label:'الطلاب', items:[['students','🧒','كل الطلاب'],['transfer','🔄','نقل طالب'],['cases','⚠️','الحالات المتعثّرة'],['leads','📋','تسجيلات معلّقة']]},
     {label:'الالتحاق', items:[['confirm','💰','تأكيد المدفوعات'],['subsidy','🤝','طلبات التخفيض']]},
     {label:'التواصل', items:[['chat','💬','الرسائل']]},
     {label:'قسم القرآن', items:[['qoverview','📊','نظرة قرآن']]},
@@ -3175,6 +3175,46 @@ async function assignToGroup(studentId){
   if(error){ alert('تعذّر: '+error.message); return; }
   toast('✅ تم التعيين'); await navigate('unassigned');
 }
+/* ===== تسجيلات معلّقة: حسابات أُنشئت ولم تُكمل الالتحاق بمسار ===== */
+PAGES.admin_leads=async function(){ setTop('تسجيلات معلّقة','حسابات أُنشئت ولم تكمل الالتحاق بمسار');
+  const { data:profs } = await sb.from('profiles').select('*').in('role',['student','parent']);
+  const all = profs||[];
+  const { data:studs } = await sb.from('students').select('login_id,parent_id');
+  const linkedLogin = new Set((studs||[]).map(s=>s.login_id).filter(Boolean));
+  const linkedParent = new Set((studs||[]).map(s=>s.parent_id).filter(Boolean));
+  const pending = all.filter(p => p.role==='student' ? !linkedLogin.has(p.id) : !linkedParent.has(p.id));
+
+  if(!pending.length){
+    return pageHead('تسجيلات معلّقة','')+'<div class="card" style="text-align:center;padding:40px"><div style="font-size:44px;margin-bottom:12px">✅</div><h3 style="color:var(--navy-deep)">لا توجد تسجيلات معلّقة حالياً</h3><p style="color:var(--muted);font-size:14px">كل من أنشأ حساباً أكمل التحاقه بمسار.</p></div>';
+  }
+
+  const cards = pending.map(p=>{
+    const waNum = (p.phone||'').replace(/\D/g,'');
+    const loc = p.governorate ? esc(p.governorate)+(p.residence&&p.residence!==p.country?' • مقيم في '+esc(p.residence):'') : '';
+    return `<div class="confirm-card">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <span class="miniava">${esc((p.full_name||'؟').slice(0,2))}</span>
+        <div><b>${esc(p.full_name||'—')}</b><div style="font-size:12px;color:var(--muted)">${p.role==='parent'?'وليّ أمر':'طالب'} • لم يلتحق بمسار بعد</div></div>
+      </div>
+      <div style="font-size:13px;color:var(--muted);line-height:2">
+        ✉️ ${esc(p.email||'—')}<br>
+        📞 ${esc(p.phone||'—')}
+        ${loc?'<br>📍 '+loc:''}
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        ${waNum?`<a class="btn-sm" style="background:#25D366;color:#fff" href="https://wa.me/${esc(waNum)}" target="_blank" rel="noopener">💬 واتساب</a>`:''}
+        ${p.email?`<a class="btn-sm ghost" href="mailto:${esc(p.email)}">✉️ إيميل</a>`:''}
+      </div>
+    </div>`;
+  }).join('');
+
+  return pageHead('تسجيلات معلّقة','أنشأ هؤلاء حساباً لكن لم يكملوا اختيار مسار أو إضافة طالب — تواصل معهم لمساعدتهم')+
+    `<div class="qbadge-strip"><span class="qbs early">⚠️ ${ar(pending.length)} حساب بحاجة متابعة</span></div>
+    <div class="confirm-grid">${cards}</div>`;
+};
+PAGES.executive_leads = PAGES.admin_leads;
+PAGES.supervisor_leads = PAGES.admin_leads;
+
 PAGES.teacher_record=async function(){
   const gs=await myGroups(); if(!SESSION.activeGroup&&gs[0])SESSION.activeGroup=gs[0].id;
   const g=gs.find(x=>x.id===SESSION.activeGroup)||gs[0]; setTop('التسميع والرصد',g?g.name:'');
@@ -5906,6 +5946,12 @@ async function generatePlanSchedule(planId){
   const { data: cfgs } = await sb.from('quran_station_fortress_config').select('*').eq('station_id',station.id);
   const cfgMap = {}; (cfgs||[]).forEach(c=>{ cfgMap[c.fortress_id]=c; });
 
+  // معدلات مخصّصة لهذا الطالب بعينه — لها الأولوية على إعداد المحطة العام
+  const { data: customRates } = await sb.from('quran_plan_fortress_rates').select('*').eq('plan_id',planId);
+  (customRates||[]).forEach(r=>{
+    cfgMap[r.fortress_id] = { ...(cfgMap[r.fortress_id]||{}), daily_amount:r.daily_amount, unit:r.unit, is_enabled:true };
+  });
+
   // 2) Setup cursors from assessment
   let curSurah = (assess && assess.current_surah_no) || 78; // النبأ default
   let curAyah  = (assess && assess.current_ayah_no) || 0;
@@ -6099,7 +6145,8 @@ function qOpenWizard(studentId){
   QPLAN_STATE = { view:'wizard', studentId, planId:null, step:1, data:{
     prior_memorized:[], far_review_pool:[],
     current_surah_no:78, current_ayah_no:0,
-    current_read_page:1, current_listen_page:1
+    current_read_page:1, current_listen_page:1,
+    station_id:null, custom_rates:{}
   } };
   // navigate to a synthetic page render via teacher_qplans
   renderWizardInline();
@@ -6139,7 +6186,7 @@ async function renderWizard(){
   const stepsHtml = stepLabels.map(s=>`<div class="qwstep ${step===s.n?'on':step>s.n?'done':''}"><b>${ar(s.n)}</b>${s.t}</div>`).join('');
 
   let body = '';
-  if(step===1){ body = renderStep1(stu, linkedSystem, allSys||[]); }
+  if(step===1){ body = await renderStep1(stu, linkedSystem, allSys||[]); }
   else if(step===2){ body = renderStep2(); }
   else if(step===3){ body = renderStep3(); }
   else if(step===4){ body = renderStep4(); }
@@ -6151,21 +6198,60 @@ async function renderWizard(){
     `<div class="card" style="padding:22px">${body}</div>`;
 }
 
-function renderStep1(stu, linkedSystem, allSys){
+async function renderStep1(stu, linkedSystem, allSys){
   const d = QPLAN_STATE.data;
   if(!d.system_id && linkedSystem) d.system_id = linkedSystem.id;
+  if(!d.system_id && allSys.length) d.system_id = allSys[0].id;
   const today = new Date().toISOString().slice(0,10);
   if(!d.start_date) d.start_date = today;
 
   const sysOpts = allSys.map(s=>`<option value="${esc(s.id)}" ${d.system_id===s.id?'selected':''}>${esc(s.name)} (${s.track==='general'?'عام':'حصون'})</option>`).join('');
   const linkedNote = linkedSystem ? `<div style="background:rgba(13,107,79,0.08);border-inline-start:3px solid var(--emerald);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:var(--emerald-deep)">🔗 برنامج الطالب «${esc(stu.quran_path?'':'') }» مرتبط بنظام: <b>${esc(linkedSystem.name)}</b></div>` : '';
 
+  // محطات النظام المختار — يحدد المعلم منها أين يبدأ الطالب فعلياً
+  let stations = [];
+  let forts = [];
+  if(d.system_id){
+    const { data: st } = await sb.from('quran_stations').select('*').eq('system_id',d.system_id).order('order_index');
+    stations = st||[];
+    const { data: ft } = await sb.from('quran_fortresses').select('*').eq('system_id',d.system_id).eq('is_enabled',true).order('order_index');
+    forts = ft||[];
+  }
+  if(!d.station_id || !stations.find(s=>s.id===d.station_id)) d.station_id = stations[0]?.id || null;
+
+  let cfgMap = {};
+  if(d.station_id){
+    const { data: cfgs } = await sb.from('quran_station_fortress_config').select('*').eq('station_id',d.station_id);
+    (cfgs||[]).forEach(c=>{ cfgMap[c.fortress_id]=c; });
+  }
+
+  const stationOpts = stations.map(s=>`<option value="${esc(s.id)}" ${d.station_id===s.id?'selected':''}>${ar(s.order_index)}. ${esc(s.name)}</option>`).join('');
+  const stationHint = stations.length
+    ? `<div><label>المحطة التي يبدأ منها الطالب <span class="hint">(اختر حسب مستواه الفعلي، مش شرط أول محطة)</span></label><select id="qwStation" onchange="qStationChanged()">${stationOpts}</select></div>`
+    : `<div style="color:var(--rose);font-size:13px">⚠️ هذا النظام لا يحوي محطات بعد — أضِفها من «أنظمة القرآن» قبل إنشاء الخطة.</div>`;
+
+  const ratesHtml = forts.length ? `<div style="margin-top:6px">
+    <label>المعدل اليومي لهذا الطالب <span class="hint">(افتراضياً من إعداد المحطة، وتقدر تغيّره لهذا الطالب فقط)</span></label>
+    <div class="qrow" style="flex-wrap:wrap">
+      ${forts.map(f=>{
+        const cfg = cfgMap[f.id] || { daily_amount:5, unit:f.default_unit };
+        const val = (d.custom_rates && d.custom_rates[f.id]!=null) ? d.custom_rates[f.id] : (cfg.daily_amount||0);
+        return `<div style="flex:1;min-width:150px">
+          <label style="font-size:12.5px;color:${esc(f.color)}">${esc(f.icon||'🛡️')} ${esc(f.name)} <small style="color:var(--muted)">(${cfg.unit==='page'?'صفحة':'آية'}/يوم)</small></label>
+          <input type="number" min="0" step="0.5" class="qw-rate-input" data-fortress-id="${esc(f.id)}" value="${val}" />
+        </div>`;
+      }).join('')}
+    </div>
+  </div>` : '';
+
   return `${linkedNote}
   <div class="qform">
     <div>
       <label>اختر النظام التعليمي</label>
-      <select id="qwSystem">${sysOpts || '<option value="">لا توجد أنظمة نشطة — أنشئ نظاماً من لوحة الإدارة</option>'}</select>
+      <select id="qwSystem" onchange="qSystemChanged()">${sysOpts || '<option value="">لا توجد أنظمة نشطة — أنشئ نظاماً من لوحة الإدارة</option>'}</select>
     </div>
+    ${stationHint}
+    ${ratesHtml}
     <div class="qrow">
       <div>
         <label>تاريخ البداية</label>
@@ -6187,6 +6273,19 @@ function renderStep1(stu, linkedSystem, allSys){
       <button class="btn" onclick="qWizNext(1)">التالي ←</button>
     </div>
   </div>`;
+}
+function qSystemChanged(){
+  const d = QPLAN_STATE.data;
+  d.system_id = $('#qwSystem').value;
+  d.station_id = null;
+  d.custom_rates = {};
+  renderWizardInline();
+}
+function qStationChanged(){
+  const d = QPLAN_STATE.data;
+  d.station_id = $('#qwStation').value;
+  d.custom_rates = {};
+  renderWizardInline();
 }
 
 function renderStep2(){
@@ -6327,8 +6426,11 @@ async function renderStep5(stu){
   if(!d.system_id) return '<div class="card" style="text-align:center;color:var(--rose)">⚠️ لم يتم اختيار نظام</div>';
   const { data: sys } = await sb.from('quran_systems').select('*').eq('id',d.system_id).maybeSingle();
   const { data: stations } = await sb.from('quran_stations').select('*').eq('system_id',d.system_id).order('order_index');
-  const firstSt = stations && stations.length ? stations[0] : null;
+  const chosenSt = (stations||[]).find(s=>s.id===d.station_id) || (stations&&stations.length?stations[0]:null);
   const curS = surahByNo(d.current_surah_no);
+  const ratesSummary = (d.custom_rates && Object.keys(d.custom_rates).length)
+    ? Object.entries(d.custom_rates).filter(([,v])=>v>0).length + ' حصن بمعدل مخصّص لهذا الطالب'
+    : 'معدلات المحطة الافتراضية';
 
   return `<div class="qpv">
     <h4>📋 ملخص الخطة</h4>
@@ -6336,8 +6438,9 @@ async function renderStep5(stu){
     <div class="qpvrow"><span>النظام</span><b>${esc(sys?sys.name:'')}</b></div>
     <div class="qpvrow"><span>المسار</span><b>${sys&&sys.track==='general'?'عام':'حصون'}</b></div>
     <div class="qpvrow"><span>تاريخ البداية</span><b>${esc(d.start_date)}</b></div>
-    <div class="qpvrow"><span>أول محطة</span><b>${esc(firstSt?firstSt.name:'—')}</b></div>
-    <div class="qpvrow"><span>مدة المحطة</span><b>${firstSt?ar(firstSt.expected_duration_days||0)+' يوم':'—'}</b></div>
+    <div class="qpvrow"><span>محطة البداية</span><b>${esc(chosenSt?chosenSt.name:'—')}</b></div>
+    <div class="qpvrow"><span>مدة المحطة</span><b>${chosenSt?ar(chosenSt.expected_duration_days||0)+' يوم':'—'}</b></div>
+    <div class="qpvrow"><span>معدلات الحصون</span><b>${esc(ratesSummary)}</b></div>
   </div>
   <div class="qpv">
     <h4>📍 موقع الطالب الحالي</h4>
@@ -6364,6 +6467,13 @@ function qWizNext(currentStep){
   if(currentStep===1){
     d.system_id = $('#qwSystem').value;
     if(!d.system_id){ toast('اختر نظاماً'); return; }
+    const stationSel = $('#qwStation');
+    if(stationSel) d.station_id = stationSel.value;
+    if(!d.station_id){ toast('اختر المحطة التي يبدأ منها الطالب'); return; }
+    d.custom_rates = {};
+    document.querySelectorAll('.qw-rate-input').forEach(inp=>{
+      d.custom_rates[inp.dataset.fortressId] = parseFloat(inp.value)||0;
+    });
     d.start_date = $('#qwStart').value;
     d.allow_early_progress = $('#qwEarly').value==='true';
     d.notes = $('#qwNotes').value.trim();
@@ -6388,6 +6498,7 @@ async function qSaveAndGenerate(studentId){
       student_id: studentId,
       login_id: stu?stu.login_id:null,
       system_id: d.system_id,
+      current_station_id: d.station_id||null,
       teacher_id: ME.id,
       start_date: d.start_date,
       status: 'active',
@@ -6411,6 +6522,16 @@ async function qSaveAndGenerate(studentId){
     };
     const { error: e2 } = await sb.from('quran_student_assessment').insert(assessPayload);
     if(e2) throw new Error(e2.message);
+
+    // 2.5) Save this student's custom daily rates (تتجاوز إعداد المحطة الافتراضي لهذا الطالب فقط)
+    if(d.custom_rates && Object.keys(d.custom_rates).length){
+      const { data: forts } = await sb.from('quran_fortresses').select('id,default_unit').eq('system_id',d.system_id);
+      const unitMap = {}; (forts||[]).forEach(f=>{ unitMap[f.id]=f.default_unit; });
+      const rateRows = Object.entries(d.custom_rates)
+        .filter(([, amount])=>amount>0)
+        .map(([fortress_id, amount])=>({ plan_id:plan.id, fortress_id, daily_amount:amount, unit:unitMap[fortress_id]||'verse' }));
+      if(rateRows.length) await sb.from('quran_plan_fortress_rates').insert(rateRows);
+    }
 
     // 3) Generate schedule
     const res = await generatePlanSchedule(plan.id);
@@ -7362,12 +7483,9 @@ async function cbEscalate(){
     window.open('https://wa.me/'+num+'?text='+encodeURIComponent('السلام عليكم، عندي سؤال: '+question), '_blank');
   }
 }
-document.addEventListener('DOMContentLoaded', cbInit);
+// المساعد الذكي وأيقونة واتساب يظهران في صفحة اللاندنج (landing.html) فقط،
+// وليس داخل المنصة بعد تسجيل الدخول.
 </script>
-<a class="wa-fab" href="https://wa.me/201227958232" target="_blank" rel="noopener" aria-label="تواصل واتساب">
-  <img src="assets/whatsapp-icon.png" alt="واتساب">
-</a>
-<div id="chatbotHost"></div>
 <div id="qmodalHost"></div>
 </body>
 </html>
