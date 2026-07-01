@@ -428,6 +428,12 @@ html.dark .footer{ background:#081912; }
 .cb-input input{flex:1;border:1.5px solid var(--line);border-radius:14px;padding:10px 14px;font-family:'IBM Plex Sans Arabic';font-size:13.5px;background:var(--cream);color:var(--ink)}
 .cb-input button{background:var(--emerald);color:#fff;border:none;width:42px;height:42px;border-radius:12px;cursor:pointer;font-size:16px;flex-shrink:0}
 @media(max-width:420px){.cb-panel{right:16px;bottom:88px;width:calc(100vw - 32px)}.cb-fab{right:16px}}
+
+/* ═══════ أيقونة واتساب عائمة (مقابل المساعد الذكي) ═══════ */
+.wa-fab{position:fixed;bottom:24px;left:24px;z-index:210;width:60px;height:60px;border-radius:50%;background:#25D366;display:grid;place-items:center;box-shadow:0 10px 26px rgba(37,211,102,0.45);transition:transform .25s ease}
+.wa-fab:hover{transform:scale(1.08)}
+.wa-fab svg{width:30px;height:30px}
+@media(max-width:420px){.wa-fab{left:16px}}
 </style>
 </head>
 <body>
@@ -858,6 +864,9 @@ function cbEscalate(){
 }
 document.addEventListener('DOMContentLoaded', cbInit);
 </script>
+<a class="wa-fab" href="https://wa.me/201227958232" target="_blank" rel="noopener" aria-label="تواصل واتساب">
+  <svg viewBox="0 0 24 24" fill="#fff"><path d="M17.5 14.4c-.3-.1-1.7-.8-1.9-.9-.3-.1-.5-.1-.7.1-.2.3-.7.9-.9 1.1-.2.2-.3.2-.6.1-.3-.1-1.2-.5-2.3-1.4-.9-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6.1-.1.3-.3.4-.5.1-.1.2-.2.2-.4.1-.2 0-.3 0-.5-.1-.1-.7-1.6-.9-2.2-.2-.6-.5-.5-.7-.5h-.5c-.2 0-.5.1-.7.3-.3.3-1 .9-1 2.3s1 2.7 1.2 2.9c.1.2 2 3.1 4.9 4.3.7.3 1.2.5 1.6.6.7.2 1.3.2 1.8.1.5-.1 1.7-.7 1.9-1.4.2-.7.2-1.2.2-1.4-.1-.1-.3-.2-.6-.3zM12 2a10 10 0 00-8.6 15l-1.4 5 5.2-1.4A10 10 0 1012 2z"/></svg>
+</a>
 <div id="chatbotHost"></div>
 
 </body>
