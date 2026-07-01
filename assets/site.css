@@ -196,17 +196,19 @@ section{ position:relative; }
 
 /* ═══════════ المسارات الستة ═══════════ */
 .paths-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:24px; }
-.path-card{ background:var(--cream); border:1px solid var(--line); border-radius:24px; padding:30px; position:relative; overflow:hidden; display:block; transition:transform .35s cubic-bezier(.22,.61,.36,1), box-shadow .35s ease, border-color .35s ease; }
+.path-card{ background:var(--cream); border:1px solid var(--line); border-radius:24px; position:relative; overflow:hidden; display:block; transition:transform .35s cubic-bezier(.22,.61,.36,1), box-shadow .35s ease, border-color .35s ease; }
 .path-card:hover{ transform:translateY(-8px) scale(1.015); box-shadow:var(--shadow-e); border-color:var(--emerald); }
-.path-card .pc-fill{ position:absolute; inset-inline:0; bottom:0; height:var(--fill,40%); background:linear-gradient(0deg,color-mix(in srgb,var(--emerald) 9%, transparent),transparent); pointer-events:none; transition:height .5s ease; }
 .path-card.featured{ border:2px solid var(--gold); box-shadow:var(--shadow-g); }
-.pc-badge{ position:absolute; top:16px; inset-inline-end:16px; padding:5px 13px; border-radius:999px; background:linear-gradient(135deg,var(--gold),var(--gold-soft)); color:var(--emerald-deep); font-size:12px; font-weight:700; }
-.pc-icon{ font-size:40px; margin-bottom:14px; position:relative; z-index:2; }
-.path-card h3{ font-size:23px; margin-bottom:8px; position:relative; z-index:2; }
-.path-card .pc-meta{ display:flex; gap:14px; margin:14px 0; position:relative; z-index:2; flex-wrap:wrap; }
+.pc-thumb{ width:100%; height:200px; object-fit:cover; display:block; transition:transform .5s ease; }
+.path-card:hover .pc-thumb{ transform:scale(1.06); }
+.pc-body{ padding:24px 26px 28px; }
+.pc-badge{ position:absolute; top:16px; inset-inline-end:16px; padding:5px 13px; border-radius:999px; background:linear-gradient(135deg,var(--gold),var(--gold-soft)); color:var(--emerald-deep); font-size:12px; font-weight:700; z-index:2; }
+.pc-icon{ font-size:40px; margin-bottom:14px; }
+.path-card h3{ font-size:23px; margin-bottom:8px; }
+.path-card .pc-meta{ display:flex; gap:14px; margin:14px 0; flex-wrap:wrap; }
 .path-card .pc-meta span{ font-size:13px; color:var(--ink-soft); display:flex; align-items:center; gap:5px; }
 .path-card .pc-meta b{ color:var(--emerald); }
-.pc-cta{ display:inline-block; margin-top:6px; color:var(--emerald); font-weight:600; font-size:15px; position:relative; z-index:2; opacity:0; transform:translateX(10px); transition:all .3s ease; }
+.pc-cta{ display:inline-block; margin-top:6px; color:var(--emerald); font-weight:600; font-size:15px; opacity:0; transform:translateX(10px); transition:all .3s ease; }
 .path-card:hover .pc-cta{ opacity:1; transform:translateX(0); }
 .smart-note{ margin-top:36px; padding:22px 26px; border-radius:18px; display:flex; gap:16px; align-items:flex-start; background:color-mix(in srgb,var(--gold) 9%, var(--cream)); border-inline-start:4px solid var(--gold); }
 .smart-note .sn-ic{ font-size:28px; flex-shrink:0; }
