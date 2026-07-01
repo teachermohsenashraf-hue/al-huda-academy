@@ -1,4 +1,4 @@
-# ربّانيون — منصة تعليم القرآن وبناء الإنسان
+# أكاديمية الهدى — منصة تعليم القرآن وبناء الإنسان
 
 A comprehensive Quran education platform built with HTML, CSS, and JavaScript.
 
