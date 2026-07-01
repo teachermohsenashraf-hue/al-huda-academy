@@ -1466,7 +1466,7 @@ function showLanding(){
 function landingHTML(loggedIn){
   return `
   <nav class="lnav">
-    <div class="brand"><div class="mark">ه</div><div class="name">أكاديمية الهدى<small>منصة القرآن وبناء الإنسان</small></div></div>
+    <div class="brand"><div class="mark"><img src="assets/logo.jpg" alt="أكاديمية الهدى" style="width:100%;height:100%;object-fit:contain;border-radius:inherit"></div><div class="name">أكاديمية الهدى<small>منصة القرآن وبناء الإنسان</small></div></div>
     <div class="lnav-links">
       <a onclick="lscroll('ltracks')">المسارات</a>
       <a onclick="lscroll('lhusoon')">منهج الإتقان</a>
@@ -1809,7 +1809,7 @@ function authHTML(){
   return `<div class="auth-wrap">
     <button class="auth-back" onclick="location.href='landing.html'">→ الرئيسية</button>
     <div class="auth-card">
-      <div class="auth-logo">ه</div>
+      <div class="auth-logo"><img src="assets/logo.jpg" alt="أكاديمية الهدى" style="width:100%;height:100%;object-fit:contain;border-radius:inherit"></div>
       <h2 id="authTitle">تسجيل الدخول</h2>
       <div class="auth-tabs" id="authTabs">
         <button id="tabLogin" onclick="switchAuth('login')">عندي حساب</button>
@@ -2174,7 +2174,7 @@ function replayTour(){ TOUR_STEP=0; renderTour(); }
 
 function buildShell(){
   const m=MENUS[ME.role]; const side=$('#sidebar'); side.className='side '+m.skin;
-  let h=`<div class="brand"><div class="mark">ه</div><div class="name">أكاديمية الهدى<small>${m.title}</small></div></div><nav class="menu">`;
+  let h=`<div class="brand"><div class="mark"><img src="assets/logo.jpg" alt="أكاديمية الهدى" style="width:100%;height:100%;object-fit:contain;border-radius:inherit"></div><div class="name">أكاديمية الهدى<small>${m.title}</small></div></div><nav class="menu">`;
   m.sections.forEach(s=>{ h+=`<div class="ml">${s.label}</div>`; s.items.forEach(([k,i,l])=>h+=`<a data-page="${k}" onclick="navigate('${k}')"><span class="i">${i}</span> ${l}</a>`); });
   h+=`</nav><div class="foot"><button class="home-btn" onclick="replayTour()">🎓 الجولة التعريفية</button><button class="home-btn" onclick="window.open('landing.html','_blank')">🏠 الموقع التعريفي</button><button class="switch" onclick="logout()">🔄 تسجيل الخروج</button><div class="cp">${ME.full_name}</div></div>`;
   side.innerHTML=h;
