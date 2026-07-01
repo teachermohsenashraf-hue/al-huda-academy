@@ -407,9 +407,10 @@ html.dark .footer{ background:#081912; }
 }
 
 /* ═══════ المساعد الذكي (شات بوت عائم) ═══════ */
-.cb-fab{position:fixed;bottom:24px;right:24px;z-index:210;width:60px;height:60px;border-radius:50%;background:linear-gradient(140deg,var(--emerald),var(--emerald-deep));color:#fff;display:grid;place-items:center;font-size:28px;border:none;cursor:pointer;box-shadow:0 10px 26px rgba(13,107,79,0.4);transition:transform .25s ease}
+.cb-fab{position:fixed;bottom:24px;right:24px;z-index:210;width:66px;height:66px;border-radius:50%;background:linear-gradient(140deg,var(--emerald),var(--emerald-deep));color:#fff;display:grid;place-items:center;font-size:28px;border:none;padding:3px;cursor:pointer;box-shadow:0 10px 26px rgba(13,107,79,0.4);transition:transform .25s ease}
 .cb-fab:hover{transform:scale(1.08)}
-.cb-fab .cb-dot{position:absolute;top:4px;left:4px;width:12px;height:12px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 2px #fff}
+.cb-fab img{width:100%;height:100%;border-radius:50%;object-fit:cover;border:2.5px solid #fff;display:block}
+.cb-fab .cb-dot{position:absolute;bottom:-2px;left:-2px;width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold-soft));display:grid;place-items:center;font-size:14px;box-shadow:0 2px 8px rgba(0,0,0,0.3);border:2.5px solid #fff}
 .cb-panel{position:fixed;bottom:96px;right:24px;z-index:210;width:340px;max-width:calc(100vw - 32px);height:460px;max-height:70vh;background:var(--cream);border-radius:20px;box-shadow:0 24px 60px rgba(0,0,0,0.25);display:none;flex-direction:column;overflow:hidden;font-family:'IBM Plex Sans Arabic',sans-serif}
 .cb-panel.open{display:flex}
 .cb-head{background:linear-gradient(135deg,var(--emerald),var(--emerald-deep));color:#fff;padding:16px 18px;display:flex;align-items:center;justify-content:space-between}
@@ -429,10 +430,10 @@ html.dark .footer{ background:#081912; }
 .cb-input button{background:var(--emerald);color:#fff;border:none;width:42px;height:42px;border-radius:12px;cursor:pointer;font-size:16px;flex-shrink:0}
 @media(max-width:420px){.cb-panel{right:16px;bottom:88px;width:calc(100vw - 32px)}.cb-fab{right:16px}}
 
-/* ═══════ أيقونة واتساب عائمة (مقابل المساعد الذكي) ═══════ */
-.wa-fab{position:fixed;bottom:24px;left:24px;z-index:210;width:60px;height:60px;border-radius:50%;background:#25D366;display:grid;place-items:center;box-shadow:0 10px 26px rgba(37,211,102,0.45);transition:transform .25s ease}
-.wa-fab:hover{transform:scale(1.08)}
-.wa-fab svg{width:30px;height:30px}
+/* ═══════ أيقونة واتساب عائمة (بشكل أيقونة التطبيق) ═══════ */
+.wa-fab{position:fixed;bottom:24px;left:24px;z-index:210;width:64px;height:64px;border-radius:19px;background:linear-gradient(135deg,#25D366,#1FAF57);display:grid;place-items:center;box-shadow:0 10px 26px rgba(37,211,102,0.5);transition:transform .25s ease}
+.wa-fab:hover{transform:scale(1.08) rotate(-3deg)}
+.wa-fab svg{width:34px;height:34px}
 @media(max-width:420px){.wa-fab{left:16px}}
 </style>
 </head>
@@ -808,7 +809,7 @@ function cbInit(){
   const host=document.getElementById('chatbotHost');
   if(!host) return;
   host.innerHTML = `
-    <button class="cb-fab" id="cbFab" onclick="cbToggle()" aria-label="المساعد الذكي">💬<span class="cb-dot"></span></button>
+    <button class="cb-fab" id="cbFab" onclick="cbToggle()" aria-label="المساعد الذكي"><img src="assets/logo.jpg" alt="المساعد الذكي"><span class="cb-dot">💬</span></button>
     <div class="cb-panel" id="cbPanel">
       <div class="cb-head">
         <div><b>🤖 المساعد الذكي</b><span>هنا لأي سؤال عن أكاديمية الهدى</span></div>
