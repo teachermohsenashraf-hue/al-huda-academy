@@ -160,9 +160,12 @@ section{ position:relative; }
 
 /* ═══════════ اختر طريقك في التعلّم (نظامان) ═══════════ */
 .systems-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:28px; max-width:980px; margin:0 auto; }
-.system-card{ background:var(--cream); border:1px solid var(--line); border-radius:28px; padding:40px 32px; text-align:center; position:relative; transition:transform .35s cubic-bezier(.22,.61,.36,1), box-shadow .35s ease, border-color .35s ease; }
+.system-card{ background:var(--cream); border:1px solid var(--line); border-radius:28px; overflow:hidden; text-align:center; position:relative; transition:transform .35s cubic-bezier(.22,.61,.36,1), box-shadow .35s ease, border-color .35s ease; }
 .system-card:hover{ transform:translateY(-8px); box-shadow:var(--shadow-e); border-color:var(--emerald); }
 .system-card.featured{ border:2px solid var(--gold); box-shadow:var(--shadow-g); }
+.sc-thumb{ width:100%; height:260px; object-fit:cover; object-position:top center; display:block; transition:transform .5s ease; }
+.system-card:hover .sc-thumb{ transform:scale(1.04); }
+.sc-body{ padding:32px 32px 40px; }
 .sc-icon{ width:64px; height:64px; margin:0 auto 18px; border-radius:20px; display:grid; place-items:center; font-size:30px; background:color-mix(in srgb,var(--emerald) 12%, transparent); }
 .system-card h3{ font-family:'Amiri',serif; font-size:26px; color:var(--emerald-deep); margin-bottom:12px; }
 .sc-desc{ font-size:14.5px; color:var(--ink-soft); line-height:1.9; margin-bottom:22px; }
@@ -317,7 +320,8 @@ html.dark .footer{ background:#081912; }
   .wrap{ padding:0 18px; }
   .sec{ padding:70px 0; }
   .sec-head{ margin-bottom:40px; }
-  .system-card{ padding:30px 22px; }
+  .sc-thumb{ height:200px; }
+  .sc-body{ padding:26px 22px 32px; }
 }
 
 /* ═══════ المساعد الذكي (شات بوت عائم) ═══════ */
