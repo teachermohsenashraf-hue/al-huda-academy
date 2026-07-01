@@ -1197,6 +1197,29 @@ input,button,textarea,select{font-family:'Tajawal',sans-serif}
 .qbadge-strip .qbs.done{background:rgba(13,107,79,0.1);color:var(--emerald);border-color:rgba(13,107,79,0.2)}
 .qbadge-strip .qbs.late{background:rgba(168,77,77,0.1);color:var(--rose);border-color:rgba(168,77,77,0.2)}
 .qbadge-strip .qbs.early{background:rgba(191,154,69,0.15);color:#7a5d1d;border-color:var(--gold)}
+
+/* ═══════ المساعد الذكي (شات بوت عائم) ═══════ */
+.cb-fab{position:fixed;bottom:24px;right:24px;z-index:210;width:60px;height:60px;border-radius:50%;background:linear-gradient(140deg,var(--emerald),var(--emerald-deep));color:#fff;display:grid;place-items:center;font-size:28px;border:none;cursor:pointer;box-shadow:0 10px 26px rgba(13,107,79,0.4);transition:transform .25s ease}
+.cb-fab:hover{transform:scale(1.08)}
+.cb-fab .cb-dot{position:absolute;top:4px;left:4px;width:12px;height:12px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 2px #fff}
+.cb-panel{position:fixed;bottom:96px;right:24px;z-index:210;width:340px;max-width:calc(100vw - 32px);height:460px;max-height:70vh;background:#fff;border-radius:20px;box-shadow:0 24px 60px rgba(0,0,0,0.25);display:none;flex-direction:column;overflow:hidden;font-family:'Tajawal',sans-serif}
+.cb-panel.open{display:flex}
+.cb-head{background:linear-gradient(135deg,var(--emerald),var(--emerald-deep));color:#fff;padding:16px 18px;display:flex;align-items:center;justify-content:space-between}
+.cb-head b{font-size:15.5px}
+.cb-head span{display:block;font-size:11.5px;opacity:.85}
+.cb-head button{background:rgba(255,255,255,0.15);border:none;color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:15px}
+.cb-body{flex:1;overflow-y:auto;padding:14px;background:var(--cream,#FBF8F1);display:flex;flex-direction:column;gap:10px}
+.cb-msg{max-width:85%;padding:10px 14px;border-radius:14px;font-size:13.5px;line-height:1.7}
+.cb-msg.bot{background:#fff;border:1px solid var(--line,rgba(13,107,79,0.12));align-self:flex-start;border-start-start-radius:4px}
+.cb-msg.user{background:var(--emerald);color:#fff;align-self:flex-end;border-start-end-radius:4px}
+.cb-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
+.cb-chip{background:#fff;border:1.5px solid var(--emerald);color:var(--emerald);border-radius:20px;padding:6px 12px;font-size:12px;cursor:pointer;font-family:'Tajawal';font-weight:700}
+.cb-chip:hover{background:var(--emerald);color:#fff}
+.cb-esc{background:rgba(191,154,69,0.15);color:#7a5d1d;border:1.5px dashed var(--gold);border-radius:20px;padding:6px 12px;font-size:12px;cursor:pointer;font-family:'Tajawal';font-weight:700}
+.cb-input{display:flex;gap:8px;padding:12px;border-top:1px solid var(--line,rgba(13,107,79,0.12));background:#fff}
+.cb-input input{flex:1;border:1.5px solid var(--line,rgba(13,107,79,0.12));border-radius:14px;padding:10px 14px;font-family:'Tajawal';font-size:13.5px}
+.cb-input button{background:var(--emerald);color:#fff;border:none;width:42px;height:42px;border-radius:12px;cursor:pointer;font-size:16px;flex-shrink:0}
+@media(max-width:420px){.cb-panel{right:16px;bottom:88px;width:calc(100vw - 32px)}.cb-fab{right:16px}}
 </style>
 </head>
 <body>
@@ -7194,7 +7217,143 @@ function qInjectStudentMenuExtras(){
 }
 
 
+
+/* ============================================================
+   المساعد الذكي — شات بوت عائم (أسئلة شائعة + تحويل للإشراف)
+   ============================================================ */
+const CHATBOT_FAQ = [
+  { kw:['سعر','اسعار','تكلفه','فلوس','اشتراك شهري','رسوم'],
+    a:'الاشتراك مرن وبيتحدد حسب عدد الحصص أسبوعياً. أرخص باقة تبدأ من حصتين أسبوعياً. لمعرفة السعر بالتفصيل ومسارك، افتح «الرسوم والتجديد» من لوحتك أو تواصل مع الإشراف.' },
+  { kw:['مسار','مسارات','جزء عم','الزهراوان','المفصل','ربع القران','نصف القران','قران كامل'],
+    a:'عندنا ٦ مسارات لحفظ القرآن: جزء عمّ وتبارك، الزهراوان، المفصّل، ربع القرآن، نصف القرآن، والقرآن كاملاً. كل مسار له خطة إتقان ومدة متوقعة. تقدر تشوفهم من «مسارات الحفظ».' },
+  { kw:['حصون','حصن','ورد','اوراد'],
+    a:'منهج الإتقان قائم على أوراد يومية: الحفظ الجديد، المراجعة القريبة، المراجعة البعيدة، وفي مسار «رسوخ» بيتضاف ورد التلاوة وورد السماع (٥ حصون بدل ٣).' },
+  { kw:['رسوخ','اختار خطته','يختار خطت','نوع الخطه','فرق بين'],
+    a:'مسار «رسوخ» نظام مُحكم بـ٥ حصون (يشمل التلاوة والسماع). أما «الطالب يختار خطته» فمرن بـ٣ حصون فقط (الحفظ، المراجعة القريبة، المراجعة البعيدة). معلمك بيضبط لك التفاصيل في أول حصة.' },
+  { kw:['تسجيل','انشاء حساب','ازاي اسجل','عايز اشترك','التحق'],
+    a:'تقدر تنشئ حساباً من زر «ابدأ الآن» في الصفحة الرئيسية، تختار مسارك، ترفع إيصال الدفع، وبعد تأكيد الإشراف هتقدر تختار معلمك وتبدأ حلقتك.' },
+  { kw:['تغيير المعلم','ابدل المعلم','معلم تاني'],
+    a:'أيوه ممكن. تقدر تطلب نقل لمعلم آخر من نفس مسارك وجنسك من صفحة «نقل طالب» أو بالتواصل مع الإشراف، وهيتم النقل مع الحفاظ على سجل تقدمك بالكامل.' },
+  { kw:['حلقه فرديه','جماعيه','حصص كام','كام حصه'],
+    a:'كل الحلقات فردية بالكامل (1:1) بين الطالب ومعلمه، مافيش مجموعات ولا زحام — عشان متابعة دقيقة لكل طالب.' },
+  { kw:['ولي الامر','متابعه ابني','ابني','بنتي'],
+    a:'ولي الأمر له لوحة خاصة يتابع منها حلقات أبنائه، حصصهم، تقاريرهم، وحالة حصونهم اليومية أولاً بأول من «متابعة الحفظ» و«التقارير».' },
+  { kw:['فصل بين الجنسين','بنات وولاد','ذكور واناث'],
+    a:'النظام بيراعي الفصل بين الجنسين تلقائياً: الطالب يتوجّه لمعلمين ومشرفين من نفس جنسه، ونفس الأمر للطالبة.' },
+  { kw:['تجديد','انتهى اشتراكي','الاشتراك خلص'],
+    a:'تقدر تجدد اشتراكك من «الرسوم والتجديد» في لوحتك، ارفع إيصال الدفع الجديد وهيتأكد من الإشراف خلال وقت قصير.' },
+  { kw:['تواصل','دعم','مشرف','اكلمك ازاي','رقم واتساب'],
+    a:'تقدر تكلّم فريق الإشراف مباشرة من «الرسائل» في لوحتك، أو زر «تواصل واتساب» تحت.' },
+];
+function cbNorm(t){
+  return String(t||'').toLowerCase()
+    .replace(/[أإآا]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/[ؤئ]/g,'ي')
+    .replace(/[ً-ْـ]/g,'').replace(/\s+/g,' ').trim();
+}
+function cbMatch(q){
+  const nq=cbNorm(q);
+  let best=null, bestScore=0;
+  CHATBOT_FAQ.forEach(item=>{
+    let score=0;
+    item.kw.forEach(k=>{ if(nq.includes(cbNorm(k))) score++; });
+    if(score>bestScore){ bestScore=score; best=item; }
+  });
+  return bestScore>0 ? best : null;
+}
+let CB_STATE = { open:false, escalated:false };
+function cbInit(){
+  const host=document.getElementById('chatbotHost');
+  if(!host || host.dataset.ready) return;
+  host.dataset.ready='1';
+  host.innerHTML = `
+    <button class="cb-fab" id="cbFab" onclick="cbToggle()" aria-label="المساعد الذكي">💬<span class="cb-dot"></span></button>
+    <div class="cb-panel" id="cbPanel">
+      <div class="cb-head">
+        <div><b>🤖 المساعد الذكي</b><span>هنا لأي سؤال عن المنصة</span></div>
+        <button onclick="cbToggle()">×</button>
+      </div>
+      <div class="cb-body" id="cbBody"></div>
+      <div class="cb-input">
+        <input id="cbInput" placeholder="اكتب سؤالك هنا..." onkeydown="if(event.key==='Enter')cbSend()">
+        <button onclick="cbSend()">➤</button>
+      </div>
+    </div>`;
+  cbAppendBot('السلام عليكم! 👋 أنا مساعد أكاديمية الهدى، اسألني عن المسارات، الحصون، الأسعار، أو أي حاجة عن المنصة.');
+  cbShowChips();
+}
+function cbToggle(){
+  const p=document.getElementById('cbPanel'); if(!p) return;
+  CB_STATE.open=!CB_STATE.open; p.classList.toggle('open',CB_STATE.open);
+  if(CB_STATE.open){ const i=document.getElementById('cbInput'); if(i) setTimeout(()=>i.focus(),150); }
+}
+function cbAppendBot(text){
+  const b=document.getElementById('cbBody'); if(!b) return;
+  b.insertAdjacentHTML('beforeend', `<div class="cb-msg bot">${(typeof esc==='function'?esc(text):text).replace(/\n/g,'<br>')}</div>`);
+  b.scrollTop=b.scrollHeight;
+}
+function cbAppendUser(text){
+  const b=document.getElementById('cbBody'); if(!b) return;
+  b.insertAdjacentHTML('beforeend', `<div class="cb-msg user">${(typeof esc==='function'?esc(text):text)}</div>`);
+  b.scrollTop=b.scrollHeight;
+}
+function cbShowChips(){
+  const b=document.getElementById('cbBody'); if(!b) return;
+  const sample=CHATBOT_FAQ.slice(0,4).map(f=>f.kw[0]);
+  const chips=sample.map(k=>`<span class="cb-chip" onclick="cbAsk('${k.replace(/'/g,'')}')">${k}</span>`).join('');
+  b.insertAdjacentHTML('beforeend', `<div class="cb-chips">${chips}</div>`);
+  b.scrollTop=b.scrollHeight;
+}
+function cbAsk(q){ const i=document.getElementById('cbInput'); if(i){ i.value=q; } cbSend(); }
+function cbSend(){
+  const i=document.getElementById('cbInput'); const q=(i?.value||'').trim();
+  if(!q) return;
+  cbAppendUser(q); if(i) i.value='';
+  const hit=cbMatch(q);
+  if(hit){
+    setTimeout(()=>cbAppendBot(hit.a),300);
+  } else {
+    setTimeout(()=>{
+      cbAppendBot('معنديش إجابة جاهزة لسؤالك ده 🤔 حابب أحوّلك لفريق الإشراف يردّ عليك؟');
+      const b=document.getElementById('cbBody');
+      CB_LAST_QUESTION=q;
+      if(b) b.insertAdjacentHTML('beforeend', `<div class="cb-chips"><span class="cb-esc" onclick="cbEscalate()">🙋 حوّلني للإشراف</span></div>`);
+      if(b) b.scrollTop=b.scrollHeight;
+    },300);
+  }
+}
+let CB_LAST_QUESTION='';
+async function cbEscalate(){
+  const question=CB_LAST_QUESTION;
+  // مستخدم مسجّل دخوله: افتح/أنشئ محادثة حقيقية مع مشرف
+  if(typeof ME!=='undefined' && ME && ME.id && typeof sb!=='undefined'){
+    try{
+      let myGender=ME.gender;
+      if(!myGender){ try{ const { data:gp }=await sb.from('profiles').select('gender').eq('id',ME.id).maybeSingle(); myGender=gp?.gender; }catch(e){} }
+      const { data:sups }=await sb.from('profiles').select('id,full_name,gender').eq('role','supervisor');
+      const sup=(sups||[]).find(s=>!myGender||!s.gender||s.gender===myGender) || (sups||[])[0];
+      if(!sup){ toast&&toast('لا يوجد مشرف متاح الآن، جرّب واتساب'); return; }
+      const { data:existing }=await sb.from('chats').select('*').contains('party_ids',[ME.id]);
+      let chat=(existing||[]).find(c=>(c.party_ids||[]).includes(sup.id));
+      if(!chat){
+        const { data:nc, error }=await sb.from('chats').insert({ title:sup.full_name+' (المشرف)', party_ids:[ME.id,sup.id] }).select().single();
+        if(error){ toast&&toast('تعذّر التحويل: '+error.message); return; }
+        chat=nc;
+      }
+      await sb.from('messages').insert({ chat_id:chat.id, sender_id:ME.id, body:'🤖 سؤال من المساعد الذكي: '+question });
+      SESSION.activeChat=chat.id;
+      cbAppendBot('تمام ✅ حوّلت سؤالك للمشرف '+sup.full_name+'، هتلاقي الرد في «الرسائل».');
+      cbToggle();
+      navigate('chat');
+    }catch(e){ toast&&toast('تعذّر التحويل، جرّب واتساب'); }
+  } else {
+    // زائر غير مسجّل: افتح واتساب برسالة جاهزة
+    const num = (typeof WHATSAPP!=='undefined'?WHATSAPP:'201227958232');
+    window.open('https://wa.me/'+num+'?text='+encodeURIComponent('السلام عليكم، عندي سؤال: '+question), '_blank');
+  }
+}
+document.addEventListener('DOMContentLoaded', cbInit);
 </script>
+<div id="chatbotHost"></div>
 <div id="qmodalHost"></div>
 </body>
 </html>
