@@ -251,8 +251,29 @@ section{ position:relative; }
 .marquee .mq .d{ color:var(--gold); font-size:20px; }
 @keyframes marquee{ to{ transform:translateX(50%); } }
 
-/* ═══════════ الحصون الخمسة ═══════════ */
+/* ═══════════ اختر طريقك في التعلّم (نظامان) ═══════════ */
+.systems-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:28px; max-width:980px; margin:0 auto; }
+.system-card{
+  background:var(--cream); border:1px solid var(--line); border-radius:28px; padding:40px 32px;
+  text-align:center; position:relative;
+  transition:transform .35s cubic-bezier(.22,.61,.36,1), box-shadow .35s ease, border-color .35s ease;
+}
+.system-card:hover{ transform:translateY(-8px); box-shadow:var(--shadow-e); border-color:var(--emerald); }
+.system-card.featured{ border:2px solid var(--gold); box-shadow:var(--shadow-g); }
+.sc-icon{
+  width:64px; height:64px; margin:0 auto 18px; border-radius:20px; display:grid; place-items:center;
+  font-size:30px; background:color-mix(in srgb,var(--emerald) 12%, transparent);
+}
+.system-card h3{ font-family:'Amiri',serif; font-size:26px; color:var(--emerald-deep); margin-bottom:12px; }
+.sc-desc{ font-size:14.5px; color:var(--ink-soft); line-height:1.9; margin-bottom:24px; }
+.sc-feats{ list-style:none; text-align:start; display:flex; flex-direction:column; gap:11px; margin-bottom:28px; }
+.sc-feats li{ display:flex; align-items:center; gap:9px; font-size:14.5px; color:var(--ink-soft); }
+.sc-feats .ck{ flex-shrink:0; }
+@media (max-width:820px){ .systems-grid{ grid-template-columns:1fr; } }
+
+/* ═══════════ الحصون الخمسة (قلب نظام رسوخ) ═══════════ */
 .husoon-grid{ display:grid; grid-template-columns:repeat(5,1fr); gap:22px; }
+.husoon-grid.n3{ grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); max-width:820px; margin:0 auto; }
 .hisn{
   background:var(--cream); border:1px solid var(--line); border-radius:24px; padding:32px 22px;
   position:relative; transition:transform .35s cubic-bezier(.22,.61,.36,1), box-shadow .35s ease, border-color .35s ease;
@@ -458,7 +479,7 @@ html.dark .footer{ background:#081912; }
       <div class="brand-txt"><b>أكاديمية الهدى</b><small>منصة القرآن وبناء الإنسان</small></div>
     </a>
     <div class="nav-links" id="navLinks">
-      <a class="lnk" href="#husoon">الحصون الخمسة</a>
+      <a class="lnk" href="#systems">الأنظمة</a>
       <a class="lnk" href="#paths">المسارات</a>
       <a class="lnk" href="#how">كيف نعمل</a>
       <a class="lnk" href="#pricing">الأسعار</a>
@@ -503,7 +524,7 @@ html.dark .footer{ background:#081912; }
       </div>
     </div>
   </div>
-  <a class="scroll-cue" href="#husoon">⌄</a>
+  <a class="scroll-cue" href="#systems">⌄</a>
 </header>
 
 <!-- بقية الأقسام تُضاف هنا -->
@@ -527,13 +548,50 @@ html.dark .footer{ background:#081912; }
   </div>
 </div>
 
-<!-- ═══════════ الحصون الخمسة ═══════════ -->
+<!-- ═══════════ اختر طريقك في التعلّم ═══════════ -->
+<section class="sec" id="systems">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="tag">اختيارك يبدأ هنا</div>
+      <h2>اختر طريقك في التعلّم</h2>
+      <p>لأن لكل طالب هدفًا مختلفًا، وفرنا نظامين تعليميين يناسبان مختلف الاحتياجات، مع الحفاظ على جودة التعليم، والمتابعة، والإتقان.</p>
+    </div>
+    <div class="systems-grid">
+      <div class="system-card reveal">
+        <div class="sc-icon">🛡️</div>
+        <h3>نظام رسوخ</h3>
+        <p class="sc-desc">برنامج متكامل لحفظ القرآن الكريم، يعتمد على منهج الحصون الخمسة؛ ليعين الطالب على الإتقان والثبات والمراجعة المستمرة.</p>
+        <ul class="sc-feats">
+          <li><span class="ck">✅</span> الحفظ الجديد</li>
+          <li><span class="ck">✅</span> مراجعة القريب</li>
+          <li><span class="ck">✅</span> القراءة اليومية</li>
+          <li><span class="ck">✅</span> مراجعة البعيد</li>
+          <li><span class="ck">✅</span> ورد السماع</li>
+        </ul>
+        <a class="btn-primary" href="#husoon" style="width:100%;justify-content:center">استكشف نظام رسوخ</a>
+      </div>
+      <div class="system-card featured reveal">
+        <div class="sc-icon">🧩</div>
+        <h3>النظام المرن</h3>
+        <p class="sc-desc">صُمم لمن يحتاج إلى مرونة أكبر، فيختار الطالب خطته التعليمية بما يناسب وقته وأهدافه، من خلال ثلاثة حصون أساسية تحقق التوازن بين الإنجاز والاستمرارية.</p>
+        <ul class="sc-feats">
+          <li><span class="ck">✅</span> الحفظ</li>
+          <li><span class="ck">✅</span> المراجعة</li>
+          <li><span class="ck">✅</span> ورد السماع</li>
+        </ul>
+        <a class="btn-ghost" href="#flexible" style="width:100%;justify-content:center">استكشف النظام المرن</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ قلب نظام رسوخ (الحصون الخمسة) ═══════════ -->
 <section class="sec sec-dark" id="husoon">
   <div class="wrap">
     <div class="sec-head reveal">
-      <div class="tag">قلب المنهج</div>
-      <h2>الحصون الخمسة</h2>
-      <p>ليس المهمّ كم تحفظ، بل كم يبقى معك. خمس مهامّ يومية تُحصّن المحفوظ من الضياع.</p>
+      <div class="tag">نظام رسوخ</div>
+      <h2>قلب نظام رسوخ</h2>
+      <p>يقوم نظام رسوخ على خمسة حصون يومية، صُممت لتساعد الطالب على بناء حفظٍ متين، ومراجعته باستمرار، حتى يثبت القرآن في صدره بإذن الله.</p>
     </div>
     <div class="husoon-grid">
       <div class="hisn reveal"><div class="hisn-num">١</div><div class="hisn-ic">📖</div><h3>الحفظ الجديد</h3><p>المقدار اليومي بطريقة التغييب والربط لتثبيت أوّليّ متين.</p></div>
@@ -541,6 +599,22 @@ html.dark .footer{ background:#081912; }
       <div class="hisn reveal"><div class="hisn-num">٣</div><div class="hisn-ic">📕</div><h3>القراءة اليومية</h3><p>قراءة وجهين من المصحف لتليين الحفظ وزيادة الأُنس بالكتاب.</p></div>
       <div class="hisn reveal"><div class="hisn-num">٤</div><div class="hisn-ic">🏛️</div><h3>مراجعة البعيد</h3><p>تثبيت المحفوظ القديم موزّعاً على أيام الأسبوع بانتظام.</p></div>
       <div class="hisn reveal"><div class="hisn-num">٥</div><div class="hisn-ic">🎧</div><h3>ورد السماع</h3><p>سماع وجهين يومياً بصوت قارئ متقن للضبط ومنع الخطأ.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ النظام المرن ═══════════ -->
+<section class="sec sec-cream" id="flexible">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="tag">النظام المرن</div>
+      <h2>النظام المرن</h2>
+      <p>يعتمد النظام المرن على ثلاثة حصون أساسية تمنح الطالب مرونة أكبر في بناء خطته التعليمية، مع الحفاظ على الاستمرار وجودة التعلّم.</p>
+    </div>
+    <div class="husoon-grid n3">
+      <div class="hisn reveal"><div class="hisn-num">١</div><div class="hisn-ic">📖</div><h3>الحفظ</h3><p>المقدار اليومي الذي يختاره الطالب بما يناسب وقته وهدفه.</p></div>
+      <div class="hisn reveal"><div class="hisn-num">٢</div><div class="hisn-ic">🔁</div><h3>المراجعة</h3><p>تثبيت المحفوظ قريبه وبعيده، بمعدّل مرن يحافظ على الاستمرارية.</p></div>
+      <div class="hisn reveal"><div class="hisn-num">٣</div><div class="hisn-ic">🎧</div><h3>ورد السماع</h3><p>سماع منتظم بصوت قارئ متقن للضبط ومنع الخطأ.</p></div>
     </div>
   </div>
 </section>
@@ -685,7 +759,7 @@ html.dark .footer{ background:#081912; }
       </div>
       <div class="foot-col">
         <h4>روابط سريعة</h4>
-        <a href="#husoon">الحصون الخمسة</a>
+        <a href="#systems">الأنظمة التعليمية</a>
         <a href="#paths">المسارات</a>
         <a href="#how">كيف نعمل</a>
         <a href="#pricing">الأسعار</a>
