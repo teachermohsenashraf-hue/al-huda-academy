@@ -5183,6 +5183,8 @@ function qStatusBadge(s){
   return '<span>'+esc(s||'')+'</span>';
 }
 function qTrackLabel(t){ return t==='general'?'مسار عام':'حصون خمسة'; }
+function qPlanTypeLabel(pt){ return pt==='flexible' ? 'الطالب يختار خطته (٣ حصون)' : 'رسوخ (٥ حصون)'; }
+function qPathLabel(pk){ const p=QURAN_PATHS.find(x=>x.id===pk); return p?p.name:'—'; }
 function qDaysToInts(arr){ return (arr||[]).map(x=>parseInt(x)).filter(n=>n>=1&&n<=7); }
 function qIntsToDayNames(ints){ return (ints||[]).map(i=>QURAN_DAY_NAMES[i-1]).filter(Boolean).join(' • '); }
 
@@ -5231,7 +5233,8 @@ async function renderSystemsList(){
         <h3>${esc(s.name)}</h3>
         <div class="qcdesc">${esc(s.description||'—')}</div>
         <div class="qcmeta">
-          <span class="t">${qTrackLabel(s.track)}</span>
+          <span class="t">${qPlanTypeLabel(s.plan_type)}</span>
+          ${s.path_key ? `<span>${qPathLabel(s.path_key)}</span>` : ''}
           ${qStatusBadge(s.status)}
           ${s.expected_duration_weeks ? `<span>${ar(s.expected_duration_weeks)} أسبوع</span>` : ''}
         </div>
@@ -5286,12 +5289,13 @@ async function renderSystemEditor(systemId){
     sys = {
       id:null, name:'', description:'', track:'fortresses', target_audience:'',
       default_start_date:'', expected_duration_weeks:24,
-      study_days:[1,2,3,4,5], rest_days:[6,7], status:'draft'
+      study_days:[1,2,3,4,5], rest_days:[6,7], status:'draft',
+      plan_type:'rasokh', path_key:''
     };
   }
 
   const title = sys.id ? esc(sys.name) : 'نظام جديد';
-  const subt  = sys.id ? qTrackLabel(sys.track)+' · '+ (sys.status==='active'?'نشط':sys.status==='draft'?'مسودة':'مؤرشف') : 'إنشاء نظام تعليمي جديد';
+  const subt  = sys.id ? qTrackLabel(sys.track)+' · '+qPlanTypeLabel(sys.plan_type)+' · '+ (sys.status==='active'?'نشط':sys.status==='draft'?'مسودة':'مؤرشف') : 'إنشاء نظام تعليمي جديد';
 
   let tabsHtml = `<div class="qtabs">
     <button class="${QSTATE.tab==='basic'?'on':''}" onclick="qSwitchTab('basic')">📋 التفاصيل الأساسية</button>
@@ -5359,6 +5363,22 @@ function renderBasicTab(sys){
     </div>
     <div class="qrow">
       <div>
+        <label>نوع الخطة <span class="hint">(يحدد عدد الحصون)</span></label>
+        <select id="qfPlanType">
+          <option value="rasokh" ${(sys.plan_type||'rasokh')==='rasokh'?'selected':''}>🛡️ رسوخ — الحصون الخمسة</option>
+          <option value="flexible" ${sys.plan_type==='flexible'?'selected':''}>🧩 الطالب يختار خطته — ٣ حصون</option>
+        </select>
+      </div>
+      <div>
+        <label>المسار <span class="hint">(أحد المسارات الستة)</span></label>
+        <select id="qfPathKey">
+          <option value="">— غير مرتبط بمسار —</option>
+          ${QURAN_PATHS.map(p=>`<option value="${p.id}" ${sys.path_key===p.id?'selected':''}>${p.icon} ${esc(p.name)}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="qrow">
+      <div>
         <label>الفئة المستهدفة <span class="hint">(اختياري)</span></label>
         <input type="text" id="qfAudience" value="${esc(sys.target_audience||'')}" placeholder="مثل: مبتدئون، الأطفال، الكبار" />
       </div>
@@ -5408,6 +5428,8 @@ async function qSaveSystem(id){
   if(!name){ toast('اسم النظام مطلوب'); return; }
   const description = $('#qfDesc').value.trim();
   const track = $('#qfTrack').value;
+  const plan_type = $('#qfPlanType').value;
+  const path_key = $('#qfPathKey').value || null;
   const status = $('#qfStatus').value;
   const target_audience = $('#qfAudience').value.trim() || null;
   const weeksRaw = $('#qfWeeks').value;
@@ -5422,7 +5444,7 @@ async function qSaveSystem(id){
   });
 
   const payload = {
-    name, description, track, status, target_audience,
+    name, description, track, plan_type, path_key, status, target_audience,
     expected_duration_weeks, default_start_date,
     study_days: studyDays, rest_days: restDays,
     updated_at: new Date().toISOString()
@@ -5439,10 +5461,12 @@ async function qSaveSystem(id){
     payload.created_by = ME.id;
     const { data: ns, error } = await sb.from('quran_systems').insert(payload).select().maybeSingle();
     if(error){ toast('تعذّر الإنشاء: '+error.message); return; }
-    // seed default fortresses
+    // seed default fortresses — نظام "رسوخ" يفعّل الخمسة، و"الطالب يختار" يفعّل فقط الثلاثة الأولى
+    // (الحفظ الجديد، المراجعة القريبة، المراجعة البعيدة) ويعطّل التلاوة والسماع
     const fortRows = QURAN_DEFAULT_FORTRESSES.map((f,i)=>({
       system_id: ns.id, code:f.code, name:f.name, color:f.color, icon:f.icon,
-      default_unit:f.default_unit, order_index:i+1, is_enabled:true
+      default_unit:f.default_unit, order_index:i+1,
+      is_enabled: plan_type==='flexible' ? i<3 : true
     }));
     await sb.from('quran_fortresses').insert(fortRows);
     await sb.from('quran_system_audit').insert({ system_id:ns.id, actor_id:ME.id, action:'system_created', after_data:payload });
@@ -5715,6 +5739,8 @@ async function renderPreviewTab(sys){
     <h4>📋 معلومات النظام</h4>
     <div class="qpvrow"><span>الاسم</span><b>${esc(sys.name)}</b></div>
     <div class="qpvrow"><span>المسار</span><b>${qTrackLabel(sys.track)}</b></div>
+    <div class="qpvrow"><span>نوع الخطة</span><b>${qPlanTypeLabel(sys.plan_type)}</b></div>
+    <div class="qpvrow"><span>مسار القرآن</span><b>${sys.path_key?qPathLabel(sys.path_key):'—'}</b></div>
     <div class="qpvrow"><span>الحالة</span><b>${sys.status==='active'?'✅ نشط':sys.status==='draft'?'📝 مسودة':'📦 مؤرشف'}</b></div>
     <div class="qpvrow"><span>الفئة</span><b>${esc(sys.target_audience||'—')}</b></div>
     <div class="qpvrow"><span>أيام الدراسة</span><b>${esc(qIntsToDayNames(sys.study_days)||'—')}</b></div>
@@ -5723,7 +5749,7 @@ async function renderPreviewTab(sys){
   <div class="qpv">
     <h4>🏛️ الإجمالي</h4>
     <div class="qpvrow"><span>عدد المحطات</span><b>${ar((stations||[]).length)}</b></div>
-    <div class="qpvrow"><span>عدد الحصون المفعّلة</span><b>${ar((forts||[]).length)} من ٥</b></div>
+    <div class="qpvrow"><span>عدد الحصون المفعّلة</span><b>${ar((forts||[]).length)} من ${sys.plan_type==='flexible'?'٣':'٥'}</b></div>
     <div class="qpvrow"><span>المدة الإجمالية للمحطات</span><b>${ar(totalDays)} يوم (~${ar(totalWeeks)} أسبوع)</b></div>
     <div class="qpvrow"><span>المدة المعلَنة في النظام</span><b>${sys.expected_duration_weeks?ar(sys.expected_duration_weeks)+' أسبوع':'—'}</b></div>
   </div>
@@ -6441,7 +6467,7 @@ async function renderPlanDetailForTeacher(planId){
 
 
 PAGES.student_qtoday = async function(){
-  setTop('ورد اليوم','الحصون الخمسة');
+  setTop('ورد اليوم','حصون خطتك اليومية');
   const s = await myStudentRow();
   if(!s) return `<div class="qnoplan"><div class="nei">🌱</div><h3>لا توجد بيانات طالب</h3></div>`;
   const { data: plan } = await sb.from('quran_student_plans').select('*').eq('login_id',ME.id).eq('status','active').maybeSingle();
