@@ -169,17 +169,6 @@ section{ position:relative; }
 .trust-badges .tb svg{ width:18px; height:18px; flex-shrink:0; color:var(--gold); }
 @media(max-width:680px){ .trust-badges{ gap:9px; } .trust-badges .tb{ padding:8px 14px; font-size:12px; } .trust-badges .tb svg{ width:15px; height:15px; } }
 
-/* ═══════════ آراء الأسر (Testimonials) ═══════════ */
-.testi-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:24px; }
-.testi-card{ background:#fff; border:1px solid var(--line); border-radius:16px; box-shadow:0 4px 20px rgba(27,77,62,0.08); padding:26px 24px; transition:transform .3s ease, box-shadow .3s ease; }
-.testi-card:hover{ transform:translateY(-4px); box-shadow:var(--shadow-e); }
-.testi-stars{ color:var(--gold); font-size:15px; letter-spacing:2px; margin-bottom:12px; }
-.testi-text{ font-family:'Cairo',sans-serif; font-size:15px; color:var(--ink); line-height:1.85; margin-bottom:20px; }
-.testi-who{ display:flex; align-items:center; gap:12px; }
-.testi-avatar{ width:44px; height:44px; border-radius:50%; flex-shrink:0; display:grid; place-items:center; background:color-mix(in srgb,var(--emerald) 12%, transparent); color:var(--emerald); font-family:'Tajawal',sans-serif; font-weight:700; font-size:14px; }
-.testi-who b{ display:block; font-family:'Tajawal',sans-serif; font-weight:700; font-size:14.5px; color:var(--emerald); }
-.testi-who span{ font-family:'Cairo',sans-serif; font-size:12.5px; color:var(--ink-soft); }
-
 /* ═══════════ HERO الداخلي (صفحات النظامين والمسارات) ═══════════ */
 .page-hero{ padding:150px 0 70px; text-align:center;
   background: radial-gradient(ellipse at 75% 20%, rgba(34,107,84,0.10), transparent 55%), radial-gradient(ellipse at 20% 80%, rgba(201,162,39,0.10), transparent 50%), var(--cream); }
@@ -362,7 +351,7 @@ section{ position:relative; }
 .cta-final::before{ content:''; position:absolute; inset:0; background-image:url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M40 0l11 29 29 11-29 11-11 29-11-29L0 40l29-11z' fill='%23ffffff' fill-opacity='0.04'/%3E%3C/svg%3E"); }
 .cta-final .wrap{ position:relative; z-index:2; }
 .cta-final h2{ color:var(--cream); margin-bottom:14px; }
-.cta-final p{ font-family:'Cairo',sans-serif; font-size:18px; opacity:.85; margin-bottom:32px; }
+.cta-final p{ font-family:'Cairo',sans-serif; font-size:18px; color:var(--cream); opacity:.9; margin-bottom:32px; }
 .cta-big{ display:inline-flex; align-items:center; gap:12px; padding:0.875rem 2rem; border-radius:8px; background:var(--gold); color:var(--emerald); font-family:'Cairo',sans-serif; font-weight:600; font-size:16px; box-shadow:var(--shadow-g); border:none; cursor:pointer; transition:transform .3s ease, box-shadow .3s ease, background .3s ease; }
 .cta-big:hover{ transform:translateY(-2px); background:var(--gold-soft); box-shadow:0 24px 50px -8px rgba(201,162,39,0.5); }
 
@@ -428,6 +417,10 @@ html.dark .footer{ background:#081912; }
   .sec{ padding:70px 0; }
   .sec-head{ margin-bottom:40px; }
   .sc-body{ padding:26px 22px 32px; }
+}
+@media (max-width:480px){
+  .hero h1{ font-size:24px; line-height:1.5; padding:0.85rem 1.4rem; white-space:nowrap; }
+  .scroll-cue{ display:none; }
 }
 
 /* ═══════ المساعد الذكي (شات بوت عائم) ═══════ */
