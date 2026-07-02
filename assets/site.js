@@ -27,10 +27,22 @@
 /* NAVBAR */
 (function(){
   const nav = document.getElementById('nav'), burger = document.getElementById('burger'), navLinks = document.getElementById('navLinks');
-  if(nav){ window.addEventListener('scroll', ()=>{ nav.classList.toggle('scrolled', window.scrollY>50); }, {passive:true}); }
+  if(nav){
+    let lastY = window.scrollY;
+    window.addEventListener('scroll', ()=>{
+      const y = window.scrollY;
+      nav.classList.toggle('scrolled', y>50);
+      if(navLinks && navLinks.classList.contains('open')){ lastY = y; return; }
+      if(y>lastY && y>120) nav.classList.add('hide'); else nav.classList.remove('hide');
+      lastY = y;
+    }, {passive:true});
+  }
   if(burger && navLinks){
-    burger.addEventListener('click', ()=>{ burger.classList.toggle('open'); navLinks.classList.toggle('open'); });
-    navLinks.querySelectorAll('a').forEach(a=>a.addEventListener('click', ()=>{ burger.classList.remove('open'); navLinks.classList.remove('open'); }));
+    burger.addEventListener('click', ()=>{
+      const open = burger.classList.toggle('open'); navLinks.classList.toggle('open', open);
+      burger.setAttribute('aria-expanded', open ? 'true':'false');
+    });
+    navLinks.querySelectorAll('a').forEach(a=>a.addEventListener('click', ()=>{ burger.classList.remove('open'); navLinks.classList.remove('open'); burger.setAttribute('aria-expanded','false'); }));
   }
 })();
 
@@ -39,8 +51,9 @@
   const themeBtn = document.getElementById('themeBtn');
   if(!themeBtn) return;
   themeBtn.addEventListener('click', ()=>{
-    document.documentElement.classList.toggle('dark');
-    themeBtn.textContent = document.documentElement.classList.contains('dark') ? '☀️' : '🌙';
+    const isDark = document.documentElement.classList.toggle('dark');
+    themeBtn.textContent = isDark ? '☀️' : '🌙';
+    themeBtn.setAttribute('aria-label', isDark ? 'التبديل للوضع النهاري' : 'التبديل للوضع الليلي');
   });
 })();
 
@@ -50,6 +63,29 @@
     entries.forEach((e,idx)=>{ if(e.isIntersecting){ setTimeout(()=>e.target.classList.add('in'), (idx%4)*80); io.unobserve(e.target); } });
   }, {threshold:0.12, rootMargin:'0px 0px -50px 0px'});
   document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+})();
+
+/* عدّاد تصاعدي للأرقام عند الظهور في الشاشة */
+(function(){
+  const els = document.querySelectorAll('[data-count]');
+  if(!els.length) return;
+  const easeOut = t => 1 - Math.pow(1-t, 3);
+  function animate(el){
+    const target = parseInt(el.dataset.count, 10);
+    if(isNaN(target)) return;
+    const dur = 900, start = performance.now();
+    el.textContent = '0';
+    function step(now){
+      const p = Math.min((now-start)/dur, 1);
+      el.textContent = String(Math.round(target * easeOut(p)));
+      if(p<1) requestAnimationFrame(step); else el.textContent = String(target);
+    }
+    requestAnimationFrame(step);
+  }
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{ if(e.isIntersecting){ animate(e.target); io.unobserve(e.target); } });
+  }, {threshold:0.5});
+  els.forEach(el=>io.observe(el));
 })();
 
 /* أنيميشن الهيرو (بعد الـ preloader) — يعمل فقط إن وُجد h1 بكلمات .word */
@@ -68,12 +104,16 @@ window.addEventListener('load', ()=>{
 /* FAQ */
 document.querySelectorAll('.faq-item').forEach(item=>{
   const q = item.querySelector('.faq-q');
+  const a = item.querySelector('.faq-a');
   if(!q) return;
-  q.addEventListener('click', ()=>{
+  q.setAttribute('role','button'); q.setAttribute('tabindex','0'); q.setAttribute('aria-expanded','false');
+  const toggle = ()=>{
     const open = item.classList.contains('open');
-    document.querySelectorAll('.faq-item').forEach(i=>i.classList.remove('open'));
-    if(!open) item.classList.add('open');
-  });
+    document.querySelectorAll('.faq-item').forEach(i=>{ i.classList.remove('open'); const qq=i.querySelector('.faq-q'); if(qq) qq.setAttribute('aria-expanded','false'); });
+    if(!open){ item.classList.add('open'); q.setAttribute('aria-expanded','true'); }
+  };
+  q.addEventListener('click', toggle);
+  q.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); toggle(); } });
 });
 
 /* تبديل الأسعار (شهري/سنوي) — اختياري، فقط إن وُجد على الصفحة */
@@ -88,10 +128,33 @@ document.querySelectorAll('.faq-item').forEach(item=>{
     if(lblY) lblY.classList.toggle('on', isYear);
     document.querySelectorAll('.amt').forEach(a=>{
       a.textContent = arNum(isYear ? a.dataset.y : a.dataset.m);
-      if(a.nextElementSibling) a.nextElementSibling.textContent = isYear ? ' ج/سنة' : ' ج/شهر';
+      if(a.nextElementSibling) a.nextElementSibling.textContent = isYear ? ' ج.م/سنة' : ' ج.م/شهر';
     });
   });
 })();
+
+/* Modal مقارنة الباقات */
+let CMP_LAST_FOCUS = null;
+function openCompare(){
+  const m = document.getElementById('compareModal'); if(!m) return;
+  CMP_LAST_FOCUS = document.activeElement;
+  m.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  const closeBtn = m.querySelector('.compare-head button');
+  if(closeBtn) setTimeout(()=>closeBtn.focus(), 50);
+}
+function closeCompare(){
+  const m = document.getElementById('compareModal'); if(!m) return;
+  m.classList.remove('open');
+  document.body.style.overflow = '';
+  if(CMP_LAST_FOCUS) CMP_LAST_FOCUS.focus();
+}
+document.addEventListener('keydown', (e)=>{
+  if(e.key==='Escape'){ const m=document.getElementById('compareModal'); if(m && m.classList.contains('open')) closeCompare(); }
+});
+document.addEventListener('click', (e)=>{
+  if(e.target.id==='compareModal') closeCompare();
+});
 
 /* ============================================================
    المساعد الذكي — شات بوت عائم (أسئلة شائعة + تحويل واتساب)
@@ -133,34 +196,51 @@ function cbMatch(q){
   return bestScore>0 ? best : null;
 }
 function cbEsc(t){ const d=document.createElement('div'); d.textContent=String(t||''); return d.innerHTML; }
-let CB_OPEN=false;
+const CB_WHATSAPP_LINK = 'https://wa.me/'+CB_WHATSAPP;
+let CB_STATE = 'closed'; /* closed | launcher | chat */
 let CB_LAST_QUESTION='';
 function cbInit(){
   const host = document.getElementById('chatbotHost');
   if(!host) return;
   host.innerHTML = `
-    <button class="cb-fab" id="cbFab" onclick="cbToggle()" aria-label="تواصل مع الشات"><span class="cb-avatar"><img src="assets/logo.jpg" alt="المساعد الذكي"><span class="cb-dot">💬</span></span><span class="cb-label">تواصل مع الشات</span></button>
+    <button class="cb-fab" id="cbFab" onclick="cbFabClick()" aria-label="افتح قائمة التواصل" aria-haspopup="true" aria-expanded="false"><span class="cb-avatar"><img src="assets/logo.webp" alt="" loading="lazy"><span class="cb-dot">💬</span></span><span class="cb-label">تواصل معنا</span></button>
+    <div class="cb-launcher" id="cbLauncher" role="menu">
+      <a class="cb-launch-opt" role="menuitem" href="${CB_WHATSAPP_LINK}" target="_blank" rel="noopener"><span class="clo-ic wa" aria-hidden="true"><svg viewBox="0 0 32 32" width="19" height="19" fill="currentColor"><path d="M16.01 3C9.38 3 4 8.38 4 15.01c0 2.35.62 4.55 1.7 6.46L4 29l7.73-1.65a11.9 11.9 0 0 0 4.28.79h.01c6.63 0 12.01-5.38 12.01-12.01C28.03 8.38 22.65 3 16.01 3zm0 21.87h-.01a9.9 9.9 0 0 1-5.05-1.39l-.36-.21-3.79.81.81-3.7-.24-.38a9.86 9.86 0 0 1-1.51-5.28c0-5.47 4.45-9.92 9.93-9.92 2.65 0 5.14 1.04 7.01 2.91a9.85 9.85 0 0 1 2.9 7.01c0 5.47-4.45 9.92-9.9 9.92l.21.23zm5.44-7.43c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.25-.46-2.38-1.47-.88-.78-1.47-1.75-1.65-2.05-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.06 2.88 1.21 3.08c.15.2 2.09 3.19 5.07 4.47.71.31 1.26.49 1.69.62.71.23 1.36.2 1.87.12.57-.08 1.76-.72 2.01-1.41.25-.7.25-1.29.17-1.41-.07-.13-.27-.2-.57-.35z"/></svg></span><span>تواصل عبر واتساب</span></a>
+      <button class="cb-launch-opt" role="menuitem" type="button" onclick="cbOpenChat()"><span class="clo-ic" aria-hidden="true">🤖</span><span>المساعد الذكي</span></button>
+    </div>
     <div class="cb-panel" id="cbPanel">
       <div class="cb-head">
         <div><b>🤖 المساعد الذكي</b><span>هنا لأي سؤال عن أكاديمية الهدى</span></div>
-        <button onclick="cbToggle()">×</button>
+        <button onclick="cbClose()" aria-label="إغلاق المحادثة">×</button>
       </div>
       <div class="cb-body" id="cbBody"></div>
       <div class="cb-input">
-        <input id="cbInput" placeholder="اكتب سؤالك هنا..." onkeydown="if(event.key==='Enter')cbSend()">
-        <button onclick="cbSend()">➤</button>
+        <input id="cbInput" placeholder="اكتب سؤالك هنا..." aria-label="اكتب سؤالك هنا" onkeydown="if(event.key==='Enter')cbSend()">
+        <button onclick="cbSend()" aria-label="إرسال">➤</button>
       </div>
     </div>`;
   cbAppendBot('السلام عليكم! 👋 أنا مساعد أكاديمية الهدى، اسألني عن الأنظمة، المسارات، الأسعار، أو التسجيل.');
   const b = document.getElementById('cbBody');
   const chips = CHATBOT_FAQ.slice(0,4).map(f=>`<span class="cb-chip" onclick="cbAsk('${f.kw[0]}')">${f.kw[0]}</span>`).join('');
   if(b) b.insertAdjacentHTML('beforeend', `<div class="cb-chips">${chips}</div>`);
+  document.addEventListener('click', (e)=>{
+    if(CB_STATE!=='launcher') return;
+    if(!e.target.closest('#cbLauncher') && !e.target.closest('#cbFab')) cbSetState('closed');
+  });
 }
-function cbToggle(){
-  const p = document.getElementById('cbPanel'); if(!p) return;
-  CB_OPEN = !CB_OPEN; p.classList.toggle('open', CB_OPEN);
-  if(CB_OPEN){ const i=document.getElementById('cbInput'); if(i) setTimeout(()=>i.focus(),150); }
+function cbSetState(state){
+  CB_STATE = state;
+  const fab = document.getElementById('cbFab');
+  const launcher = document.getElementById('cbLauncher');
+  const panel = document.getElementById('cbPanel');
+  if(launcher) launcher.classList.toggle('open', state==='launcher');
+  if(panel) panel.classList.toggle('open', state==='chat');
+  if(fab) fab.setAttribute('aria-expanded', state!=='closed' ? 'true':'false');
 }
+function cbFabClick(){ cbSetState(CB_STATE==='closed' ? 'launcher' : 'closed'); }
+function cbOpenChat(){ cbSetState('chat'); const i=document.getElementById('cbInput'); if(i) setTimeout(()=>i.focus(),150); }
+function cbClose(){ cbSetState('closed'); }
+function cbToggle(){ cbFabClick(); }
 function cbAppendBot(text){
   const b = document.getElementById('cbBody'); if(!b) return;
   b.insertAdjacentHTML('beforeend', `<div class="cb-msg bot">${cbEsc(text).replace(/\n/g,'<br>')}</div>`);
@@ -193,3 +273,17 @@ function cbEscalate(){
   window.open('https://wa.me/'+CB_WHATSAPP+'?text='+encodeURIComponent('السلام عليكم، عندي سؤال: '+CB_LAST_QUESTION), '_blank');
 }
 document.addEventListener('DOMContentLoaded', cbInit);
+
+/* حالة تحميل عند الضغط على أزرار الاشتراك/التسجيل */
+document.querySelectorAll('a[href*="index.html#signup"]').forEach(a=>{
+  a.addEventListener('click', function(e){
+    if(this.dataset.loading) return;
+    e.preventDefault();
+    this.dataset.loading = '1';
+    this.dataset.origHtml = this.innerHTML;
+    this.innerHTML = '<span class="btn-spinner" aria-hidden="true"></span> جاري التحميل...';
+    this.setAttribute('aria-busy','true');
+    const href = this.href;
+    setTimeout(()=>{ window.location.href = href; }, 550);
+  });
+});

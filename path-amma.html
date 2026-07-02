@@ -12,6 +12,7 @@
 <link rel="stylesheet" href="assets/site.css">
 </head>
 <body>
+<a href="#main-content" class="skip-link">تخطَّ إلى المحتوى الرئيسي</a>
 
 <div id="preloader">
   <div class="pre-inner">
@@ -24,7 +25,7 @@
 <nav class="nav" id="nav">
   <div class="wrap nav-in">
     <a class="brand" href="landing.html">
-      <div class="brand-mark"><img src="assets/logo.jpg" alt="أكاديمية الهدى" style="width:100%;height:100%;object-fit:contain;border-radius:inherit"></div>
+      <div class="brand-mark"><img src="assets/logo.webp" alt="أكاديمية الهدى" style="width:100%;height:100%;object-fit:contain;border-radius:inherit"></div>
       <div class="brand-txt"><b>أكاديمية الهدى</b><small>نُعلِّم بإتقان... ونُربِّي بإحسان</small></div>
     </a>
     <div class="nav-links" id="navLinks">
@@ -36,15 +37,15 @@
     </div>
     <div style="display:flex;align-items:center;gap:10px">
       <button class="theme-btn" id="themeBtn" aria-label="الوضع الليلي">🌙</button>
-      <button class="burger" id="burger" aria-label="القائمة"><span></span><span></span><span></span></button>
+      <button class="burger" id="burger" aria-label="القائمة" aria-expanded="false" aria-controls="navLinks"><span></span><span></span><span></span></button>
     </div>
   </div>
 </nav>
 
-<header class="page-hero">
+<header class="page-hero" id="main-content">
   <div class="wrap">
     <div class="breadcrumb reveal"><a href="landing.html">الرئيسية</a> ← <a href="landing.html#paths">المسارات</a> ← جزء عمّ وتبارك</div>
-    <div class="banner-img reveal"><img src="assets/path-amma-banner.jpg" alt="مسار جزء عمّ وتبارك"></div>
+    <div class="banner-img reveal"><img src="assets/path-amma-banner.webp" alt="مسار جزء عمّ وتبارك" fetchpriority="high"></div>
     <div class="tag reveal">بداية مباركة</div>
     <h1 class="reveal">مسار جزء عمّ وتبارك</h1>
     <p class="reveal">حفظ جزأي عمّ وتبارك (٢٩ و٣٠) بإتقان، وهما أكثر ما يُقرأ في الصلوات — مثالي لمن يبدأ رحلته مع حفظ كتاب الله، متاح ضمن نظام رسوخ أو النظام المرن.</p>
@@ -113,31 +114,43 @@
 
 <footer class="footer">
   <div class="wrap">
-    <div class="foot-grid foot-grid-3">
-      <div class="foot-col">
-        <div class="foot-brand"><div class="bm"><img src="assets/logo.jpg" alt="أكاديمية الهدى" style="width:100%;height:100%;object-fit:contain;border-radius:inherit"></div><b>أكاديمية الهدى</b></div>
-        <p>نُعلِّم بإتقان... ونُربِّي بإحسان — منصّة متكاملة لتعليم القرآن الكريم وبناء إنسان ربّانيّ متّصل بكتابه.</p>
-      </div>
+    <div class="foot-brand-strip">
+      <div class="foot-brand"><div class="bm"><img src="assets/logo.webp" alt="أكاديمية الهدى" loading="lazy" style="width:100%;height:100%;object-fit:contain;border-radius:inherit"></div><b>أكاديمية الهدى</b></div>
+      <p>نُعلِّم بإتقان... ونُربِّي بإحسان — منصّة متكاملة لتعليم القرآن الكريم وبناء إنسان ربّانيّ متّصل بكتابه.</p>
+    </div>
+    <div class="foot-grid foot-grid-4">
       <div class="foot-col">
         <h4>روابط سريعة</h4>
         <a href="landing.html#systems">الأنظمة التعليمية</a>
         <a href="landing.html#paths">كل المسارات</a>
         <a href="landing.html#pricing">الأسعار</a>
+        <a href="landing.html#faq">الأسئلة الشائعة</a>
       </div>
       <div class="foot-col">
-        <h4>الدعم</h4>
-        <a href="landing.html#faq">الأسئلة الشائعة</a>
+        <h4>تواصل معنا</h4>
+        <a href="mailto:info@alhuda-academy.com">✉️ info@alhuda-academy.com</a>
+        <a href="tel:+201227958232">📞 ‎+20 122 795 8232</a>
+        <a href="https://wa.me/201227958232" target="_blank" rel="noopener">💬 تواصل عبر واتساب</a>
+      </div>
+      <div class="foot-col">
+        <h4>تابعنا</h4>
+        <div class="foot-social">
+          <a href="#" aria-label="فيسبوك" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M22 12a10 10 0 1 0-11.56 9.88v-6.99H7.9V12h2.54V9.8c0-2.5 1.49-3.89 3.78-3.89 1.1 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56V12h2.78l-.44 2.89h-2.34v6.99A10 10 0 0 0 22 12z"/></svg></a>
+          <a href="#" aria-label="يوتيوب" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.5 7.2s-.23-1.64-.94-2.36c-.9-.94-1.9-.95-2.36-1C17 3.5 12 3.5 12 3.5h-.01s-5 0-8.2.34c-.46.05-1.46.06-2.36 1C.73 5.56.5 7.2.5 7.2S.25 9.13.25 11.06v1.8c0 1.93.25 3.86.25 3.86s.23 1.64.94 2.36c.9.95 2.08.92 2.6 1.02 1.9.18 8.01.34 8.01.34s5.01-.01 8.21-.35c.46-.06 1.46-.06 2.36-1 .71-.72.94-2.36.94-2.36s.25-1.93.25-3.86v-1.8c0-1.93-.25-3.86-.25-3.86zM9.75 14.85V8.4l6.27 3.23-6.27 3.22z"/></svg></a>
+          <a href="#" aria-label="تيليجرام" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M22 3.5 2.6 11.2c-1.3.53-1.3 1.27-.24 1.6l4.96 1.55 1.9 5.86c.24.66.42.92.86.92.34 0 .5-.15.7-.35l1.9-1.85 4.1 3.03c.75.42 1.3.2 1.5-.7l2.7-12.9c.3-1.15-.4-1.65-1.18-1.3z"/></svg></a>
+          <a href="https://wa.me/201227958232" aria-label="واتساب" target="_blank" rel="noopener"><svg viewBox="0 0 32 32" fill="currentColor"><path d="M16.01 3C9.38 3 4 8.38 4 15.01c0 2.35.62 4.55 1.7 6.46L4 29l7.73-1.65a11.9 11.9 0 0 0 4.28.79h.01c6.63 0 12.01-5.38 12.01-12.01C28.03 8.38 22.65 3 16.01 3zm5.44 15.44c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.25-.46-2.38-1.47-.88-.78-1.47-1.75-1.65-2.05-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.06 2.88 1.21 3.08c.15.2 2.09 3.19 5.07 4.47.71.31 1.26.49 1.69.62.71.23 1.36.2 1.87.12.57-.08 1.76-.72 2.01-1.41.25-.7.25-1.29.17-1.41-.07-.13-.27-.2-.57-.35z"/></svg></a>
+        </div>
+      </div>
+      <div class="foot-col">
+        <h4>قانوني</h4>
+        <a href="privacy-policy.html">سياسة الخصوصية</a>
         <a href="index.html#login">تسجيل الدخول</a>
-        <a href="https://wa.me/201227958232" target="_blank">💬 تواصل معنا عبر واتساب</a>
       </div>
     </div>
     <div class="foot-bottom">© 2026 أكاديمية الهدى — منصّة تعليم القرآن وبناء الإنسان · جميع الحقوق محفوظة</div>
   </div>
 </footer>
 
-<a class="wa-fab" href="https://wa.me/201227958232" target="_blank" rel="noopener" aria-label="تواصل واتساب">
-  <img src="assets/whatsapp-icon.png" alt="واتساب">
-</a>
 <div id="chatbotHost"></div>
 
 <script src="assets/site.js"></script>
