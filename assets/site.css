@@ -110,7 +110,7 @@ section{ position:relative; }
   border:1px solid rgba(184,139,12,0.25);
   box-shadow:0 8px 24px rgba(154,116,10,0.08);
   border-radius:999px; padding:1.25rem 2.75rem; text-align:center;
-  display:flex; align-items:center; justify-content:center;
+  word-spacing:0.2em;
   margin-bottom:24px; letter-spacing:0; }
 .hero h1 .word{ display:inline-block; opacity:0; transform:translateY(28px); }
 .hero h1 .gold{ color:var(--gold); }
