@@ -86,7 +86,6 @@ section{ position:relative; }
 .hero h1{ font-size:clamp(28px,4vw,52px); line-height:1.5; font-weight:700; color:var(--ink); margin-bottom:14px; letter-spacing:0; }
 .hero h1 .word{ display:inline-block; opacity:0; transform:translateY(28px); }
 .hero h1 .gold{ background:linear-gradient(95deg,var(--gold-glow),var(--gold),var(--gold-glow)); background-size:200% auto; -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; animation:shimmer 3.5s linear infinite; }
-.hero h1 .gold.sm{ font-size:0.72em; }
 @keyframes shimmer{ to{ background-position:200% center; } }
 .hero-lead{ font-size:clamp(16px,1.7vw,18.5px); color:var(--ink-soft); max-width:540px; margin-bottom:32px; opacity:0; }
 .hero-cta{ display:flex; gap:14px; flex-wrap:wrap; opacity:0; }
@@ -195,8 +194,9 @@ section{ position:relative; }
 .sec-dark .hisn{ background:rgba(255,255,255,0.06); border-color:rgba(255,255,255,0.12); }
 .hisn:hover{ transform:translateY(-10px); box-shadow:var(--shadow-e); border-color:var(--gold); }
 .hisn-num{ position:absolute; top:18px; inset-inline-end:18px; width:30px; height:30px; border-radius:50%; background:linear-gradient(135deg,var(--gold),var(--gold-soft)); color:var(--emerald-deep); display:grid; place-items:center; font-weight:700; font-family:'Amiri'; font-size:16px; }
-.hisn-ic{ width:66px; height:66px; border-radius:20px; display:grid; place-items:center; font-size:32px; background:color-mix(in srgb,var(--emerald) 12%, transparent); margin-bottom:18px; transition:transform .35s ease; }
-.sec-dark .hisn-ic{ background:rgba(243,217,139,0.14); }
+.hisn-ic{ width:66px; height:66px; border-radius:50%; display:grid; place-items:center; color:var(--emerald-deep); background:color-mix(in srgb,var(--emerald) 12%, transparent); margin-bottom:18px; transition:transform .35s ease; }
+.hisn-ic svg{ width:32px; height:32px; }
+.sec-dark .hisn-ic{ background:rgba(243,217,139,0.14); color:var(--gold-glow); }
 .hisn:hover .hisn-ic{ transform:scale(1.12) rotate(-6deg); }
 .hisn h3{ font-size:21px; margin-bottom:8px; color:inherit; }
 .hisn p{ font-size:14px; color:var(--ink-soft); line-height:1.7; }
@@ -219,7 +219,8 @@ section{ position:relative; }
 .pc-cta{ display:inline-block; margin-top:6px; color:var(--emerald); font-weight:600; font-size:15px; opacity:0; transform:translateX(10px); transition:all .3s ease; }
 .path-card:hover .pc-cta{ opacity:1; transform:translateX(0); }
 .smart-note{ margin-top:36px; padding:22px 26px; border-radius:18px; display:flex; gap:16px; align-items:flex-start; background:color-mix(in srgb,var(--gold) 9%, var(--cream)); border-inline-start:4px solid var(--gold); }
-.smart-note .sn-ic{ font-size:28px; flex-shrink:0; }
+.smart-note .sn-ic{ width:44px; height:44px; border-radius:50%; display:grid; place-items:center; flex-shrink:0; color:var(--gold); background:color-mix(in srgb,var(--gold) 16%, transparent); }
+.smart-note .sn-ic svg{ width:24px; height:24px; }
 .smart-note b{ color:var(--emerald); }
 .smart-note p{ font-size:15px; color:var(--ink-soft); }
 
@@ -227,7 +228,9 @@ section{ position:relative; }
 .info-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:24px; }
 .info-card{ background:var(--cream); border:1px solid var(--line); border-radius:20px; padding:28px; transition:transform .3s ease, box-shadow .3s ease; }
 .info-card:hover{ transform:translateY(-6px); box-shadow:var(--shadow-e); }
-.info-card .ic-icon{ width:54px; height:54px; border-radius:16px; display:grid; place-items:center; font-size:26px; margin-bottom:14px; background:color-mix(in srgb,var(--emerald) 12%, transparent); }
+.info-card .ic-icon{ width:54px; height:54px; border-radius:50%; display:grid; place-items:center; color:var(--emerald-deep); margin-bottom:14px; background:color-mix(in srgb,var(--emerald) 12%, transparent); }
+.info-card .ic-icon svg{ width:26px; height:26px; }
+.sec-dark .info-card .ic-icon{ color:var(--gold-glow); background:rgba(243,217,139,0.14); }
 .info-card h3{ font-family:'Amiri'; font-size:19px; color:var(--emerald-deep); margin-bottom:8px; }
 .info-card p{ font-size:14px; color:var(--ink-soft); line-height:1.85; }
 .sec-dark .info-card{ background:rgba(255,255,255,0.06); border-color:rgba(255,255,255,0.12); }
@@ -241,7 +244,8 @@ section{ position:relative; }
 .tl-card{ background:var(--cream); border:1px solid var(--line); border-radius:18px; padding:20px 24px; box-shadow:0 6px 18px rgba(0,0,0,0.04); }
 .tl-card h4{ font-family:'Amiri'; font-size:20px; color:var(--emerald); margin-bottom:5px; }
 .tl-card p{ font-size:14px; color:var(--ink-soft); }
-.tl-dot{ width:62px; height:62px; border-radius:50%; background:linear-gradient(140deg,var(--emerald),var(--emerald-2)); display:grid; place-items:center; font-size:26px; color:var(--cream); box-shadow:0 8px 20px rgba(13,107,79,0.3); z-index:2; flex-shrink:0; position:relative; }
+.tl-dot{ width:62px; height:62px; border-radius:50%; background:linear-gradient(140deg,var(--emerald),var(--emerald-2)); display:grid; place-items:center; color:var(--cream); box-shadow:0 8px 20px rgba(13,107,79,0.3); z-index:2; flex-shrink:0; position:relative; }
+.tl-dot svg{ width:27px; height:27px; }
 .tl-dot::after{ content:attr(data-n); position:absolute; font-family:'Amiri'; font-size:64px; color:var(--line); z-index:-1; inset-inline-start:50%; top:50%; transform:translate(50%,-50%); }
 .tl-card:empty{ visibility:hidden; }
 
@@ -321,10 +325,21 @@ html.dark .footer{ background:#081912; }
   .tl-step{ grid-template-columns:auto 1fr; gap:16px; }
   .tl-card.left:empty, .tl-card.right:empty{ display:none; }
   .tl-step:nth-child(odd) .tl-card.right, .tl-step:nth-child(even) .tl-card.left{ visibility:visible; }
-  .tl-dot{ width:54px; height:54px; font-size:22px; }
+  .tl-dot{ width:54px; height:54px; }
+  .tl-dot svg{ width:23px; height:23px; }
   .foot-grid{ grid-template-columns:1fr; }
   .hero-trust{ gap:18px; }
   .page-hero{ padding:130px 0 50px; }
+  .fortress{ width:min(280px,84%); }
+  .fortress-core{ width:52%; }
+  .float-stat{ padding:7px 11px; border-radius:15px; gap:7px; }
+  .float-stat .ic{ width:30px; height:30px; }
+  .float-stat .ic svg{ width:16px; height:16px; }
+  .float-stat b{ font-size:12px; }
+  .float-stat span{ font-size:8.5px; }
+  .fs-1{ top:-6%; inset-inline-start:-10%; }
+  .fs-2{ top:42%; inset-inline-end:-18%; }
+  .fs-3{ bottom:-8%; inset-inline-start:-2%; }
 }
 @media (max-width:414px){
   .wrap{ padding:0 18px; }
