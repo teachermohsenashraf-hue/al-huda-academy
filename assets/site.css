@@ -83,7 +83,7 @@ section{ position:relative; }
 .hero-eyebrow{ display:inline-flex; align-items:center; gap:9px; padding:8px 16px; border-radius:999px; background:color-mix(in srgb,var(--emerald) 10%, transparent); border:1px solid var(--line); color:var(--emerald); font-size:13.5px; font-weight:600; margin-bottom:24px; }
 .hero-eyebrow .pulse{ width:8px; height:8px; border-radius:50%; background:var(--gold); box-shadow:0 0 0 0 rgba(191,154,69,0.6); animation:ping 2s infinite; }
 @keyframes ping{ 0%{ box-shadow:0 0 0 0 rgba(191,154,69,0.5); } 70%{ box-shadow:0 0 0 10px rgba(191,154,69,0); } 100%{ box-shadow:0 0 0 0 rgba(191,154,69,0); } }
-.hero h1{ font-size:clamp(28px,4vw,52px); line-height:1.5; font-weight:700; color:var(--ink); margin-bottom:14px; letter-spacing:0; }
+.hero h1{ font-size:clamp(28px,4vw,52px); line-height:1.9; font-weight:700; color:var(--ink); margin-bottom:14px; padding-top:0.35em; letter-spacing:0; }
 .hero h1 .word{ display:inline-block; opacity:0; transform:translateY(28px); }
 .hero h1 .gold{ background:linear-gradient(95deg,var(--gold-glow),var(--gold),var(--gold-glow)); background-size:200% auto; -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; animation:shimmer 3.5s linear infinite; }
 @keyframes shimmer{ to{ background-position:200% center; } }
@@ -178,7 +178,8 @@ section{ position:relative; }
 .sc-desc{ font-size:14.5px; color:var(--ink-soft); line-height:1.9; margin-bottom:22px; }
 .sc-feats{ list-style:none; text-align:start; display:flex; flex-direction:column; gap:11px; margin-bottom:22px; }
 .sc-feats li{ display:flex; align-items:center; gap:9px; font-size:14.5px; color:var(--ink-soft); }
-.sc-feats .ck{ flex-shrink:0; }
+.sc-feats .ck{ flex-shrink:0; width:22px; height:22px; border-radius:50%; display:grid; place-items:center; color:var(--emerald); background:color-mix(in srgb,var(--emerald) 12%, transparent); }
+.sc-feats .ck svg{ width:14px; height:14px; }
 .sc-packages{ background:color-mix(in srgb,var(--emerald) 6%, var(--cream)); border-radius:16px; padding:16px 18px; margin-bottom:24px; text-align:start; }
 .sc-pkg-title{ font-weight:700; color:var(--emerald-deep); font-size:13px; margin-bottom:10px; }
 .sc-pkg-row{ display:flex; justify-content:space-between; align-items:center; gap:10px; font-size:13.5px; color:var(--ink-soft); padding:7px 0; border-bottom:1px dashed var(--line); }
