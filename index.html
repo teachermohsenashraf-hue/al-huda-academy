@@ -70,7 +70,7 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 .side .menu{padding:14px 12px;flex:1;overflow-y:auto}
 .side .ml{font-size:11px;color:rgba(255,255,255,0.4);font-weight:700;letter-spacing:1px;padding:14px 12px 8px}
 .side a{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:12px;color:rgba(255,255,255,0.8);text-decoration:none;font-size:14.5px;font-weight:500;margin-bottom:3px;transition:.2s;cursor:pointer}
-.side a .i{font-size:18px;width:22px;text-align:center}
+.side a .i{width:22px;height:18px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center}
 .side a:hover{background:rgba(255,255,255,0.07);color:#fff}
 .side a.active{background:linear-gradient(135deg,rgba(201,162,39,0.25),rgba(201,162,39,0.08));color:#fff;box-shadow:inset 3px 0 0 var(--gold)}
 .side .foot{padding:14px 18px;border-top:1px solid rgba(255,255,255,0.08)}
@@ -110,7 +110,7 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 .grid2{display:grid;grid-template-columns:1.4fr 1fr;gap:20px;margin-bottom:20px}
 .grid2.even{grid-template-columns:1fr 1fr}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:20px}
-.card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:22px}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 4px 20px rgba(27,77,62,0.06);padding:22px}
 .card .ch{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;gap:10px;flex-wrap:wrap}
 .card .ch h3{font-size:17px;color:var(--navy-deep)}
 .card .ch .more{font-size:13px;color:var(--emerald);font-weight:700;text-decoration:none;cursor:pointer;background:none;border:none}
@@ -119,12 +119,13 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 .pill.done{background:rgba(27,77,62,0.12);color:var(--emerald)}
 .pill.part{background:rgba(201,162,39,0.16);color:#a07d1a}
 .pill.todo{background:rgba(22,54,44,0.08);color:#5A6B7A}
-.btn{border:none;font-weight:700;font-size:13.5px;padding:11px 22px;border-radius:30px;cursor:pointer;background:linear-gradient(135deg,var(--emerald),var(--emerald-deep));color:#fff;transition:.2s}
-.btn:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(27,77,62,0.3)}
-.btn.gold{background:linear-gradient(135deg,var(--gold),var(--gold-light));color:var(--navy-deep)}
+.btn{border:none;font-family:'Cairo',sans-serif;font-weight:600;font-size:13.5px;padding:11px 22px;border-radius:8px;cursor:pointer;background:var(--emerald);color:#fff;transition:.2s}
+.btn:hover{transform:translateY(-2px);background:var(--emerald-deep);box-shadow:0 8px 20px rgba(27,77,62,0.3)}
+.btn.gold{background:var(--gold);color:var(--emerald-deep)}
+.btn.gold:hover{background:var(--gold-light)}
 .btn.ghost{background:#fff;color:var(--emerald-deep);border:1.5px solid var(--line)}
-.btn-sm{border:none;font-weight:700;font-size:12.5px;padding:7px 16px;border-radius:20px;cursor:pointer;background:linear-gradient(135deg,var(--emerald),var(--emerald-deep));color:#fff}
-.btn-sm.gold{background:linear-gradient(135deg,var(--gold),var(--gold-light));color:var(--navy-deep)}
+.btn-sm{border:none;font-family:'Cairo',sans-serif;font-weight:600;font-size:12.5px;padding:7px 16px;border-radius:8px;cursor:pointer;background:var(--emerald);color:#fff}
+.btn-sm.gold{background:var(--gold);color:var(--emerald-deep)}
 .btn-sm.ghost{background:var(--cream);color:var(--emerald-deep);border:1px solid var(--line)}
 
 /* جداول */
@@ -630,8 +631,9 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 .plan-pkg-badge{position:absolute;top:-11px;background:var(--gold);color:var(--emerald-deep);font-size:10px;font-weight:800;padding:3px 10px;border-radius:20px;white-space:nowrap}
 /* أزرار الالتحاق */
 .pm-join{display:flex;flex-direction:column;gap:10px;margin-top:8px}
-.join-btn{border:none;border-radius:14px;padding:16px;font-family:'Cairo';font-weight:700;font-size:15px;cursor:pointer;transition:.2s}
-.join-btn.primary{background:linear-gradient(135deg,var(--emerald),var(--emerald-deep));color:#fff;box-shadow:0 8px 22px rgba(34,107,84,0.35)}
+.join-btn{border:none;border-radius:8px;padding:16px;font-family:'Cairo';font-weight:600;font-size:15px;cursor:pointer;transition:.2s}
+.join-btn.primary{background:var(--emerald);color:#fff;box-shadow:0 8px 22px rgba(27,77,62,0.35)}
+.join-btn.primary:hover{background:var(--emerald-deep)}
 .join-btn.primary:hover{transform:translateY(-2px)}
 .join-btn.subsidy{background:#fff;color:var(--emerald-deep);border:1.5px solid var(--gold)}
 .join-btn.subsidy:hover{background:var(--cream)}
@@ -830,7 +832,8 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 .rc .ic{font-size:30px;margin-bottom:8px}
 .rc b{display:block;color:var(--navy-deep);font-size:16px;font-family:'Amiri'}
 .rc span{font-size:12px;color:var(--muted)}
-.auth-btn{width:100%;padding:14px;border:none;border-radius:14px;background:linear-gradient(135deg,var(--emerald),var(--emerald-deep));color:#fff;font-family:'Cairo';font-weight:700;font-size:15px;cursor:pointer;margin-top:8px}
+.auth-btn{width:100%;padding:14px;border:none;border-radius:8px;background:var(--emerald);color:#fff;font-family:'Cairo';font-weight:600;font-size:15px;cursor:pointer;margin-top:8px;transition:.2s}
+.auth-btn:hover{background:var(--emerald-deep)}
 .auth-alt{text-align:center;font-size:13.5px;color:var(--muted);margin-top:16px}
 .auth-alt a{color:var(--emerald);font-weight:700;cursor:pointer}
 .side .foot .home-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.85);border-radius:12px;padding:9px;font-family:'Cairo';font-weight:600;font-size:13px;cursor:pointer;margin-bottom:8px}
@@ -2145,42 +2148,81 @@ function backToLanding(){ hideAll(); const lp=$('#landing'); lp.classList.remove
    أكاديمية الهدى — الصفحات (مربوطة ببيانات Supabase الحيّة)
    ============================================================ */
 const PAGES = {};
+// مكتبة أيقونات SVG موحّدة (بدل الإيموجي) لتتناسق مع هوية الموقع التسويقي
+const ICON_SVGS = {
+  home:'<path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9a1 1 0 0 0 1 1H10v-5.5h4V20h3.5a1 1 0 0 0 1-1v-9"/>',
+  chart:'<path d="M3 3v18h18"/><path d="M7 15l3.5-4 3 2.5L18 8"/><circle cx="18" cy="8" r="1.2" fill="currentColor" stroke="none"/>',
+  users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  cap:'<path d="M2 9.5 12 5l10 4.5-10 4.5-10-4.5Z"/><path d="M6 12v5c0 1.2 2.7 2.5 6 2.5s6-1.3 6-2.5v-5"/>',
+  teacher:'<circle cx="9" cy="7" r="3.2"/><path d="M2.5 20v-1.5A4.5 4.5 0 0 1 7 14h4a4.5 4.5 0 0 1 4.5 4.5V20"/><path d="M16 4.2c1.5.5 2.5 1.9 2.5 3.5S17.5 10.7 16 11.2"/><path d="M20 20v-1.3a4 4 0 0 0-2.5-3.7"/>',
+  books:'<path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H9v18H5.5A1.5 1.5 0 0 1 4 19.5z"/><path d="M9 3h5.5A1.5 1.5 0 0 1 16 4.5v15a1.5 1.5 0 0 1-1.5 1.5H9"/><path d="M16 6l4.3 1.2a1.5 1.5 0 0 1 1 1.9l-3.9 14.4"/>',
+  warning:'<path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.3" r="0.9" fill="currentColor" stroke="none"/>',
+  clipboard:'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 3h6a1 1 0 0 1 1 1v1H8V4a1 1 0 0 1 1-1z"/><path d="M9 12h6M9 16h4"/>',
+  kaaba:'<rect x="4" y="6" width="16" height="14" rx="1.5"/><path d="M4 11h16"/><path d="M9 6 7 20M15 6l2 14"/>',
+  shield:'<path d="M12 3l8 3.5v5.2c0 5-3.4 8.4-8 9.8-4.6-1.4-8-4.8-8-9.8V6.5z"/><path d="M8.5 12.2l2.3 2.3 4.5-4.7"/>',
+  download:'<path d="M12 3v12"/><path d="M7.5 10.5 12 15l4.5-4.5"/><path d="M4 18.5h16v2H4z"/>',
+  card:'<rect x="2.5" y="5" width="19" height="14" rx="2.2"/><path d="M2.5 10h19"/><path d="M6 15h5"/>',
+  building:'<path d="M4 21V8l8-5 8 5v13"/><path d="M2 21h20"/><path d="M9 21v-6h6v6"/><path d="M9 11h.01M15 11h.01M9 15h.01M15 15h.01"/>',
+  team:'<circle cx="7" cy="8" r="3"/><circle cx="17" cy="8" r="3"/><path d="M1.5 20v-1a4.5 4.5 0 0 1 4.5-4.5h2a4.5 4.5 0 0 1 2.9 1.06"/><path d="M13.1 15.56A4.5 4.5 0 0 1 16 14.5h2A4.5 4.5 0 0 1 22.5 19v1"/>',
+  child:'<circle cx="12" cy="6.5" r="3.2"/><path d="M5 21v-3a7 7 0 0 1 14 0v3"/>',
+  refresh:'<path d="M3 12a9 9 0 0 1 15.5-6.3L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.5 6.3L3 16"/><path d="M3 21v-5h5"/>',
+  sparkle:'<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8Z"/>',
+  mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3.5 6.5 12 13l8.5-6.5"/>',
+  dot:'<circle cx="12" cy="12" r="6" fill="currentColor" stroke="none"/>',
+  eye:'<path d="M2 12s3.8-7 10-7 10 7 10 7-3.8 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
+  family:'<circle cx="8" cy="7" r="2.6"/><circle cx="16.5" cy="8" r="2.2"/><circle cx="6" cy="18" r="1.7"/><path d="M3 21v-1.2A4 4 0 0 1 8 16a4 4 0 0 1 5 3.8V21"/><path d="M13.3 21v-1a4 4 0 0 1 6.7-3"/>',
+  mosque:'<path d="M4 21V13a8 8 0 0 1 16 0v8"/><path d="M2 21h20"/><path d="M12 4V2M12 13v3"/><path d="M9 21v-4a3 3 0 0 1 6 0v4"/>',
+  book:'<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 18.5A2.5 2.5 0 0 1 6.5 16H20"/>',
+  beads:'<circle cx="12" cy="4.5" r="1.6"/><circle cx="17.5" cy="7" r="1.6"/><circle cx="19.5" cy="12.5" r="1.6"/><circle cx="16.5" cy="17.5" r="1.6"/><circle cx="10.5" cy="19.5" r="1.6"/><circle cx="5.5" cy="16" r="1.6"/><circle cx="4" cy="10" r="1.6"/><circle cx="8" cy="5.5" r="1.6"/>',
+  calendar:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4M16 3v4"/>',
+  chooseTeacher:'<circle cx="10" cy="8" r="3.2"/><path d="M3.5 20v-1a5 5 0 0 1 5-5h3a5 5 0 0 1 2 .42"/><path d="M15 15.5l2.2 2.2 4-4.2"/>',
+  money:'<circle cx="12" cy="12" r="9"/><path d="M9 9.5c0-1 1-1.7 3-1.7s3 .8 3 1.9c0 2.6-6 1.6-6 4.2 0 1.1 1 1.9 3 1.9s3-.7 3-1.7"/><path d="M12 6.3v1M12 16.7v1"/>',
+  handshake:'<path d="M2.5 12.5 7 8l4 3.5 3-3L21.5 12"/><path d="M7 8 4 11l4 4 1.5-1.3"/><path d="M18.5 8.5 21 11l-6 6-3.5-3"/><path d="M9.5 15l2 1.8c.8.7 2 .6 2.6-.2"/>',
+  chat:'<path d="M4 5h16a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H9l-5 4v-4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"/>',
+  bell:'<path d="M6 10a6 6 0 0 1 12 0v5l1.8 2.5H4.2L6 15Z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>',
+  map:'<path d="M9 3 3 5.5v15L9 18l6 2.5 6-2.5v-15L15 5.5 9 3Z"/><path d="M9 3v15M15 5.5v15"/>',
+  pulse:'<circle cx="12" cy="12" r="9"/><path d="M6.5 12h2.5l1.5-4 3 8 1.5-4H19"/>',
+  star:'<path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.2 1 5.9-5.2-2.8-5.2 2.8 1-5.9-4.3-4.2 5.9-.8Z"/>',
+  pencil:'<path d="M4 20h4L19.5 8.5a2 2 0 0 0 0-2.8l-1.2-1.2a2 2 0 0 0-2.8 0L4 16v4Z"/><path d="M13.5 6.5l3.5 3.5"/>',
+  heart:'<path d="M12 20s-7.5-4.6-9.7-9.3C1 7.5 2.4 4.5 5.5 3.7 8 3 10.4 4.3 12 6.6 13.6 4.3 16 3 18.5 3.7c3.1.8 4.5 3.8 3.2 7C19.5 15.4 12 20 12 20Z"/>',
+};
+function mi(name){ const p=ICON_SVGS[name]||ICON_SVGS.dot; return `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`; }
 const MENUS = {
   admin:{ skin:'s-gold', title:'لوحة المدير', sections:[
-    {label:'الرئيسية', items:[['dash','🏠','لوحة القيادة'],['analytics','📈','التحليلات']]},
-    {label:'الإدارة', items:[['users','👥','المستخدمون'],['tracks','🎓','المسارات والدورات'],['staff','👨‍🏫','الطاقم'],['content','📚','المحتوى'],['unassigned','⚠️','طلاب بدون حلقة'],['leads','📋','تسجيلات معلّقة']]},
-    {label:'قسم القرآن', items:[['qsystems','🕋','أنظمة القرآن'],['qfortresses','🛡️','الحصون والمحطات'],['qimport','📥','استيراد Excel']]},
-    {label:'المالية', items:[['finance','💳','المدفوعات']]},
+    {label:'الرئيسية', items:[['dash',mi('home'),'لوحة القيادة'],['analytics',mi('chart'),'التحليلات']]},
+    {label:'الإدارة', items:[['users',mi('users'),'المستخدمون'],['tracks',mi('cap'),'المسارات والدورات'],['staff',mi('teacher'),'الطاقم'],['content',mi('books'),'المحتوى'],['unassigned',mi('warning'),'طلاب بدون حلقة'],['leads',mi('clipboard'),'تسجيلات معلّقة']]},
+    {label:'قسم القرآن', items:[['qsystems',mi('kaaba'),'أنظمة القرآن'],['qfortresses',mi('shield'),'الحصون والمحطات'],['qimport',mi('download'),'استيراد Excel']]},
+    {label:'المالية', items:[['finance',mi('card'),'المدفوعات']]},
   ]},
   executive:{ skin:'s-navy', title:'لوحة المدير التنفيذي', sections:[
-    {label:'القيادة', items:[['dash','🏛️','نظرة تنفيذية'],['analytics','📈','التحليلات']]},
-    {label:'الإشراف', items:[['team','👔','فريق الإشراف'],['staff','👨‍🏫','المعلمون والحلقات'],['students','🧒','الطلاب'],['leads','📋','تسجيلات معلّقة']]},
-    {label:'قسم القرآن', items:[['qsystems','🕋','أنظمة القرآن']]},
-    {label:'المالية', items:[['finance','💳','المدفوعات']]},
+    {label:'القيادة', items:[['dash',mi('building'),'نظرة تنفيذية'],['analytics',mi('chart'),'التحليلات']]},
+    {label:'الإشراف', items:[['team',mi('team'),'فريق الإشراف'],['staff',mi('teacher'),'المعلمون والحلقات'],['students',mi('child'),'الطلاب'],['leads',mi('clipboard'),'تسجيلات معلّقة']]},
+    {label:'قسم القرآن', items:[['qsystems',mi('kaaba'),'أنظمة القرآن']]},
+    {label:'المالية', items:[['finance',mi('card'),'المدفوعات']]},
   ]},
   supervisor:{ skin:'s-navy', title:'لوحة المشرف', sections:[
-    {label:'الإشراف', items:[['dash','🏠','نظرة عامة'],['groups','👥','الحلقات'],['groupreport','📋','تقارير الحلقات'],['staff','👨‍🏫','المعلمون']]},
-    {label:'الطلاب', items:[['students','🧒','كل الطلاب'],['transfer','🔄','نقل طالب'],['cases','⚠️','الحالات المتعثّرة'],['leads','📋','تسجيلات معلّقة']]},
-    {label:'الالتحاق', items:[['confirm','💰','تأكيد المدفوعات'],['subsidy','🤝','طلبات التخفيض']]},
-    {label:'التواصل', items:[['chat','💬','الرسائل']]},
-    {label:'قسم القرآن', items:[['qoverview','📊','نظرة قرآن']]},
+    {label:'الإشراف', items:[['dash',mi('home'),'نظرة عامة'],['groups',mi('users'),'الحلقات'],['groupreport',mi('clipboard'),'تقارير الحلقات'],['staff',mi('teacher'),'المعلمون']]},
+    {label:'الطلاب', items:[['students',mi('child'),'كل الطلاب'],['transfer',mi('refresh'),'نقل طالب'],['cases',mi('warning'),'الحالات المتعثّرة'],['leads',mi('clipboard'),'تسجيلات معلّقة']]},
+    {label:'الالتحاق', items:[['confirm',mi('money'),'تأكيد المدفوعات'],['subsidy',mi('handshake'),'طلبات التخفيض']]},
+    {label:'التواصل', items:[['chat',mi('chat'),'الرسائل']]},
+    {label:'قسم القرآن', items:[['qoverview',mi('chart'),'نظرة قرآن']]},
   ]},
   teacher:{ skin:'s-emerald', title:'لوحة المعلم', sections:[
-    {label:'الرئيسية', items:[['dash','🏠','لوحتي'],['groups','👥','حلقاتي'],['newstudents','✨','طلاب جدد']]},
-    {label:'المتابعة', items:[['reports','📊','تقارير الطلاب'],['weeklyreport','📨','تقرير أسبوعي'],['transfer','🔄','نقل طالب'],['availability','🟢','إتاحتي وسيرتي']]},
-    {label:'قسم القرآن', items:[['qplans','📋','خطط طلابي'],['qmonitor','👁️','متابعة يومية']]},
-    {label:'عام', items:[['chat','💬','الرسائل'],['content','📚','المحتوى']]},
+    {label:'الرئيسية', items:[['dash',mi('home'),'لوحتي'],['groups',mi('users'),'حلقاتي'],['newstudents',mi('sparkle'),'طلاب جدد']]},
+    {label:'المتابعة', items:[['reports',mi('chart'),'تقارير الطلاب'],['weeklyreport',mi('mail'),'تقرير أسبوعي'],['transfer',mi('refresh'),'نقل طالب'],['availability',mi('dot'),'إتاحتي وسيرتي']]},
+    {label:'قسم القرآن', items:[['qplans',mi('clipboard'),'خطط طلابي'],['qmonitor',mi('eye'),'متابعة يومية']]},
+    {label:'عام', items:[['chat',mi('chat'),'الرسائل'],['content',mi('books'),'المحتوى']]},
   ]},
   parent:{ skin:'s-navy', title:'لوحة ولي الأمر', sections:[
-    {label:'المتابعة', items:[['dash','🏠','نظرة عامة'],['children','👨‍👧‍👦','أبنائي'],['halqat','🕌','حلقات أبنائي'],['hifztrack','📖','متابعة الحفظ اليومي'],['qparenttrack','📿','ورد أبنائي'],['report','📊','التقارير'],['attendance','🗓️','الحضور']]},
-    {label:'الالتحاق', items:[['choose','🧑‍🏫','اختيار معلم'],['fees','💳','الرسوم والتجديد']]},
-    {label:'التواصل', items:[['chat','💬','مراسلة الإشراف']]},
+    {label:'المتابعة', items:[['dash',mi('home'),'نظرة عامة'],['children',mi('family'),'أبنائي'],['halqat',mi('mosque'),'حلقات أبنائي'],['hifztrack',mi('book'),'متابعة الحفظ اليومي'],['qparenttrack',mi('beads'),'ورد أبنائي'],['report',mi('chart'),'التقارير'],['attendance',mi('calendar'),'الحضور']]},
+    {label:'الالتحاق', items:[['choose',mi('chooseTeacher'),'اختيار معلم'],['fees',mi('card'),'الرسوم والتجديد']]},
+    {label:'التواصل', items:[['chat',mi('chat'),'مراسلة الإشراف']]},
   ]},
   student:{ skin:'s-emerald', title:'لوحة الطالب', sections:[
-    {label:'مساري', items:[['roadmap','🗺️','خطة مساري'],['myhalqa','🕌','حلقتي'],['husoon','📖','حفظي اليومي']]},
-    {label:'قسم القرآن', items:[['qtoday','📖','ورد اليوم'],['qmyplan','🗓️','خطتي الكاملة']]},
-    {label:'حلقتي', items:[['choose','🧑‍🏫','معلمي'],['myparent','👨‍👦','ولي أمري']]},
-    {label:'عام', items:[['chat','💬','الرسائل'],['renewal','🔄','تجديد اشتراكي']]},
+    {label:'مساري', items:[['roadmap',mi('map'),'خطة مساري'],['myhalqa',mi('mosque'),'حلقتي'],['husoon',mi('book'),'حفظي اليومي']]},
+    {label:'قسم القرآن', items:[['qtoday',mi('book'),'ورد اليوم'],['qmyplan',mi('calendar'),'خطتي الكاملة']]},
+    {label:'حلقتي', items:[['choose',mi('chooseTeacher'),'معلمي'],['myparent',mi('family'),'ولي أمري']]},
+    {label:'عام', items:[['chat',mi('chat'),'الرسائل'],['renewal',mi('refresh'),'تجديد اشتراكي']]},
   ]},
 };
 
@@ -4968,26 +5010,26 @@ async function adminViewHalqa(gid){
 /* ───────── إضافة عناصر القائمة لكل دور ───────── */
 function injectBatch1Menus(){
   // الواجبات
-  MENUS.teacher.sections[1].items.push(['homework','📝','الواجبات']);
+  MENUS.teacher.sections[1].items.push(['homework',mi('pencil'),'الواجبات']);
   // (واجبات الطالب تظهر داخل الحلقة، لا كصفحة منفصلة)
   // ولي الأمر: حلقة الأبناء
-  MENUS.parent.sections[0].items.splice(1,0,['myhalqa','🕌','حلقة الأبناء']);
+  MENUS.parent.sections[0].items.splice(1,0,['myhalqa',mi('mosque'),'حلقة الأبناء']);
   // المعلم: جدول الحصص الأسبوعي
-  MENUS.teacher.sections[0].items.push(['schedule','📅','جدول حصصي']);
+  MENUS.teacher.sections[0].items.push(['schedule',mi('calendar'),'جدول حصصي']);
   // المدير + التنفيذي: الرسائل
-  MENUS.admin.sections[0].items.push(['chat','💬','الرسائل']);
-  if(MENUS.executive){ MENUS.executive.sections[0].items.push(['chat','💬','الرسائل']); }
+  MENUS.admin.sections[0].items.push(['chat',mi('chat'),'الرسائل']);
+  if(MENUS.executive){ MENUS.executive.sections[0].items.push(['chat',mi('chat'),'الرسائل']); }
   // المشرف + المدير: المعلمون + الحلقات + رسالة محب
-  MENUS.admin.sections[0].items.push(['pulse','💓','نبض المنصة']);
-  MENUS.admin.sections[1].items.push(['teachers','⭐','المعلمون والتقييم']);
-  MENUS.admin.sections[1].items.push(['privhalqat','🕌','الحلقات الخاصة']);
-  MENUS.admin.sections[1].items.push(['welcomebook','💌','رسالة محب']);
-  MENUS.admin.sections[1].items.push(['import','📥','استيراد Excel']);
-  MENUS.supervisor.sections[0].items.push(['teachers','⭐','تقييم المعلمين']);
-  MENUS.supervisor.sections[0].items.push(['privhalqat','🕌','الحلقات الخاصة']);
-  if(MENUS.executive){ MENUS.executive.sections[0].items.push(['team','👔','فريق الإشراف']); MENUS.executive.sections[0].items.push(['privhalqat','🕌','الحلقات الخاصة']); }
+  MENUS.admin.sections[0].items.push(['pulse',mi('pulse'),'نبض المنصة']);
+  MENUS.admin.sections[1].items.push(['teachers',mi('star'),'المعلمون والتقييم']);
+  MENUS.admin.sections[1].items.push(['privhalqat',mi('mosque'),'الحلقات الخاصة']);
+  MENUS.admin.sections[1].items.push(['welcomebook',mi('heart'),'رسالة محب']);
+  MENUS.admin.sections[1].items.push(['import',mi('download'),'استيراد Excel']);
+  MENUS.supervisor.sections[0].items.push(['teachers',mi('star'),'تقييم المعلمين']);
+  MENUS.supervisor.sections[0].items.push(['privhalqat',mi('mosque'),'الحلقات الخاصة']);
+  if(MENUS.executive){ MENUS.executive.sections[0].items.push(['team',mi('team'),'فريق الإشراف']); MENUS.executive.sections[0].items.push(['privhalqat',mi('mosque'),'الحلقات الخاصة']); }
   // ولي الأمر: تحديد المستوى
-  MENUS.parent.sections[1].items.push(['placement','📝','تحديد المستوى']);
+  MENUS.parent.sections[1].items.push(['placement',mi('pencil'),'تحديد المستوى']);
 }
 
 /* ============================================================
@@ -7419,10 +7461,10 @@ function qInjectStudentMenuExtras(){
   if(!nav) return;
   if(nav.querySelector('[data-page="qreport"]')) return; // already injected
   const a1 = document.createElement('a');
-  a1.dataset.page='qreport'; a1.innerHTML='<span class="i">📈</span> تقريري القرآني';
+  a1.dataset.page='qreport'; a1.innerHTML='<span class="i">'+mi('chart')+'</span> تقريري القرآني';
   a1.onclick=()=>navigate('qreport');
   const a2 = document.createElement('a');
-  a2.dataset.page='qnotifs'; a2.innerHTML='<span class="i">🔔</span> التنبيهات';
+  a2.dataset.page='qnotifs'; a2.innerHTML='<span class="i">'+mi('bell')+'</span> التنبيهات';
   a2.onclick=()=>navigate('qnotifs');
   const labels = nav.querySelectorAll('.ml');
   let qLabel = null;
