@@ -294,9 +294,19 @@ function cbSend(){
   const i = document.getElementById('cbInput'); const q = (i?.value||'').trim();
   if(!q) return;
   cbAppendUser(q); if(i) i.value='';
+  const nq = cbNorm(q);
+  if(cbIsGreeting(nq)){ setTimeout(()=>cbAppendBot('وعليكم السلام! 👋 اسألني عن الأنظمة، المسارات، الأسعار، أو أي حاجة عن الأكاديمية.'), 300); return; }
+  if(cbIsThanks(nq)){ setTimeout(()=>cbAppendBot('العفو! 🌱 أي وقت محتاج مساعدة، أنا موجود.'), 300); return; }
   const hit = cbMatch(q);
   if(hit){
-    setTimeout(()=>cbAppendBot(hit.a), 300);
+    setTimeout(()=>{
+      cbAppendBot(hit.item.a);
+      if(!hit.confident && hit.alt){
+        const b = document.getElementById('cbBody');
+        if(b) b.insertAdjacentHTML('beforeend', `<div class="cb-chips"><span class="cb-chip" onclick="cbAsk('${hit.alt.kw[0]}')">${hit.alt.kw[0]}</span></div>`);
+        if(b) b.scrollTop = b.scrollHeight;
+      }
+    }, 300);
   } else {
     setTimeout(()=>{
       cbAppendBot('معنديش إجابة جاهزة لسؤالك ده 🤔 حابب تكلّم فريق الإشراف على واتساب مباشرة؟');

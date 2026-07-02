@@ -458,3 +458,37 @@ html.dark .footer{ background:#081912; }
 .clo-ic{font-size:19px;flex-shrink:0;display:inline-flex}
 .clo-ic.wa{color:#25D366}
 @media(max-width:420px){.cb-launcher{right:16px;bottom:88px}}
+
+/* ═══════════ إصلاح الوضع الليلي: بطاقات بيضاء ثابتة لا تتغيّر ألوانها،
+   فنصوصها لازم تفضل غامقة حتى في الوضع الليلي (بدل ما تتحول لألوان فاتحة وتختفي) ═══════════ */
+html.dark .trust-badges .tb{ color:#1B4D3E; }
+html.dark .system-card h3,
+html.dark .path-card h3,
+html.dark .hisn h3,
+html.dark .info-card h3,
+html.dark .tl-card h4,
+html.dark .pc-name,
+html.dark .faq-q,
+html.dark .sc-pkg-title,
+html.dark .path-card .pc-meta b,
+html.dark .pc-cta,
+html.dark .cb-chip{ color:#1B4D3E; }
+html.dark .sc-desc,
+html.dark .hisn p,
+html.dark .info-card p,
+html.dark .tl-card p,
+html.dark .faq-a p,
+html.dark .sc-feats li,
+html.dark .pc-feats li,
+html.dark .cb-msg.bot,
+html.dark .cb-launch-opt{ color:#2C3E50; }
+html.dark .sc-pkg-row,
+html.dark .sc-pkg-note,
+html.dark .pc-price small,
+html.dark .path-card .pc-meta span{ color:#5A6B7A; }
+html.dark .sec-dark .hisn h3{ color:var(--cream); }
+html.dark .sec-dark .hisn p{ color:rgba(251,248,241,0.72); }
+html.dark .sec-dark .info-card h3{ color:var(--gold-glow); }
+html.dark .sec-dark .info-card p{ color:rgba(251,248,241,0.75); }
+html.dark .float-stat b{ color:#1B4D3E; }
+html.dark .float-stat span{ color:#5A6B7A; }
