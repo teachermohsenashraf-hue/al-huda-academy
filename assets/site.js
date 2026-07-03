@@ -423,6 +423,7 @@ function renderPathSystemChooser(box, pathId){
         </div>
       </div>`; }).join('')}
     </div>`;
+  revealBoxNow(box);
 }
 function choosePathSystem(pathId, sys){
   const url = new URL(location.href);
@@ -456,6 +457,13 @@ function renderPathPackages(box, pathId, sys){
     </div>
     <p style="text-align:center;margin-top:20px;font-size:13.5px;color:var(--ink-soft)">الاشتراك أعلى من إمكانياتك؟ <a href="javascript:void(0)" onclick="goEnroll('${pathId}','${sys}',${s.packages[0].sessions},${s.packages[0].fee},'subsidy')" style="color:var(--emerald);font-weight:700">اطلب تخفيضاً</a></p>`;
   applyLocalizedPricing();
+  revealBoxNow(box);
+}
+/* العناصر اللي بتتحقن ديناميكياً بعد تحميل الصفحة (زي الباقات هنا) بيفوتها
+   مراقب الظهور (IntersectionObserver) اللي بيشتغل مرة واحدة وقت تحميل السكربت،
+   فتفضل بـ opacity:0 للأبد. بنظهرها فوراً بدل ما نستنى تمريرة مايجيش أبداً. */
+function revealBoxNow(box){
+  box.querySelectorAll('.reveal').forEach(el=>el.classList.add('in'));
 }
 function clearPathSystem(){
   const url = new URL(location.href);
