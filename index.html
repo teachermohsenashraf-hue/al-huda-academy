@@ -1322,16 +1322,18 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 const SUPABASE_URL  = 'https://yvloiecymqbhpoizfucl.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2bG9pZWN5bXFiaHBvaXpmdWNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxNjkxNzAsImV4cCI6MjA5Nzc0NTE3MH0.z-tNunvzx17UHUZPRUoS_thqHJyHj3-0Gl5FNTQQSHo';
 const WHATSAPP = '201227958232';   // رقم واتساب الأكاديمية (بصيغة دولية)
-// عرض الأسعار حسب دولة الزائر — مصر بالجنيه، أي دولة تانية بالريال (سعر صرف تقريبي ثابت، حدّثه دورياً)
+// عرض الأسعار حسب دولة الزائر — مصر بالجنيه، السعودية بالريال، وأي دولة تانية بالدولار (أسعار صرف تقريبية ثابتة، حدّثها دورياً)
 const EGP_TO_SAR = 0.076;
+const EGP_TO_USD = 0.0204;
 let USER_CURRENCY = { code:'EGP', symbol:'ج.م', rate:1 };
 (function detectCurrency(){
   fetch('https://ipapi.co/json/', { cache:'no-store' }).then(r=>r.ok?r.json():null).then(info=>{
     const cc = info && (info.country_code || info.country);
-    if(cc && cc!=='EG') USER_CURRENCY = { code:'SAR', symbol:'ر.س', rate:EGP_TO_SAR };
+    if(cc==='SA') USER_CURRENCY = { code:'SAR', symbol:'ر.س', rate:EGP_TO_SAR };
+    else if(cc && cc!=='EG') USER_CURRENCY = { code:'USD', symbol:'$', rate:EGP_TO_USD };
   }).catch(()=>{});
 })();
-function fmtPrice(egp){ return ar(Math.round((+egp||0)*USER_CURRENCY.rate)) + ' ' + USER_CURRENCY.symbol; }
+function fmtPrice(egp){ const v=Math.round((+egp||0)*USER_CURRENCY.rate); return (USER_CURRENCY.code==='USD'?String(v):ar(v)) + ' ' + USER_CURRENCY.symbol; }
 // مسارات حفظ القرآن الستة
 const QURAN_PATHS = [
   { id:'amma', icon:'\u{1F331}', name:'جزء عمّ وتبارك', short:'بداية مباركة للمبتدئين والصغار', detail:'حفظ جزأي عمّ وتبارك (٢٩ و ٣٠) بإتقان، وهما أكثر ما يُقرأ في الصلوات. مثالي لمن يبدأ رحلته مع الحفظ.' },

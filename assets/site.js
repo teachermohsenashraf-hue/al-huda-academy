@@ -421,28 +421,56 @@ document.querySelectorAll('a[href*="index.html#signup"]').forEach(a=>{
 });
 
 /* ============================================================
-   عرض الأسعار حسب دولة الزائر — مصر بالجنيه، أي دولة تانية بالريال
-   ملحوظة: سعر الصرف تقريبي وثابت في الكود (EGP_TO_SAR)، لازم يُحدَّث
+   عرض الأسعار حسب دولة الزائر — مصر بالجنيه، السعودية بالريال،
+   وأي دولة تانية بالدولار (رقم صحيح من غير كسور).
+   ملحوظة: أسعار الصرف تقريبية وثابتة في الكود، لازم تُحدَّث
    دورياً يدوياً لأن الموقع ساكن وملوش اتصال بسعر صرف حي.
    ============================================================ */
 const EGP_TO_SAR = 0.076; /* تقريباً 13.2 جنيه = 1 ريال — حدّث الرقم ده لما سعر الصرف يتغيّر بشكل واضح */
+const EGP_TO_USD = 0.0204; /* تقريباً 49 جنيه = 1 دولار — حدّث الرقم ده لما سعر الصرف يتغيّر بشكل واضح */
 function applyLocalizedPricing(){
   fetch('https://ipapi.co/json/', { cache:'no-store' })
     .then(r=>r.ok ? r.json() : null)
     .then(info=>{
       const cc = info && (info.country_code || info.country);
       if(!cc || cc === 'EG') return; /* مصر أو تعذّر التحديد: يفضل الجنيه المصري كما هو */
+      const isSA = cc === 'SA';
+      const rate = isSA ? EGP_TO_SAR : EGP_TO_USD;
+      const newLabel = isSA ? 'ر.س' : '$';
       document.querySelectorAll('[data-egp]').forEach(el=>{
         const egp = parseFloat(el.getAttribute('data-egp'));
         if(isNaN(egp)) return;
-        const sar = Math.round(egp * EGP_TO_SAR);
-        el.textContent = arNum(sar);
+        const converted = Math.round(egp * rate);
+        el.textContent = isSA ? arNum(converted) : String(converted);
         const label = el.closest('[data-price-wrap]')?.querySelector('.cur-label') || el.parentElement?.querySelector('.cur-label');
-        if(label) label.textContent = label.textContent.replace(/ج\.م/g, 'ر.س');
+        if(label) label.textContent = label.textContent.replace(/ج\.م/g, newLabel);
       });
     })
     .catch(()=>{ /* فشل تحديد الموقع: يفضل الجنيه المصري كإعداد افتراضي آمن */ });
 }
+
+/* ============================================================
+   لو الزائر مسجّل دخول بالفعل (نفس متصفّح فيه جلسة Supabase قائمة)،
+   زرّ "ابدأ رحلتك" اللي بيوديه لصفحة التسجيل مالوش لازمة — نبدّله
+   بزرّ يوديه للوحته مباشرة. بنفحص localStorage من غير ما نحمّل
+   مكتبة Supabase كاملة في الصفحة التسويقية (خفيف وسريع).
+   ============================================================ */
+function hasActiveSession(){
+  try{
+    const raw = localStorage.getItem('sb-yvloiecymqbhpoizfucl-auth-token');
+    if(!raw) return false;
+    const obj = JSON.parse(raw);
+    return !!(obj && obj.access_token);
+  }catch(e){ return false; }
+}
+function applyLoggedInCTA(){
+  if(!hasActiveSession()) return;
+  document.querySelectorAll('a[href="index.html#signup"]').forEach(el=>{
+    el.href = 'index.html';
+    el.innerHTML = el.innerHTML.replace('ابدأ رحلتك الآن', 'أدخل على لوحتك').replace('ابدأ رحلتك', 'أدخل على لوحتك');
+  });
+}
+document.addEventListener('DOMContentLoaded', applyLoggedInCTA);
 function arNum(n){ return String(n).replace(/[0-9]/g, d=>'٠١٢٣٤٥٦٧٨٩'[d]); }
 document.addEventListener('DOMContentLoaded', applyLocalizedPricing);
 
