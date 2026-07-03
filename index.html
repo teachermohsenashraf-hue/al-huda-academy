@@ -1706,7 +1706,7 @@ async function enrollSurvey(pathId, type, p, childId){
     <button class="modal-x" onclick="closeModal()">×</button>
     <div class="enroll-steps"><span class="es ${isParent?'done':''}">١ ${isParent?'الابن ✓':'البيانات'}</span><span class="es on">٢ الاستبيان</span><span class="es">٣ الدفع</span></div>
     <h2 style="font-family:Amiri;color:var(--navy-deep);margin-bottom:4px">استبيان الالتحاق</h2>
-    <p style="color:var(--muted);font-size:13.5px;margin-bottom:18px">مسار: <b>${p.name}</b> ${type==='subsidy'?'• <span style="color:var(--gold)">طلب تخفيض</span>':''}</p>
+    <p style="color:var(--muted);font-size:13.5px;margin-bottom:18px">مسار: <b>${p.name}</b> • نظام: <b>${planName(SELECTED_PLAN.type)}</b> ${type==='subsidy'?'• <span style="color:var(--gold)">طلب تخفيض</span>':''}</p>
     <div class="enroll-form">
       ${(isParent && isNew)||!isParent?`
       <div class="field"><label>اسم ${isParent?'الابن':'الطالب'} <span class="req">*</span></label><input id="enName" value="${nameVal}" placeholder="الاسم الكامل"></div>
@@ -1838,7 +1838,7 @@ function enrollPayment(studentId, jrId, pathId, subsidized){
     <button class="modal-x" onclick="closeModal()">×</button>
     <div class="enroll-steps"><span class="es done">١ ✓</span><span class="es done">٢ ✓</span><span class="es on">٣ الدفع</span></div>
     <h2 style="font-family:Amiri;color:var(--navy-deep);margin-bottom:6px">إتمام الدفع</h2>
-    <p style="color:var(--muted);font-size:13.5px;margin-bottom:4px">${planName(SELECTED_PLAN.type)} • ${packageLabel(SELECTED_PLAN.sessions)}</p>
+    <p style="color:var(--muted);font-size:13.5px;margin-bottom:4px">مسار: <b>${pathName(pathId)}</b> • نظام: <b>${planName(SELECTED_PLAN.type)}</b> • ${packageLabel(SELECTED_PLAN.sessions)}</p>
     <p style="color:var(--muted);font-size:13.5px;margin-bottom:16px">المطلوب: <b style="color:var(--emerald);font-size:18px">${fmtPrice(dueFee)}${subsidized?' (بعد التخفيض)':''}</b></p>
     <!-- رقم فودافون كاش بشكل واضح وكبير -->
     <div style="background:linear-gradient(135deg,#e8173a,#c0132f);border-radius:16px;padding:18px;text-align:center;margin-bottom:16px">
@@ -2176,7 +2176,8 @@ async function enterEnrollmentDashboard(intent){
   hideAll(); $('#shell').classList.remove('hidden');
   buildShell(); qInjectStudentMenuExtras();
   const p = QURAN_PATHS.find(x=>x.id===intent.pathId);
-  $('#pageHost').innerHTML = `<div class="card" style="text-align:center;padding:50px"><div class="empty-ic">${mi('rocket')}</div><h3 style="color:var(--navy-deep);font-family:Amiri">جاري تجهيز اشتراكك${p?' في '+p.name:''}...</h3><p style="color:var(--muted);font-size:14px">أكمل الخطوات القادمة لتفعيل اشتراكك مباشرة.</p></div>`;
+  const sysName = planName(intent.plan?.type||SELECTED_PLAN.type);
+  $('#pageHost').innerHTML = `<div class="card" style="text-align:center;padding:50px"><div class="empty-ic">${mi('rocket')}</div><h3 style="color:var(--navy-deep);font-family:Amiri">جاري تجهيز اشتراكك${p?' في مسار '+p.name:''}${sysName?' — '+sysName:''}...</h3><p style="color:var(--muted);font-size:14px">أكمل الخطوات القادمة لتفعيل اشتراكك مباشرة.</p></div>`;
   try{
     await openEnrollFlow(intent.pathId, intent.type);
   }catch(e){
@@ -2431,6 +2432,11 @@ async function myStudentRow(){
   return null;
 }
 function noStudentMsg(){ return `<div class="card" style="text-align:center"><div class="empty-ic">${mi('child')}</div><h3 style="margin-bottom:8px">لا يوجد ملف طالب مرتبط</h3><p style="color:var(--muted);font-size:14px">هذه الصفحة تظهر بيانات الطالب. سجّل الدخول بحساب طالب لرؤيتها، أو اطلب من المدير ربط حسابك بملف طالب.</p></div>`; }
+/* رسالة الحساب الجديد اللي لسّه ماختارش نظام/مسار/باقة — بتوجّهه يرجع
+   للصفحة الرئيسية بدل ما يتوه جوّه لوحة فاضية بلا أي إرشاد. */
+function noJourneyMsg(who){
+  return `<div class="card" style="text-align:center;padding:44px"><div class="empty-ic">${mi('map')}</div><h3 style="color:var(--navy-deep);font-family:Amiri;margin-bottom:10px">لم ${who==='parent'?'تلحق ابنك بعد':'تبدأ رحلتك بعد'}</h3><p style="color:var(--muted);font-size:14.5px;line-height:1.9;max-width:420px;margin:0 auto 18px">ارجع للصفحة الرئيسية واختر النظام والمسار والباقة ${who==='parent'?'المناسبة لابنك':'المناسبة لك'}، وبعدها هتقدر تكمل التسجيل والدفع مباشرة.</p><button class="btn" onclick="location.href='landing.html#systems'">الصفحة الرئيسية</button></div>`;
+}
 
 PAGES.student_dash = async function(){
   setTop('أهلاً '+ME.full_name.split(' ')[0],'يوم جديد ونية جديدة');
@@ -2806,7 +2812,7 @@ function switchKid(id){ SESSION.currentChild=id; navigate(SESSION.page); }
 
 PAGES.parent_dash=async function(){
   setTop('أهلاً '+ME.full_name+' 👋','متابعة أبنائك.');
-  const kids=await myChildren(); if(!kids.length) return '<div class="card">لا يوجد أبناء مرتبطون بحسابك بعد.</div>';
+  const kids=await myChildren(); if(!kids.length) return noJourneyMsg('parent');
   const k=await currentChild();
   const { data:g }=await sb.from('groups').select('*, teacher:profiles!groups_teacher_id_fkey(full_name)').eq('id',k.group_id).single();
   return `<div style="display:flex;justify-content:flex-end;margin-bottom:16px">${kidSwitch(kids)}</div>
@@ -4892,7 +4898,7 @@ const HUSOON_BRIEF=[
   ['ورد السماع','وجهان سماعاً يومياً بصوت متقن.'],
 ];
 PAGES.student_roadmap=async function(){ setTop('خطة مساري','خطة متوقعة لسير المسار ومدته');
-  const s=await myStudentRow(); if(!s) return noStudentMsg();
+  const s=await myStudentRow(); if(!s) return noJourneyMsg('student');
   if(s.enrollment_status!=='active') return enrollGateMsg(s.enrollment_status);
   if(!s.quran_path) return `<div class="card" style="text-align:center;padding:36px"><div class="empty-ic">${mi('map')}</div><h3 style="color:var(--navy-deep)">لم تختر مساراً بعد</h3><p style="color:var(--muted)">اذهب إلى «مساري» واختر مسارك لتظهر خطته.</p></div>`;
   const rm=ROADMAPS[s.quran_path];
