@@ -843,7 +843,8 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 .tour-bg{position:fixed;inset:0;z-index:400;background:rgba(8,30,22,0.82);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:24px;animation:fadeIn .3s}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 .tour-card{max-width:480px;width:100%;background:#fff;border-radius:24px;padding:34px 30px;box-shadow:0 30px 70px rgba(0,0,0,0.4);text-align:center;position:relative}
-.tour-icon{width:80px;height:80px;margin:0 auto 18px;border-radius:22px;display:grid;place-items:center;font-size:40px;background:linear-gradient(140deg,var(--emerald),var(--emerald-deep))}
+.tour-icon{width:80px;height:80px;margin:0 auto 18px;border-radius:22px;display:grid;place-items:center;font-size:40px;color:#fff;background:linear-gradient(140deg,var(--emerald),var(--emerald-deep))}
+.tour-icon svg{width:38px;height:38px}
 .tour-card h2{font-size:23px;color:var(--navy-deep);margin-bottom:12px}
 .tour-card p{font-size:15px;color:#46544d;line-height:1.9;margin-bottom:20px}
 .tour-dots{display:flex;gap:8px;justify-content:center;margin-bottom:20px}
@@ -1306,6 +1307,16 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 const SUPABASE_URL  = 'https://yvloiecymqbhpoizfucl.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2bG9pZWN5bXFiaHBvaXpmdWNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxNjkxNzAsImV4cCI6MjA5Nzc0NTE3MH0.z-tNunvzx17UHUZPRUoS_thqHJyHj3-0Gl5FNTQQSHo';
 const WHATSAPP = '201227958232';   // رقم واتساب الأكاديمية (بصيغة دولية)
+// عرض الأسعار حسب دولة الزائر — مصر بالجنيه، أي دولة تانية بالريال (سعر صرف تقريبي ثابت، حدّثه دورياً)
+const EGP_TO_SAR = 0.076;
+let USER_CURRENCY = { code:'EGP', symbol:'ج.م', rate:1 };
+(function detectCurrency(){
+  fetch('https://ipapi.co/json/', { cache:'no-store' }).then(r=>r.ok?r.json():null).then(info=>{
+    const cc = info && (info.country_code || info.country);
+    if(cc && cc!=='EG') USER_CURRENCY = { code:'SAR', symbol:'ر.س', rate:EGP_TO_SAR };
+  }).catch(()=>{});
+})();
+function fmtPrice(egp){ return ar(Math.round((+egp||0)*USER_CURRENCY.rate)) + ' ' + USER_CURRENCY.symbol; }
 // مسارات حفظ القرآن الستة
 const QURAN_PATHS = [
   { id:'amma', icon:'\u{1F331}', name:'جزء عمّ وتبارك', short:'بداية مباركة للمبتدئين والصغار', detail:'حفظ جزأي عمّ وتبارك (٢٩ و ٣٠) بإتقان، وهما أكثر ما يُقرأ في الصلوات. مثالي لمن يبدأ رحلته مع الحفظ.' },
@@ -1631,7 +1642,7 @@ function renderPlanPackages(){
   host.innerHTML = sys.packages.map(pk=>`
     <div class="plan-pkg ${pk.sessions===SELECTED_PLAN.sessions?'active':''} ${pk.popular?'popular':''}" onclick="selectPlanPackage(${pk.sessions},${pk.fee})">
       <b>${packageLabel(pk.sessions)}</b>
-      <span class="plan-pkg-fee">${ar(pk.fee)} <small>ج.م/شهر</small></span>
+      <span class="plan-pkg-fee">${fmtPrice(pk.fee)} <small>/شهر</small></span>
     </div>`).join('');
 }
 // بدء الالتحاق — مع الدخول الإلزامي وحفظ النيّة
@@ -1813,7 +1824,7 @@ function enrollPayment(studentId, jrId, pathId, subsidized){
     <div class="enroll-steps"><span class="es done">١ ✓</span><span class="es done">٢ ✓</span><span class="es on">٣ الدفع</span></div>
     <h2 style="font-family:Amiri;color:var(--navy-deep);margin-bottom:6px">إتمام الدفع</h2>
     <p style="color:var(--muted);font-size:13.5px;margin-bottom:4px">${planName(SELECTED_PLAN.type)} • ${packageLabel(SELECTED_PLAN.sessions)}</p>
-    <p style="color:var(--muted);font-size:13.5px;margin-bottom:16px">المطلوب: <b style="color:var(--emerald);font-size:18px">${ar(dueFee)} ج.م${subsidized?' (بعد التخفيض)':''}</b> — 🌍 خارج مصر تقريباً ${PRICE_INTL}</p>
+    <p style="color:var(--muted);font-size:13.5px;margin-bottom:16px">المطلوب: <b style="color:var(--emerald);font-size:18px">${fmtPrice(dueFee)}${subsidized?' (بعد التخفيض)':''}</b></p>
     <!-- رقم فودافون كاش بشكل واضح وكبير -->
     <div style="background:linear-gradient(135deg,#e8173a,#c0132f);border-radius:16px;padding:18px;text-align:center;margin-bottom:16px">
       <div style="color:rgba(255,255,255,0.85);font-size:13px;margin-bottom:6px">📱 حوّل على فودافون كاش</div>
@@ -2230,40 +2241,40 @@ const MENUS = {
    الجولة التعريفية (لكل دور حسب صلاحياته)
    ============================================================ */
 const TOURS = {
-  admin: { icon:'🛡️', title:'أهلاً بك يا مدير أكاديمية الهدى', intro:'أنت تتحكم في كل شيء. هذه جولة سريعة على أدواتك:', steps:[
-    ['📊','لوحة القيادة والتحليلات','تابع أرقام الأكاديمية: الطلاب، المعلمين، التحصيل، وتوزيع المسارات.'],
-    ['👥','المستخدمون','أضف الطلاب وعدّلهم واحذفهم. كل طالب تربطه بحلقة ومسار.'],
-    ['🎓','المسارات والطاقم','أنشئ برامج الحفظ، الحلقات، واربط كل حلقة بمعلم. أضف المعلمين والمشرفين.'],
-    ['📚','المحتوى والمدفوعات','ارفع المناهج (روابط Drive/YouTube)، وسجّل المدفوعات وتابع التحصيل.'],
-    ['📥','استيراد Excel','أضف عشرات الطلاب دفعة واحدة من ملف CSV.'],
+  admin: { icon:mi('shield'), title:'أهلاً بك يا مدير أكاديمية الهدى', intro:'أنت تتحكم في كل شيء. هذه جولة سريعة على أدواتك:', steps:[
+    [mi('chart'),'لوحة القيادة والتحليلات','تابع أرقام الأكاديمية: الطلاب، المعلمين، التحصيل، وتوزيع المسارات.'],
+    [mi('users'),'المستخدمون','أضف الطلاب وعدّلهم واحذفهم. كل طالب تربطه بحلقة ومسار.'],
+    [mi('cap'),'المسارات والطاقم','أنشئ برامج الحفظ، الحلقات، واربط كل حلقة بمعلم. أضف المعلمين والمشرفين.'],
+    [mi('books'),'المحتوى والمدفوعات','ارفع المناهج (روابط Drive/YouTube)، وسجّل المدفوعات وتابع التحصيل.'],
+    [mi('download'),'استيراد Excel','أضف عشرات الطلاب دفعة واحدة من ملف CSV.'],
   ]},
-  supervisor: { icon:'📋', title:'أهلاً بك أيها المشرف', intro:'مهمتك متابعة جودة الحلقات والمعلمين:', steps:[
-    ['🏠','نظرة عامة','مؤشرات القسم: المعلمون، الحلقات، متوسط الإتقان، والحالات المتعثّرة.'],
-    ['👨‍🏫','المعلمون والحلقات','تابع أداء كل معلم: عدد حلقاته وطلابه ومتوسط إتقانهم.'],
-    ['🧒','كل الطلاب','نظرة شاملة على كل طلاب الأكاديمية مرتّبين بالأداء.'],
-    ['⚠️','الحالات المتعثّرة','الطلاب الذين يحتاجون تدخّلاً (غياب، تراجع) تظهر هنا تلقائياً.'],
-    ['💬','الرسائل','تواصل مع المعلمين وأولياء الأمور مباشرة.'],
+  supervisor: { icon:mi('clipboard'), title:'أهلاً بك أيها المشرف', intro:'مهمتك متابعة جودة الحلقات والمعلمين:', steps:[
+    [mi('home'),'نظرة عامة','مؤشرات القسم: المعلمون، الحلقات، متوسط الإتقان، والحالات المتعثّرة.'],
+    [mi('teacher'),'المعلمون والحلقات','تابع أداء كل معلم: عدد حلقاته وطلابه ومتوسط إتقانهم.'],
+    [mi('child'),'كل الطلاب','نظرة شاملة على كل طلاب الأكاديمية مرتّبين بالأداء.'],
+    [mi('warning'),'الحالات المتعثّرة','الطلاب الذين يحتاجون تدخّلاً (غياب، تراجع) تظهر هنا تلقائياً.'],
+    [mi('chat'),'الرسائل','تواصل مع المعلمين وأولياء الأمور مباشرة.'],
   ]},
-  teacher: { icon:'👨‍🏫', title:'أهلاً بك أيها المعلم', intro:'هنا تدير حلقاتك وتتابع طلابك:', steps:[
-    ['👥','حلقاتي','حلقاتك الخاصّة مع كل طالب، وتفاصيل كل حلقة.'],
-    ['⭐','التقييم','بعد كل حصّة، قيّم أداء طالبك في دقائق.'],
-    ['📝','الواجبات','ارفع واجبات لطلابك (سماع، PDF، فيديو) ويتابعونها.'],
-    ['📊','تقارير الطلاب','تابع أداء كل طالب في حلقاتك.'],
-    ['💬','الرسائل','راسل الإشراف والإدارة مباشرة.'],
+  teacher: { icon:mi('teacher'), title:'أهلاً بك أيها المعلم', intro:'هنا تدير حلقاتك وتتابع طلابك:', steps:[
+    [mi('users'),'حلقاتي','حلقاتك الخاصّة مع كل طالب، وتفاصيل كل حلقة.'],
+    [mi('star'),'التقييم','بعد كل حصّة، قيّم أداء طالبك في دقائق.'],
+    [mi('pencil'),'الواجبات','ارفع واجبات لطلابك (سماع، PDF، فيديو) ويتابعونها.'],
+    [mi('chart'),'تقارير الطلاب','تابع أداء كل طالب في حلقاتك.'],
+    [mi('chat'),'الرسائل','راسل الإشراف والإدارة مباشرة.'],
   ]},
-  parent: { icon:'👨‍👩‍👦', title:'أهلاً بك يا ولي الأمر', intro:'تابع رحلة أبنائك خطوة بخطوة:', steps:[
-    ['📊','التقارير','أداء ابنك: إتقان الحفظ، الحضور، وملاحظات المعلم.'],
-    ['🕌','حلقات أبنائي','حلقة كل ابن، حصصه وواجباته.'],
-    ['📖','متابعة الحفظ','تابع حصون ابنك الخمسة يومياً، أو علّمها نيابةً عنه.'],
-    ['👨‍🏫','اختيار المعلم','تصفّح المعلمين واختر الأنسب لابنك.'],
-    ['💬','مراسلة الإشراف','تواصل مع المشرفين من نفس النوع.'],
+  parent: { icon:mi('family'), title:'أهلاً بك يا ولي الأمر', intro:'تابع رحلة أبنائك خطوة بخطوة:', steps:[
+    [mi('chart'),'التقارير','أداء ابنك: إتقان الحفظ، الحضور، وملاحظات المعلم.'],
+    [mi('mosque'),'حلقات أبنائي','حلقة كل ابن، حصصه وواجباته.'],
+    [mi('book'),'متابعة الحفظ','تابع حصون ابنك الخمسة يومياً، أو علّمها نيابةً عنه.'],
+    [mi('teacher'),'اختيار المعلم','تصفّح المعلمين واختر الأنسب لابنك.'],
+    [mi('chat'),'مراسلة الإشراف','تواصل مع المشرفين من نفس النوع.'],
   ]},
-  student: { icon:'🧒', title:'أهلاً بك أيها الطالب', intro:'رحلتك مع القرآن تبدأ هنا:', steps:[
-    ['🗺️','خطة مساري','خطة سيرك في الحفظ ومدّتها المتوقّعة.'],
-    ['🕌','حلقتي','حلقتك الخاصّة مع معلّمك: حصص، واجبات، تقارير.'],
-    ['📖','حفظي اليومي','حصّن حفظك يومياً بالحصون الخمسة، وتتجدّد كل يوم.'],
-    ['🧑‍🏫','معلمي','اختر معلّمك وتواصل معه.'],
-    ['🔄','تجديد اشتراكي','تابع اشتراكك وجدّده في موعده.'],
+  student: { icon:'', title:'أهلا بك يا باغي الخير ❤️', intro:'رحلتك مع القرآن تبدأ هنا:', steps:[
+    [mi('map'),'خطة مساري','خطة سيرك في الحفظ ومدّتها المتوقّعة.'],
+    [mi('mosque'),'حلقتي','حلقتك الخاصّة مع معلّمك: حصص، واجبات، تقارير.'],
+    [mi('book'),'حفظي اليومي','حصّن حفظك يومياً بالحصون الخمسة، وتتجدّد كل يوم.'],
+    [mi('chooseTeacher'),'معلمي','اختر معلّمك وتواصل معه.'],
+    [mi('refresh'),'تجديد اشتراكي','تابع اشتراكك وجدّده في موعده.'],
   ]},
 };
 let TOUR_STEP=0;
@@ -2277,7 +2288,7 @@ function renderTour(){
   const total=t.steps.length+1; // +1 للترحيب
   let body;
   if(TOUR_STEP===0){
-    body=`<div class="tour-icon">${t.icon}</div><h2>${t.title}</h2><p>${t.intro}</p>`;
+    body=`${t.icon?`<div class="tour-icon">${t.icon}</div>`:''}<h2>${t.title}</h2><p>${t.intro}</p>`;
   } else {
     const featsShown=t.steps.slice(0,TOUR_STEP);
     body=`<div class="tour-icon">${t.steps[TOUR_STEP-1][0]}</div><h2>${t.steps[TOUR_STEP-1][1]}</h2><p>${t.steps[TOUR_STEP-1][2]}</p>`;

@@ -335,3 +335,29 @@ document.querySelectorAll('a[href*="index.html#signup"]').forEach(a=>{
     setTimeout(()=>{ window.location.href = href; }, 550);
   });
 });
+
+/* ============================================================
+   عرض الأسعار حسب دولة الزائر — مصر بالجنيه، أي دولة تانية بالريال
+   ملحوظة: سعر الصرف تقريبي وثابت في الكود (EGP_TO_SAR)، لازم يُحدَّث
+   دورياً يدوياً لأن الموقع ساكن وملوش اتصال بسعر صرف حي.
+   ============================================================ */
+const EGP_TO_SAR = 0.076; /* تقريباً 13.2 جنيه = 1 ريال — حدّث الرقم ده لما سعر الصرف يتغيّر بشكل واضح */
+function applyLocalizedPricing(){
+  fetch('https://ipapi.co/json/', { cache:'no-store' })
+    .then(r=>r.ok ? r.json() : null)
+    .then(info=>{
+      const cc = info && (info.country_code || info.country);
+      if(!cc || cc === 'EG') return; /* مصر أو تعذّر التحديد: يفضل الجنيه المصري كما هو */
+      document.querySelectorAll('[data-egp]').forEach(el=>{
+        const egp = parseFloat(el.getAttribute('data-egp'));
+        if(isNaN(egp)) return;
+        const sar = Math.round(egp * EGP_TO_SAR);
+        el.textContent = arNum(sar);
+        const label = el.closest('[data-price-wrap]')?.querySelector('.cur-label') || el.parentElement?.querySelector('.cur-label');
+        if(label) label.textContent = label.textContent.replace(/ج\.م/g, 'ر.س');
+      });
+    })
+    .catch(()=>{ /* فشل تحديد الموقع: يفضل الجنيه المصري كإعداد افتراضي آمن */ });
+}
+function arNum(n){ return String(n).replace(/[0-9]/g, d=>'٠١٢٣٤٥٦٧٨٩'[d]); }
+document.addEventListener('DOMContentLoaded', applyLocalizedPricing);
