@@ -2383,7 +2383,7 @@ function buildShell(){
   const m=MENUS[ME.role]; const side=$('#sidebar'); side.className='side '+m.skin;
   let h=`<div class="brand"><div class="mark"><img src="assets/logo.webp" alt="أكاديمية الهدى" style="width:100%;height:100%;object-fit:contain;border-radius:inherit"></div><div class="name">أكاديمية الهدى<small>${m.title}</small></div></div><nav class="menu">`;
   m.sections.forEach(s=>{ h+=`<div class="ml">${s.label}</div>`; s.items.forEach(([k,i,l])=>h+=`<a data-page="${k}" onclick="navigate('${k}')"><span class="i">${i}</span> ${l}</a>`); });
-  h+=`</nav><div class="foot"><button class="home-btn" onclick="replayTour()">${mi('cap')} الجولة التعريفية</button><button class="home-btn" onclick="window.open('landing.html','_blank')">${mi('home')} الموقع التعريفي</button><button class="switch" onclick="logout()">${mi('refresh')} تسجيل الخروج</button><div class="cp">${ME.full_name}</div></div>`;
+  h+=`</nav><div class="foot"><button class="home-btn" onclick="replayTour()">${mi('cap')} الجولة التعريفية</button><button class="home-btn" onclick="window.open('landing.html','_blank')">${mi('home')} الصفحة الرئيسية</button><button class="switch" onclick="logout()">${mi('refresh')} تسجيل الخروج</button><div class="cp">${ME.full_name}</div></div>`;
   side.innerHTML=h;
   const av=$('#topAva'); av.textContent=ME.initials||'ه';
   av.style.background=ME.role==='admin'?'linear-gradient(140deg,var(--gold),var(--gold-light))':(ME.role==='parent'||ME.role==='supervisor')?'linear-gradient(140deg,var(--navy),var(--navy-deep))':'linear-gradient(140deg,var(--emerald),var(--emerald-deep))';

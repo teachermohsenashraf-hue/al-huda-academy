@@ -196,10 +196,12 @@ section{ position:relative; }
 .fs-line{ flex:1 1 auto; height:2px; background:var(--line); margin-top:14px; min-width:8px; }
 .fs-line.done{ background:var(--emerald); }
 @media (max-width:640px){
-  .fs-step{ width:auto; }
-  .fs-step span{ display:none; }
-  .fs-step.active span{ display:block; position:absolute; margin-top:38px; white-space:nowrap; }
-  .fs-step.active{ position:relative; }
+  .fs-track{ overflow-x:auto; overflow-y:visible; padding-bottom:4px; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+  .fs-track::-webkit-scrollbar{ display:none; }
+  .fs-step{ width:52px; }
+  .fs-dot{ width:26px; height:26px; font-size:11px; }
+  .fs-step span{ font-size:9.5px; line-height:1.2; }
+  .fs-line{ min-width:14px; margin-top:12px; }
 }
 
 /* ═══════════ عام للأقسام ═══════════ */
