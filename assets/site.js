@@ -361,3 +361,130 @@ function applyLocalizedPricing(){
 }
 function arNum(n){ return String(n).replace(/[0-9]/g, d=>'٠١٢٣٤٥٦٧٨٩'[d]); }
 document.addEventListener('DOMContentLoaded', applyLocalizedPricing);
+
+/* ============================================================
+   جسر النيّة الموحّد — يوصّل اختيار (نظام + مسار + باقة) من أي صفحة
+   تسويقية إلى تطبيق index.html، فيوجَّه الزائر تلقائياً لخطوة
+   الاستبيان/الدفع الصحيحة بعد التسجيل أو الدخول، بدل ما يقع في
+   لوحة فاضية تايه فيها.
+   يخزّن نفس الشكل اللي يقرأه index.html بالظبط: pending_intent
+   ============================================================ */
+function goEnroll(pathId, system, sessions, fee, type){
+  const intent = {
+    pathId: pathId || null,
+    type: type || 'full',
+    plan: { type: system || 'rasokh', sessions: sessions || null, fee: fee || null },
+    ts: Date.now()
+  };
+  try{ sessionStorage.setItem('pending_intent', JSON.stringify(intent)); }catch(e){}
+  window.location.href = 'index.html#signup';
+}
+
+/* ============================================================
+   قسم "اختر نظامك وباقتك" في نهاية صفحة كل مسار — مكوّن واحد
+   مشترك يُستخدم في كل صفحات المسارات الستة بدل تكرار نفس الأقسام.
+   لو الزائر جاي من صفحة نظام معيّن (?system=rasokh|flexible) يظهر
+   له الباقات الثلاثة مباشرة، ولو جاي من الصفحة الرئيسية يختار
+   نظامه الأول.
+   ============================================================ */
+const MKT_SYSTEMS = {
+  rasokh:{ name:'نظام رسوخ', desc:'خمسة حصون يومية — الأكثر شمولاً وضبطاً',
+    icon:'<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3.5v5.2c0 5-3.4 8.4-8 9.8-4.6-1.4-8-4.8-8-9.8V6.5z"/><path d="M8.5 12.2l2.3 2.3 4.5-4.7"/></svg>',
+    packages:[ {sessions:4,fee:450}, {sessions:8,fee:700,popular:true}, {sessions:12,fee:850} ] },
+  flexible:{ name:'النظام المرن', desc:'ثلاثة حصون أساسية — أخف وأكثر مرونة',
+    icon:'<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h3.5a1 1 0 0 1 1 1v2a2 2 0 1 0 0 4v2a1 1 0 0 1-1 1H10a2 2 0 1 1-4 0H4.5a1 1 0 0 1-1-1V9a2 2 0 1 0 0-4V3.5a1 1 0 0 1 1-1H8a2 2 0 0 1 1 0"/><path d="M14 15h5.5a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1H14"/></svg>',
+    packages:[ {sessions:4,fee:400}, {sessions:8,fee:650,popular:true}, {sessions:12,fee:800} ] },
+};
+function pkgLabel(n){ return arNum(n)+' '+(n===12?'حصة':'حصص')+' شهرياً'; }
+function initPathEnroll(){
+  const box = document.getElementById('pathEnrollBox');
+  if(!box) return;
+  const pathId = box.closest('[data-path-id]')?.dataset.pathId;
+  const params = new URLSearchParams(location.search);
+  const sys = params.get('system');
+  if(sys && MKT_SYSTEMS[sys]){ renderPathPackages(box, pathId, sys); mountFunnelStepper(2); }
+  else { renderPathSystemChooser(box, pathId); mountFunnelStepper(1); }
+}
+function renderPathSystemChooser(box, pathId){
+  box.innerHTML = `
+    <div class="sec-head reveal">
+      <div class="tag">الاشتراك</div>
+      <h2>اختر نظامك لهذا المسار</h2>
+      <p>مسار واحد، ونظامان لإتقانه — اختر ما يناسب وتيرتك.</p>
+    </div>
+    <div class="systems-grid">
+      ${Object.keys(MKT_SYSTEMS).map(key=>{ const s=MKT_SYSTEMS[key]; return `
+      <div class="system-card sys-choice reveal" onclick="choosePathSystem('${pathId}','${key}')">
+        <div class="sc-icon sys-choice-ic">${s.icon}</div>
+        <div class="sc-body">
+          <h3>${s.name}</h3>
+          <p class="sc-desc">${s.desc}</p>
+          <span class="btn-primary" style="width:100%;justify-content:center;display:flex">اختر ${s.name} لهذا المسار</span>
+        </div>
+      </div>`; }).join('')}
+    </div>`;
+}
+function choosePathSystem(pathId, sys){
+  const url = new URL(location.href);
+  url.searchParams.set('system', sys);
+  history.replaceState(null, '', url);
+  const box = document.getElementById('pathEnrollBox');
+  renderPathPackages(box, pathId, sys);
+  mountFunnelStepper(2);
+  box.scrollIntoView({behavior:'smooth', block:'start'});
+}
+function renderPathPackages(box, pathId, sys){
+  const s = MKT_SYSTEMS[sys];
+  box.innerHTML = `
+    <div class="sec-head reveal">
+      <div class="tag">${s.name}</div>
+      <h2>باقات ${s.name} الشهرية لهذا المسار</h2>
+      <p>مدة الحصة 30 دقيقة، وكل الباقات تشمل تقارير يومية لوليّ الأمر. <a href="javascript:void(0)" onclick="clearPathSystem()" style="color:var(--emerald);font-weight:700">تغيير النظام ←</a></p>
+    </div>
+    <div class="pricing-grid">
+      ${s.packages.map(pk=>`
+      <div class="price-card ${pk.popular?'pop':''} reveal">
+        <div class="pc-name">${pkgLabel(pk.sessions)}</div>
+        <div class="pc-price"><span class="amt" data-egp="${pk.fee}">${pk.fee}</span><small class="cur-label"> ج.م/شهر</small></div>
+        <ul class="pc-feats">
+          <li><span class="ck">✓</span> حلقة فرديّة خاصّة (30 دقيقة)</li>
+          <li><span class="ck">✓</span> متابعة وتقارير يومية</li>
+          <li><span class="ck">✓</span> معلّم مخصّص حسب مستواك</li>
+        </ul>
+        <a class="btn-primary" href="javascript:void(0)" onclick="goEnroll('${pathId}','${sys}',${pk.sessions},${pk.fee},'full')">اشترك الآن</a>
+      </div>`).join('')}
+    </div>
+    <p style="text-align:center;margin-top:20px;font-size:13.5px;color:var(--ink-soft)">الاشتراك أعلى من إمكانياتك؟ <a href="javascript:void(0)" onclick="goEnroll('${pathId}','${sys}',${s.packages[0].sessions},${s.packages[0].fee},'subsidy')" style="color:var(--emerald);font-weight:700">اطلب تخفيضاً</a></p>`;
+  applyLocalizedPricing();
+}
+function clearPathSystem(){
+  const url = new URL(location.href);
+  url.searchParams.delete('system');
+  history.replaceState(null, '', url);
+  initPathEnroll();
+}
+document.addEventListener('DOMContentLoaded', initPathEnroll);
+
+/* ============================================================
+   شريط الرحلة المرئي — يظهر في كل صفحات القمع (نظام/مسار)
+   ليطمئن الزائر إنه في مكانه الصحيح ويوريه الخطوات الباقية،
+   نفس منطق شريط "sj-steps" الموجود جوّه لوحة الطالب بـ index.html.
+   ============================================================ */
+const FUNNEL_STEPS = ['اختر نظامك','اختر مسارك','اختر باقتك','سجّل دخولك','ادفع','اختر معلمك'];
+const FS_CHECK = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>';
+function mountFunnelStepper(activeIdx){
+  const el = document.getElementById('funnelStepper');
+  if(!el) return;
+  el.innerHTML = `<div class="fs-track">${FUNNEL_STEPS.map((label,i)=>{
+    const state = i<activeIdx?'done':(i===activeIdx?'active':'');
+    const dot = i<activeIdx?FS_CHECK:(i+1);
+    const line = i<FUNNEL_STEPS.length-1?`<div class="fs-line ${i<activeIdx?'done':''}"></div>`:'';
+    return `<div class="fs-step ${state}"><div class="fs-dot">${dot}</div><span>${label}</span></div>${line}`;
+  }).join('')}</div>`;
+}
+function initFunnelStepper(){
+  const el = document.getElementById('funnelStepper');
+  if(!el || el.dataset.step===undefined) return;
+  mountFunnelStepper(+el.dataset.step);
+}
+document.addEventListener('DOMContentLoaded', initFunnelStepper);

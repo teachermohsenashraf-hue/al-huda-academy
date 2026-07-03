@@ -32,9 +32,8 @@
       <a class="lnk" href="landing.html#systems">الأنظمة</a>
       <a class="lnk" href="#paths">المسارات</a>
       <a class="lnk" href="#how">كيف يعمل</a>
-      <a class="lnk" href="#packages">الباقات</a>
       <a class="lnk" href="#faq">الأسئلة</a>
-      <a class="lnk nav-cta" href="index.html#signup">ابدأ رحلتك</a>
+      <a class="lnk nav-cta" href="#paths">ابدأ رحلتك</a>
     </div>
     <div style="display:flex;align-items:center;gap:10px">
       <button class="theme-btn" id="themeBtn" aria-label="الوضع الليلي">🌙</button>
@@ -46,12 +45,13 @@
 <header class="page-hero" id="main-content">
   <div class="wrap">
     <div class="breadcrumb reveal"><a href="landing.html">الرئيسية</a> ← <a href="landing.html#systems">الأنظمة</a> ← النظام المرن</div>
+    <div id="funnelStepper" class="funnel-stepper reveal" data-step="0"></div>
     <div class="banner-img reveal"><img src="assets/flexible-banner.webp" alt="النظام المرن — ثلاثة حصون أساسية" fetchpriority="high"></div>
     <div class="tag reveal">النظام المرن</div>
     <h1 class="reveal">رحلتك، بالسرعة التي تناسبك</h1>
     <p class="reveal">برنامج مرن يعتمد على ثلاثة حصون أساسية، يناسب الطلاب الذين يرغبون في تنظيم رحلتهم بما يتناسب مع وقتهم وأهدافهم، مع الحفاظ على جودة المتابعة والاستمرارية.</p>
     <div class="hero-cta reveal">
-      <a class="btn-primary" href="index.html#signup">ابدأ رحلتك في النظام المرن ←</a>
+      <a class="btn-primary" href="#paths">ابدأ رحلتك في النظام المرن ←</a>
       <a class="btn-ghost" href="#flexible">▶ اكتشف الحصون الثلاثة</a>
     </div>
   </div>
@@ -114,59 +114,12 @@
       <p>ستة مسارات متدرّجة، كل مسار بخطّة إتقان كاملة ومدّة متوقّعة واضحة — اضغط أي مسار لتفاصيله.</p>
     </div>
     <div class="paths-grid">
-      <a class="path-card reveal" href="path-amma.html"><img class="pc-thumb" src="assets/path-amma-banner.webp" alt="جزء عمّ وتبارك" loading="lazy"><div class="pc-body"><h3>جزء عمّ وتبارك</h3><div class="pc-meta"><span>⏱ <b>٤–٥ أشهر</b></span><span>📄 نصف صفحة يومياً</span></div><p style="font-size:14px;color:var(--ink-soft)">بداية مباركة لمن يريد إتقان قصار السور.</p><span class="pc-cta">اكتشف هذا المسار ←</span></div></a>
-      <a class="path-card featured reveal" href="path-zahrawan.html"><img class="pc-thumb" src="assets/path-zahrawan-banner.webp" alt="الزهراوان" loading="lazy"><div class="pc-body"><h3>الزهراوان</h3><div class="pc-meta"><span>⏱ <b>١٠–١٢ شهراً</b></span><span>📄 نصف صفحة</span></div><p style="font-size:14px;color:var(--ink-soft)">سورتا البقرة وآل عمران — نور لصاحبهما يوم القيامة.</p><span class="pc-cta">اكتشف هذا المسار ←</span></div></a>
-      <a class="path-card reveal" href="path-mufassal.html"><img class="pc-thumb" src="assets/path-mufassal-banner.webp" alt="المفصّل" loading="lazy"><div class="pc-body"><h3>المفصّل</h3><div class="pc-meta"><span>⏱ <b>سنة – سنة ونصف</b></span><span>📄 نصف–صفحة</span></div><p style="font-size:14px;color:var(--ink-soft)">من ق إلى الناس، أكثر ما يُتلى في الصلوات.</p><span class="pc-cta">اكتشف هذا المسار ←</span></div></a>
-      <a class="path-card reveal" href="path-quarter.html"><img class="pc-thumb" src="assets/path-quarter-banner.webp" alt="ربع القرآن" loading="lazy"><div class="pc-body"><h3>ربع القرآن</h3><div class="pc-meta"><span>⏱ <b>٨–١٠ أشهر</b></span><span>📄 صفحة يومياً</span></div><p style="font-size:14px;color:var(--ink-soft)">خطوة جادّة نحو حفظ كتاب الله كاملاً.</p><span class="pc-cta">اكتشف هذا المسار ←</span></div></a>
-      <a class="path-card reveal" href="path-half.html"><img class="pc-thumb" src="assets/path-half-banner.webp" alt="نصف القرآن" loading="lazy"><div class="pc-body"><h3>نصف القرآن</h3><div class="pc-meta"><span>⏱ <b>سنة ونصف – سنتان</b></span><span>📄 صفحة–صفحتان</span></div><p style="font-size:14px;color:var(--ink-soft)">منتصف الطريق إلى شرف حملة القرآن.</p><span class="pc-cta">اكتشف هذا المسار ←</span></div></a>
-      <a class="path-card reveal" href="path-full.html"><img class="pc-thumb" src="assets/path-full-banner.webp" alt="القرآن كاملاً" loading="lazy"><div class="pc-body"><h3>القرآن كاملاً</h3><div class="pc-meta"><span>⏱ <b>سنتان – ثلاث</b></span><span>📄 صفحتان يومياً</span></div><p style="font-size:14px;color:var(--ink-soft)">الغاية الكبرى: أن تكون من أهل الله وخاصّته.</p><span class="pc-cta">اكتشف هذا المسار ←</span></div></a>
-    </div>
-  </div>
-</section>
-
-<!-- ═══════════ الباقات ═══════════ -->
-<section class="sec sec-cream" id="packages">
-  <div class="wrap">
-    <div class="sec-head reveal">
-      <div class="tag">اشتراك المرن</div>
-      <h2>باقات النظام المرن الشهرية</h2>
-      <p>مدة الحصة 30 دقيقة، وكل الباقات تشمل تقارير يومية لوليّ الأمر.</p>
-    </div>
-    <div class="pricing-grid">
-      <div class="price-card reveal">
-        <div class="pc-name">4 حصص شهرياً</div>
-        <div class="pc-price">400<small> ج.م/شهر</small></div>
-        <ul class="pc-feats">
-          <li><span class="ck">✓</span> حصة واحدة أسبوعياً</li>
-          <li><span class="ck">✓</span> حلقة فرديّة خاصّة (30 دقيقة)</li>
-          <li><span class="ck">✓</span> متابعة الحصون الثلاثة</li>
-          <li><span class="ck">✓</span> تقارير يومية لوليّ الأمر</li>
-        </ul>
-        <a class="btn-primary" href="index.html#signup">اشترك الآن</a>
-      </div>
-      <div class="price-card pop reveal">
-        
-        <div class="pc-name">8 حصص شهرياً</div>
-        <div class="pc-price">650<small> ج.م/شهر</small></div>
-        <ul class="pc-feats">
-          <li><span class="ck">✓</span> حصّتان أسبوعياً</li>
-          <li><span class="ck">✓</span> حلقة فرديّة خاصّة (30 دقيقة)</li>
-          <li><span class="ck">✓</span> متابعة يومية ومرونة أكبر</li>
-          <li><span class="ck">✓</span> واجبات مخصّصة</li>
-        </ul>
-        <a class="btn-primary" href="index.html#signup">اشترك الآن</a>
-      </div>
-      <div class="price-card reveal">
-        <div class="pc-name">12 حصة شهرياً</div>
-        <div class="pc-price">800<small> ج.م/شهر</small></div>
-        <ul class="pc-feats">
-          <li><span class="ck">✓</span> ثلاث حصص أسبوعياً</li>
-          <li><span class="ck">✓</span> حلقة فرديّة خاصّة (30 دقيقة)</li>
-          <li><span class="ck">✓</span> متابعة مكثّفة وتقارير يومية</li>
-          <li><span class="ck">✓</span> خطّة إتقان مسرّعة</li>
-        </ul>
-        <a class="btn-primary" href="index.html#signup">اشترك الآن</a>
-      </div>
+      <a class="path-card reveal" href="path-amma.html?system=flexible"><img class="pc-thumb" src="assets/path-amma-banner.webp" alt="جزء عمّ وتبارك" loading="lazy"><div class="pc-body"><h3>جزء عمّ وتبارك</h3><div class="pc-meta"><span>⏱ <b>٤–٥ أشهر</b></span><span>📄 نصف صفحة يومياً</span></div><p style="font-size:14px;color:var(--ink-soft)">بداية مباركة لمن يريد إتقان قصار السور.</p><span class="pc-cta">اكتشف هذا المسار ←</span></div></a>
+      <a class="path-card featured reveal" href="path-zahrawan.html?system=flexible"><img class="pc-thumb" src="assets/path-zahrawan-banner.webp" alt="الزهراوان" loading="lazy"><div class="pc-body"><h3>الزهراوان</h3><div class="pc-meta"><span>⏱ <b>١٠–١٢ شهراً</b></span><span>📄 نصف صفحة</span></div><p style="font-size:14px;color:var(--ink-soft)">سورتا البقرة وآل عمران — نور لصاحبهما يوم القيامة.</p><span class="pc-cta">اكتشف هذا المسار ←</span></div></a>
+      <a class="path-card reveal" href="path-mufassal.html?system=flexible"><img class="pc-thumb" src="assets/path-mufassal-banner.webp" alt="المفصّل" loading="lazy"><div class="pc-body"><h3>المفصّل</h3><div class="pc-meta"><span>⏱ <b>سنة – سنة ونصف</b></span><span>📄 نصف–صفحة</span></div><p style="font-size:14px;color:var(--ink-soft)">من ق إلى الناس، أكثر ما يُتلى في الصلوات.</p><span class="pc-cta">اكتشف هذا المسار ←</span></div></a>
+      <a class="path-card reveal" href="path-quarter.html?system=flexible"><img class="pc-thumb" src="assets/path-quarter-banner.webp" alt="ربع القرآن" loading="lazy"><div class="pc-body"><h3>ربع القرآن</h3><div class="pc-meta"><span>⏱ <b>٨–١٠ أشهر</b></span><span>📄 صفحة يومياً</span></div><p style="font-size:14px;color:var(--ink-soft)">خطوة جادّة نحو حفظ كتاب الله كاملاً.</p><span class="pc-cta">اكتشف هذا المسار ←</span></div></a>
+      <a class="path-card reveal" href="path-half.html?system=flexible"><img class="pc-thumb" src="assets/path-half-banner.webp" alt="نصف القرآن" loading="lazy"><div class="pc-body"><h3>نصف القرآن</h3><div class="pc-meta"><span>⏱ <b>سنة ونصف – سنتان</b></span><span>📄 صفحة–صفحتان</span></div><p style="font-size:14px;color:var(--ink-soft)">منتصف الطريق إلى شرف حملة القرآن.</p><span class="pc-cta">اكتشف هذا المسار ←</span></div></a>
+      <a class="path-card reveal" href="path-full.html?system=flexible"><img class="pc-thumb" src="assets/path-full-banner.webp" alt="القرآن كاملاً" loading="lazy"><div class="pc-body"><h3>القرآن كاملاً</h3><div class="pc-meta"><span>⏱ <b>سنتان – ثلاث</b></span><span>📄 صفحتان يومياً</span></div><p style="font-size:14px;color:var(--ink-soft)">الغاية الكبرى: أن تكون من أهل الله وخاصّته.</p><span class="pc-cta">اكتشف هذا المسار ←</span></div></a>
     </div>
   </div>
 </section>
@@ -189,7 +142,7 @@
   <div class="wrap reveal">
     <h2>ابدأ رحلتك في النظام المرن اليوم</h2>
     <p>مرونة في الوقت، ثباتٌ في الحفظ.</p>
-    <a class="cta-big" href="index.html#signup">سجّل الآن <span>←</span></a>
+    <a class="cta-big" href="#paths">اختر مسارك الآن <span>←</span></a>
   </div>
 </section>
 

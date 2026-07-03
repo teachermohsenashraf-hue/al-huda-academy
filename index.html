@@ -812,7 +812,7 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 .lcopy{margin-top:24px;font-size:12.5px;color:rgba(255,255,255,0.4);border-top:1px solid rgba(255,255,255,0.08);padding-top:18px}
 
 /* auth */
-.auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:30px 20px;position:relative;background:radial-gradient(ellipse at 80% 10%,rgba(34,107,84,0.1),transparent 50%),radial-gradient(ellipse at 10% 90%,rgba(201,162,39,0.12),transparent 48%),linear-gradient(160deg,#16362C,#123A2E)}
+.auth-wrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px 20px;position:relative;background:radial-gradient(ellipse at 80% 10%,rgba(34,107,84,0.1),transparent 50%),radial-gradient(ellipse at 10% 90%,rgba(201,162,39,0.12),transparent 48%),linear-gradient(160deg,#16362C,#123A2E)}
 .auth-back{position:fixed;top:16px;right:16px;z-index:30;background:rgba(255,255,255,0.14);border:1px solid rgba(255,255,255,0.25);color:#fff;padding:9px 16px;border-radius:30px;font-weight:700;font-size:13px;white-space:nowrap;cursor:pointer;font-family:'Cairo'}
 .auth-card{max-width:520px;width:100%;background:#fff;border-radius:26px;padding:36px 34px;box-shadow:0 30px 70px rgba(0,0,0,0.3);max-height:92vh;overflow-y:auto}
 @media(max-width:480px){ .auth-wrap{padding-top:60px} .auth-back{top:12px;right:12px;padding:8px 14px;font-size:12px} }
@@ -1904,9 +1904,19 @@ async function loadLandingPrograms(){
 let AUTH_MODE='login', SIGNUP_ROLE='parent', LOGIN_PREFILL='';
 function showAuth(mode){ hideAll(); $('#authScreen').classList.remove('hidden'); setAuthMode(mode||'login'); $('#authScreen').innerHTML=authHTML(); setAuthMode(mode||'login',true); loadLandingPrograms; }
 function setAuthMode(mode,skipRender){ AUTH_MODE=mode; if(skipRender){ renderAuthBody(); } }
+function authFunnelHTML(){
+  let intent=null; try{ const s=sessionStorage.getItem('pending_intent'); if(s) intent=JSON.parse(s); }catch(e){}
+  if(!intent || !intent.pathId) return '';
+  const labels=['اختر نظامك','اختر مسارك','اختر باقتك','سجّل دخولك','ادفع','اختر معلمك'];
+  const idx=3;
+  return `<div class="status-journey" style="margin:0 0 22px;max-width:520px;width:100%;padding:18px 20px 6px">
+    <div class="sj-steps" style="margin-bottom:0">${labels.map((t,i)=>`<div class="sj-step ${i<idx?'done':i===idx?'active':''}"><div class="sj-dot">${i<idx?'✓':(i+1)}</div><span>${t}</span></div>`).join('<div class="sj-line"></div>')}</div>
+  </div>`;
+}
 function authHTML(){
   return `<div class="auth-wrap">
     <button class="auth-back" onclick="location.href='landing.html'">→ الرئيسية</button>
+    ${authFunnelHTML()}
     <div class="auth-card">
       <div class="auth-logo"><img src="assets/logo.webp" alt="أكاديمية الهدى" style="width:100%;height:100%;object-fit:contain;border-radius:inherit"></div>
       <h2 id="authTitle">تسجيل الدخول</h2>
@@ -2133,6 +2143,8 @@ async function afterAuth(){
   // استعادة النيّة المحفوظة (مسار ضغطه قبل الدخول الإلزامي)
   let intent = PENDING_INTENT;
   if(!intent){ try{ const s=sessionStorage.getItem('pending_intent'); if(s) intent=JSON.parse(s); }catch(e){} }
+  if(intent && intent.ts && (Date.now()-intent.ts) > 6*3600*1000){ intent=null; try{ sessionStorage.removeItem('pending_intent'); }catch(e){} } /* تجاهل نيّة قديمة عمرها أكتر من 6 ساعات */
+  if(intent && !intent.pathId){ intent=null; } /* نيّة ناقصة بلا مسار محدَّد لا تُستخدم */
   if(intent && (ME.role==='parent'||ME.role==='student')){
     PENDING_INTENT=null; try{ sessionStorage.removeItem('pending_intent'); }catch(e){}
     if(intent.plan) SELECTED_PLAN = intent.plan;

@@ -33,7 +33,7 @@
       <a class="lnk" href="landing.html#paths">كل المسارات</a>
       <a class="lnk" href="#goals">أهداف المسار</a>
       <a class="lnk" href="#packages">الاشتراك</a>
-      <a class="lnk nav-cta" href="index.html#signup">ابدأ رحلتك</a>
+      <a class="lnk nav-cta" href="#packages">ابدأ رحلتك</a>
     </div>
     <div style="display:flex;align-items:center;gap:10px">
       <button class="theme-btn" id="themeBtn" aria-label="الوضع الليلي">🌙</button>
@@ -45,12 +45,13 @@
 <header class="page-hero" id="main-content">
   <div class="wrap">
     <div class="breadcrumb reveal"><a href="landing.html">الرئيسية</a> ← <a href="landing.html#paths">المسارات</a> ← ربع القرآن</div>
+    <div id="funnelStepper" class="funnel-stepper reveal"></div>
     <div class="banner-img reveal"><img src="assets/path-quarter-banner.webp" alt="مسار ربع القرآن" fetchpriority="high"></div>
     <div class="tag reveal">خطوة جادّة</div>
     <h1 class="reveal">مسار ربع القرآن</h1>
     <p class="reveal">حفظ ربع القرآن الكريم (٧.٥ أجزاء) بإتقان وتثبيت — خطوة كبيرة نحو حفظ كتاب الله كاملاً، مع ترسيخ منهج المراجعة، متاح ضمن نظام رسوخ أو النظام المرن.</p>
     <div class="hero-cta reveal">
-      <a class="btn-primary" href="index.html#signup">ابدأ هذا المسار الآن ←</a>
+      <a class="btn-primary" href="#packages">ابدأ هذا المسار الآن ←</a>
       <a class="btn-ghost" href="#packages">▶ شاهد الباقات</a>
     </div>
   </div>
@@ -72,35 +73,9 @@
   </div>
 </section>
 
-<section class="sec sec-cream" id="packages">
+<section class="sec sec-cream" id="packages" data-path-id="quarter">
   <div class="wrap">
-    <div class="sec-head reveal">
-      <div class="tag">الاشتراك</div>
-      <h2>اختر نظامك لهذا المسار</h2>
-      <p>مسار ربع القرآن متاح ضمن نظامَي الأكاديمية — اختر ما يناسبك.</p>
-    </div>
-    <div class="systems-grid">
-      <div class="system-card reveal">
-        <div class="sc-icon">🛡️</div>
-        <h3>نظام رسوخ</h3>
-        <p class="sc-desc">خمسة حصون يومية (حفظ، مراجعة قريبة وبعيدة، قراءة، سماع) لإتقان أشمل.</p>
-        <div class="sc-packages">
-          <div class="sc-pkg-title">يبدأ من</div>
-          <div class="sc-pkg-row"><span>4 حصص شهرياً</span><b>450 ج</b></div>
-        </div>
-        <a class="btn-primary" href="system-rasokh.html" style="width:100%;justify-content:center">تفاصيل نظام رسوخ</a>
-      </div>
-      <div class="system-card featured reveal">
-        <div class="sc-icon">🧩</div>
-        <h3>النظام المرن</h3>
-        <p class="sc-desc">ثلاثة حصون أساسية (حفظ، مراجعة قريبة وبعيدة) بجدول يناسب وقتك.</p>
-        <div class="sc-packages">
-          <div class="sc-pkg-title">يبدأ من</div>
-          <div class="sc-pkg-row"><span>4 حصص شهرياً</span><b>400 ج</b></div>
-        </div>
-        <a class="btn-ghost" href="system-flexible.html" style="width:100%;justify-content:center">تفاصيل النظام المرن</a>
-      </div>
-    </div>
+    <div id="pathEnrollBox"></div>
   </div>
 </section>
 
@@ -108,7 +83,7 @@
   <div class="wrap reveal">
     <h2>ابدأ حفظ ربع القرآن اليوم</h2>
     <p>خطوة جادّة نحو حفظ كتاب الله كاملاً.</p>
-    <a class="cta-big" href="index.html#signup">سجّل الآن <span>←</span></a>
+    <a class="cta-big" href="#packages">سجّل الآن <span>←</span></a>
   </div>
 </section>
 

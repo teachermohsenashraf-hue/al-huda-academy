@@ -183,6 +183,25 @@ section{ position:relative; }
 .breadcrumb{ display:flex; align-items:center; justify-content:center; gap:8px; font-size:13.5px; color:var(--ink-soft); margin-bottom:18px; }
 .breadcrumb a{ color:var(--emerald); font-weight:600; }
 
+/* ═══════════ شريط الرحلة (funnel stepper) ═══════════ */
+.funnel-stepper{ max-width:720px; margin:0 auto 8px; }
+.fs-track{ display:flex; align-items:flex-start; }
+.fs-step{ display:flex; flex-direction:column; align-items:center; gap:7px; flex:0 0 auto; min-width:0; width:56px; }
+.fs-dot{ width:30px; height:30px; border-radius:50%; background:#fff; border:2px solid var(--line); color:var(--ink-soft); display:grid; place-items:center; font-size:12.5px; font-weight:800; transition:all .25s ease; flex-shrink:0; }
+.fs-step.active .fs-dot{ background:var(--gold); border-color:var(--gold); color:#fff; box-shadow:0 0 0 5px rgba(201,162,39,0.18); }
+.fs-step.done .fs-dot{ background:var(--emerald); border-color:var(--emerald); color:#fff; }
+.fs-step span{ font-size:11px; font-weight:600; color:var(--ink-soft); text-align:center; line-height:1.3; }
+.fs-step.active span{ color:var(--emerald); font-weight:800; }
+.fs-step.done span{ color:var(--emerald); }
+.fs-line{ flex:1 1 auto; height:2px; background:var(--line); margin-top:14px; min-width:8px; }
+.fs-line.done{ background:var(--emerald); }
+@media (max-width:640px){
+  .fs-step{ width:auto; }
+  .fs-step span{ display:none; }
+  .fs-step.active span{ display:block; position:absolute; margin-top:38px; white-space:nowrap; }
+  .fs-step.active{ position:relative; }
+}
+
 /* ═══════════ عام للأقسام ═══════════ */
 .sec{ padding:100px 0; }
 .sec-dark{ background:linear-gradient(165deg,var(--emerald-deep),var(--emerald)); color:var(--cream); }
@@ -216,6 +235,11 @@ section{ position:relative; }
 .system-card:hover .sc-thumb{ transform:scale(1.04); }
 .sc-body{ padding:32px 32px 40px; }
 .sc-icon{ width:64px; height:64px; margin:0 auto 18px; border-radius:20px; display:grid; place-items:center; font-size:30px; background:color-mix(in srgb,var(--emerald) 12%, transparent); }
+/* أيقونة فاخرة لاختيار النظام (رسوخ/المرن) في نهاية صفحة المسار */
+.sys-choice{ cursor:pointer; }
+.sys-choice-ic{ background:linear-gradient(150deg,var(--emerald),var(--emerald-deep)); box-shadow:0 10px 26px -8px rgba(27,77,62,0.45); color:var(--gold-glow); position:relative; }
+.sys-choice-ic::after{ content:''; position:absolute; inset:-4px; border:1.5px solid var(--gold); border-radius:24px; opacity:.5; }
+.sys-choice:hover .sys-choice-ic{ transform:scale(1.06) rotate(-3deg); transition:transform .3s ease; }
 .system-card h3{ font-family:'Tajawal',sans-serif; font-weight:700; font-size:24px; color:var(--emerald); margin-bottom:12px; }
 .sc-desc{ font-family:'Cairo',sans-serif; font-size:18px; color:var(--ink); line-height:1.8; margin-bottom:22px; }
 .sc-feats{ list-style:none; text-align:start; display:flex; flex-direction:column; gap:11px; margin-bottom:22px; }
@@ -492,3 +516,9 @@ html.dark .sec-dark .info-card h3{ color:var(--gold-glow); }
 html.dark .sec-dark .info-card p{ color:rgba(251,248,241,0.75); }
 html.dark .float-stat b{ color:#1B4D3E; }
 html.dark .float-stat span{ color:#5A6B7A; }
+html.dark .fs-dot{ color:#5A6B7A; }
+html.dark .fs-step.active .fs-dot,
+html.dark .fs-step.done .fs-dot{ color:#fff; }
+html.dark .fs-step span{ color:#9DB3AB; }
+html.dark .fs-step.active span,
+html.dark .fs-step.done span{ color:#3AA483; }
