@@ -2163,12 +2163,27 @@ async function afterAuth(){
   if(intent && (ME.role==='parent'||ME.role==='student')){
     PENDING_INTENT=null; try{ sessionStorage.removeItem('pending_intent'); }catch(e){}
     if(intent.plan) SELECTED_PLAN = intent.plan;
-    enterDashboard();
-    setTimeout(()=>openEnrollFlow(intent.pathId, intent.type), 350);
+    enterEnrollmentDashboard(intent);
     return;
   }
   // الوضع العادي: الدخول مباشرة إلى لوحته
   enterDashboard();
+}
+/* دخول أول مرة ومعه نيّة التحاق محفوظة (نظام/مسار/باقة اختارها قبل التسجيل):
+   نبني الواجهة العامة (القائمة الجانبية) لكن من غير ما نعرض صفحة بيانات
+   فاضية، وندخل فورًا في استبيان الالتحاق ثم الدفع بدل ما يتوه المستخدم. */
+async function enterEnrollmentDashboard(intent){
+  hideAll(); $('#shell').classList.remove('hidden');
+  buildShell(); qInjectStudentMenuExtras();
+  const p = QURAN_PATHS.find(x=>x.id===intent.pathId);
+  $('#pageHost').innerHTML = `<div class="card" style="text-align:center;padding:50px"><div class="empty-ic">${mi('rocket')}</div><h3 style="color:var(--navy-deep);font-family:Amiri">جاري تجهيز اشتراكك${p?' في '+p.name:''}...</h3><p style="color:var(--muted);font-size:14px">أكمل الخطوات القادمة لتفعيل اشتراكك مباشرة.</p></div>`;
+  try{
+    await openEnrollFlow(intent.pathId, intent.type);
+  }catch(e){
+    console.error('enroll flow:', e);
+    $('#pageHost').innerHTML = `<div class="card" style="text-align:center;padding:40px"><div class="empty-ic">${mi('warning')}</div><h3 style="color:var(--navy-deep)">تعذّر فتح الالتحاق تلقائياً</h3><p style="color:var(--muted);font-size:14px;margin-bottom:16px">ارجع للصفحة الرئيسية واختر نظامك ومسارك وباقتك من جديد.</p><button class="btn" onclick="location.href='landing.html#systems'">الصفحة الرئيسية</button></div>`;
+  }
+  setTimeout(()=>{ maybeStartTour(); loadNotifications(); }, 400);
 }
 function enterDashboard(){
   hideAll(); $('#shell').classList.remove('hidden');
@@ -2651,7 +2666,7 @@ async function pushNotif(userId,title,body,type,refId){
 // ════════ حالة الطالب (بعد الدفع) ════════
 function studentStatusCard(s){
   const steps=[
-    {k:'pending',icon:'map',title:'اختر مسارك',sub:'لم تلتحق بمسار بعد',btn:'<button class="btn" onclick="navigate(\'paths\')">تصفّح المسارات</button>'},
+    {k:'pending',icon:'map',title:'اختر مسارك',sub:'لم تلتحق بمسار بعد',btn:'<button class="btn" onclick="location.href=\'landing.html#systems\'">الصفحة الرئيسية</button>'},
     {k:'awaiting_subsidy',icon:'handshake',title:'بانتظار رد المشرف على التخفيض',sub:'أرسلنا طلب التخفيض للمشرف. سيراجع حالتك ويحدّد القيمة، وعندها يظهر لك زر الدفع.',btn:''},
     {k:'awaiting_payment',icon:'card',title:'أكمل الدفع',sub:`${planName(s.plan_type||'rasokh')} • ${packageLabel(s.package_sessions||8)} — ارفع إيصال الدفع لتُفعَّل`,btn:`<button class="btn" onclick="SELECTED_PLAN={type:'${s.plan_type||'rasokh'}',sessions:${s.package_sessions||8},fee:${s.package_fee||700}};enrollPayment(${s.id},null,'${s.quran_path||''}',${s.is_subsidized?true:false})">إكمال الدفع</button>`},
     {k:'awaiting_confirm',icon:'mail',title:'بانتظار تأكيد المشرف',sub:'استلمنا إيصالك وسيتم التأكيد قريباً',btn:''},
@@ -3091,7 +3106,7 @@ function enrollGateMsg(status){
     awaiting_confirm:['mail','بانتظار تأكيد المشرف','استلمنا إيصالك، وسيؤكّده المشرف قريباً لتختار معلمك.'],
   };
   const m=map[status]||map.pending;
-  return `<div class="card" style="text-align:center;padding:40px"><div class="empty-ic">${mi(m[0])}</div><h3 style="color:var(--navy-deep);margin-bottom:8px">${m[1]}</h3><p style="color:var(--muted);font-size:14px;line-height:1.8">${m[2]}</p>${status==='pending'?'<button class="btn" style="margin-top:16px" onclick="navigate(\'paths\')">تصفّح المسارات</button>':''}</div>`;
+  return `<div class="card" style="text-align:center;padding:40px"><div class="empty-ic">${mi(m[0])}</div><h3 style="color:var(--navy-deep);margin-bottom:8px">${m[1]}</h3><p style="color:var(--muted);font-size:14px;line-height:1.8">${m[2]}</p>${status==='pending'?'<button class="btn" style="margin-top:16px" onclick="location.href=\'landing.html#systems\'">الصفحة الرئيسية</button>':''}</div>`;
 }
 async function alreadyChosenMsg(s){
   const { data:t }=await sb.from('profiles').select('id,full_name,specialty').eq('id',s.chosen_teacher_id).single();
@@ -3195,7 +3210,7 @@ PAGES.parent_children=async function(){ setTop('أبنائي','أضف أبناء
     <span class="ck-meta">${k.age?ar(k.age)+' سنة':''} ${k.quran_path?'• '+pathName(k.quran_path):''}</span>
     <div class="ck-status ${k.enrollment_status==='active'?'on':''}">${statusLabel(k.enrollment_status)}</div>
     <div class="ck-actions">
-      ${k.enrollment_status==='active'?`<button class="btn-sm" onclick="SESSION.currentChild=${k.id};navigate('report')">التقارير</button>`:k.enrollment_status==='pending'||k.enrollment_status==='awaiting_payment'?`<button class="btn-sm" onclick="SESSION.currentChild=${k.id};navigate('paths')">اختر مساراً</button>`:''}
+      ${k.enrollment_status==='active'?`<button class="btn-sm" onclick="SESSION.currentChild=${k.id};navigate('report')">التقارير</button>`:k.enrollment_status==='pending'?`<button class="btn-sm" onclick="location.href='landing.html#systems'">اختر مساراً</button>`:''}
       <button class="btn-sm ghost" onclick="editChildModal(${k.id})">تعديل</button>
     </div>
   </div>`).join('')}</div>`
