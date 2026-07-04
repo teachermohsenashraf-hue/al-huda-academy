@@ -39,9 +39,9 @@ create policy "user manages own subscriptions" on push_subscriptions for all to 
 
 -- ------------------------------------------------------------
 -- ٣) دالة إعادة تعيين كلمة سر مستخدم (يستخدمها المدير/التنفيذي/المشرف)
---    ملحوظة: لو الدالة دي موجودة بالفعل وشغالة عندك، مفيش داعي تشغّل الجزء ده تاني —
---    "create or replace" آمنة، هتحدّث نفس المنطق بدون ما تأثر على أي بيانات.
+--    بنمسحها الأول لو موجودة بشكل مختلف (رجّعت خطأ عندك)، عشان النسخة الجديدة تتحط مكانها بأمان.
 -- ------------------------------------------------------------
+drop function if exists admin_reset_password(text, text);
 create or replace function admin_reset_password(target_email text, new_password text)
 returns jsonb
 language plpgsql
@@ -74,8 +74,9 @@ grant execute on function admin_reset_password(text, text) to authenticated;
 
 -- ------------------------------------------------------------
 -- ٤) دالة إنشاء حساب حقيقي مرتبط (ابن/ولي أمر) بكلمة سر فعلية
---    نفس الملحوظة: create or replace آمنة لو موجودة بالفعل.
+--    نفس الملحوظة: بنمسحها الأول لو موجودة بشكل مختلف.
 -- ------------------------------------------------------------
+drop function if exists create_linked_account(text, text, text, text, bigint);
 create or replace function create_linked_account(
   p_email text, p_password text, p_name text, p_role text, p_student_id bigint
 )
