@@ -2278,7 +2278,7 @@ const MENUS = {
   admin:{ skin:'s-gold', title:'لوحة المدير', sections:[
     {label:'الرئيسية', items:[['dash',mi('home'),'لوحة القيادة'],['analytics',mi('chart'),'التحليلات']]},
     {label:'الإدارة', items:[['users',mi('users'),'المستخدمون'],['tracks',mi('cap'),'المسارات والدورات'],['staff',mi('teacher'),'الطاقم'],['content',mi('books'),'المحتوى'],['unassigned',mi('warning'),'طلاب بدون حلقة'],['leads',mi('clipboard'),'تسجيلات معلّقة']]},
-    {label:'قسم القرآن', items:[['qsystems',mi('kaaba'),'أنظمة القرآن'],['qfortresses',mi('shield'),'الحصون والمحطات'],['qimport',mi('download'),'استيراد Excel']]},
+    {label:'قسم القرآن', items:[['qsystems',mi('kaaba'),'أنظمة القرآن'],['qfortresses',mi('shield'),'الحصون والمحطات']]},
     {label:'المالية', items:[['finance',mi('card'),'المدفوعات']]},
   ]},
   executive:{ skin:'s-navy', title:'لوحة المدير التنفيذي', sections:[
@@ -2288,15 +2288,15 @@ const MENUS = {
     {label:'المالية', items:[['finance',mi('card'),'المدفوعات']]},
   ]},
   supervisor:{ skin:'s-navy', title:'لوحة المشرف', sections:[
-    {label:'الإشراف', items:[['dash',mi('home'),'نظرة عامة'],['groups',mi('users'),'الحلقات'],['groupreport',mi('clipboard'),'تقارير الحلقات'],['staff',mi('teacher'),'المعلمون']]},
-    {label:'الطلاب', items:[['students',mi('child'),'كل الطلاب'],['transfer',mi('refresh'),'نقل طالب'],['cases',mi('warning'),'الحالات المتعثّرة'],['leads',mi('clipboard'),'تسجيلات معلّقة']]},
     {label:'الالتحاق', items:[['confirm',mi('money'),'تأكيد المدفوعات'],['subsidy',mi('handshake'),'طلبات التخفيض']]},
+    {label:'الإشراف', items:[['dash',mi('home'),'نظرة عامة'],['groups',mi('users'),'الحلقات'],['groupreport',mi('clipboard'),'تقارير الحلقات']]},
+    {label:'قسم القرآن', items:[['qoverview',mi('chart'),'أنظمة القرآن']]},
+    {label:'الطلاب', items:[['students',mi('child'),'كل الطلاب'],['transfer',mi('refresh'),'نقل طالب'],['cases',mi('warning'),'الحالات المتعثّرة'],['leads',mi('clipboard'),'تسجيلات معلّقة']]},
     {label:'التواصل', items:[['chat',mi('chat'),'الرسائل']]},
-    {label:'قسم القرآن', items:[['qoverview',mi('chart'),'نظرة قرآن']]},
   ]},
   teacher:{ skin:'s-emerald', title:'لوحة المعلم', sections:[
-    {label:'الرئيسية', items:[['dash',mi('home'),'لوحتي'],['groups',mi('users'),'حلقاتي'],['newstudents',mi('sparkle'),'طلاب جدد']]},
-    {label:'المتابعة', items:[['reports',mi('chart'),'تقارير الطلاب'],['weeklyreport',mi('mail'),'تقرير أسبوعي'],['transfer',mi('refresh'),'نقل طالب'],['availability',mi('dot'),'إتاحتي وسيرتي']]},
+    {label:'الرئيسية', items:[['dash',mi('home'),'لوحتي'],['groups',mi('users'),'حلقاتي'],['newstudents',mi('inbox'),'طلاب جدد']]},
+    {label:'المتابعة', items:[['reports',mi('chart'),'تقارير الطلاب'],['availability',mi('dot'),'إتاحتي وسيرتي']]},
     {label:'قسم القرآن', items:[['qplans',mi('clipboard'),'خطط طلابي'],['qmonitor',mi('eye'),'متابعة يومية']]},
     {label:'عام', items:[['chat',mi('chat'),'الرسائل'],['content',mi('books'),'المحتوى']]},
   ]},
@@ -2306,7 +2306,7 @@ const MENUS = {
     {label:'التواصل', items:[['chat',mi('chat'),'مراسلة الإشراف']]},
   ]},
   student:{ skin:'s-emerald', title:'لوحة الطالب', sections:[
-    {label:'مساري', items:[['roadmap',mi('map'),'خطة مساري'],['myhalqa',mi('mosque'),'حلقتي'],['husoon',mi('book'),'حفظي اليومي']]},
+    {label:'مساري', items:[['roadmap',mi('map'),'خطة مساري'],['myhalqa',mi('mosque'),'حلقتي']]},
     {label:'قسم القرآن', items:[['qtoday',mi('book'),'ورد اليوم'],['qmyplan',mi('calendar'),'خطتي الكاملة']]},
     {label:'حلقتي', items:[['choose',mi('chooseTeacher'),'معلمي'],['myparent',mi('family'),'ولي أمري']]},
     {label:'عام', items:[['chat',mi('chat'),'الرسائل'],['renewal',mi('refresh'),'تجديد اشتراكي']]},
@@ -2460,9 +2460,8 @@ PAGES.student_dash = async function(){
   const hifzDone=todayLog?[todayLog.new_hifz_done,todayLog.review_near_done,todayLog.daily_read_done,todayLog.review_far_done,todayLog.listening_done].filter(Boolean).length:0;
   return `<div class="hero-band e"><div style="display:flex;align-items:center;justify-content:space-between;gap:24px;position:relative;z-index:2;flex-wrap:wrap"><div><h1 style="font-size:25px;margin-bottom:6px;color:#fff">أنت تسير في خير، فلا تقف 🌟</h1><p style="color:rgba(255,255,255,0.85);font-size:15px;max-width:440px">حافظت على وردك ${ar(s.streak)} يوماً متتالياً. كلّ صفحة تتعب فيها اليوم نورٌ لك غداً.</p><div class="quran" style="font-size:17px;color:var(--gold-light);margin-top:10px">﴿ ورتّل القرآن ترتيلاً ﴾</div></div><div style="background:rgba(255,255,255,0.12);border:1px solid rgba(217,184,77,0.4);border-radius:18px;padding:16px 26px;text-align:center"><div style="font-family:Amiri;font-size:38px;line-height:1;color:var(--gold-light)">${ar(s.streak)}</div><div style="font-size:12.5px;color:rgba(255,255,255,0.8);margin-top:4px">يوماً 🔥</div></div></div></div>
   <!-- بطاقة حفظ اليوم السريعة -->
-  <div class="hifz-quick-card" onclick="navigate('myhifz')">
-    <div class="hq-left"><div class="hq-icon">${mi('pencil')}</div><div><b>حفظي اليوم</b><span>${hifzDone===5?'أكملت الجميع 🏆':hifzDone>0?ar(hifzDone)+' من ٥ حصون':'لم تبدأ بعد'}</span></div></div>
-    <div class="hq-bar"><div style="width:${hifzDone*20}%;height:100%;background:var(--emerald);border-radius:4px;transition:.3s"></div></div>
+  <div class="hifz-quick-card" onclick="navigate('qtoday')">
+    <div class="hq-left"><div class="hq-icon">${mi('pencil')}</div><div><b>ورد اليوم</b><span>اذهب لتسجيل وردك اليوم</span></div></div>
     <span style="font-size:13px;color:var(--emerald-deep);font-weight:700">سجّل ←</span>
   </div>
   <div class="stats">${statCard(mi('book'),'e',ar(s.pages),'صفحة محفوظة')}${statCard(mi('medal'),'g',ar(s.points),'نقطة')}${statCard(mi('check'),'e',pct(s.mastery),'الإتقان')}${statCard(mi('medal'),'n',s.rank===1?'الأول':'ال'+ar(s.rank),'ترتيبك')}</div>
@@ -2521,108 +2520,10 @@ async function worshipTable(sid){
 }
 function setTrack(t){ document.querySelectorAll('.ttb').forEach(b=>b.classList.toggle('on',b.dataset.t===t)); document.querySelectorAll('.track-sec').forEach(s=>{ s.style.display=(t==='all'||t===s.dataset.track)?'':'none'; }); }
 
-PAGES.student_husoon=async function(){ setTop('حفظي اليومي','حصّن حفظك كل يوم');
-  const s=await myStudentRow(); if(!s) return noStudentMsg();
-  // لا بدّ من الاشتراك في مسار أولاً
-  if(s.enrollment_status!=='active'||!s.quran_path){
-    return pageHead('حفظي اليومي','')+`<div class="card" style="text-align:center;padding:44px"><div class="empty-ic">${mi('map')}</div><h3 style="color:var(--navy-deep);font-family:Amiri;font-size:24px;margin-bottom:10px">اشترك في مسار أولاً</h3><p style="color:var(--muted);font-size:14.5px;line-height:1.9;max-width:420px;margin:0 auto 18px">تبدأ متابعة حفظك اليومي بالحصون الخمسة بعد التحاقك بأحد المسارات وتفعيل اشتراكك.</p><button class="btn" onclick="navigate('roadmap')">اطّلع على المسارات</button></div>`;
-  }
-  const today=new Date().toISOString().slice(0,10);
-  const todayLabel=new Date().toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long'});
-  let log={};
-  try{ const { data }=await sb.from('daily_hifz').select('*').eq('student_id',s.id).eq('date',today).maybeSingle(); log=data||{}; }catch(e){}
-  const husoon=[
-    ['new_hifz_done','١','الحفظ الجديد','المقدار اليومي بطريقة التغييب والربط','📖'],
-    ['review_near_done','٢','مراجعة القريب','آخر ما حُفِظ حتى ١٠ صفحات يومياً','🔁'],
-    ['daily_read_done','٣','القراءة اليومية','وجهان من المصحف لتليين الحفظ','📕'],
-    ['review_far_done','٤','مراجعة البعيد','تثبيت القديم موزّعاً على الأسبوع','🏛️'],
-    ['listening_done','٥','ورد السماع','وجهان سماعاً بصوت قارئ متقَن','🎧'],
-  ];
-  const doneCount=husoon.filter(h=>log[h[0]]).length;
-  return pageHead('حفظي اليومي · '+todayLabel,'أنجزت '+ar(doneCount)+' من ٥ حصون اليوم — تتجدّد تلقائياً كل يوم')+
-  `<div class="husoon-grid">${husoon.map(h=>`<div class="hisn-card ${log[h[0]]?'done':''}">
-    <div class="hisn-icon">${h[4]}</div>
-    <div class="hisn-num">الحصن ${h[1]}</div>
-    <b>${h[2]}</b>
-    <span>${h[3]}</span>
-    <label class="hisn-check"><input type="checkbox" ${log[h[0]]?'checked':''} onchange="saveHifzField(${s.id},'${h[0]}',this.checked)"> ${log[h[0]]?'تمّ ✓':'علّم عند الإنجاز'}</label>
-  </div>`).join('')}</div>
-  <div style="margin-top:16px;padding:14px;background:var(--cream);border-radius:12px;font-size:13px;color:var(--muted);text-align:center">🌙 إنجاز اليوم يُحفظ في تقاريرك، وتبدأ صفحةً جديدةً بعد منتصف الليل — فحافظ على ثباتك اليومي.</div>`;
-};
 PAGES.student_challenge=async function(){ setTop('تحدي رجل الأسبوع',''); const s=await myStudentRow(); return pageHead('تحدي رجل الأسبوع','عادات يومية')+`<div class="card"><div id="chalBox">${await challengeBox(s.id)}</div></div>`; };
 PAGES.student_worship=async function(){ setTop('متابعة العبادات',''); const s=await myStudentRow(); return pageHead('متابعة العبادات','أسبوعك مع العبادة')+`<div class="card">${await worshipTable(s.id)}</div>`; };
 PAGES.student_rank=async function(){ setTop('الترتيب','تنافس شريف'); const s=await myStudentRow(); return pageHead('ترتيب الحلقة','')+`<div class="card">${await leaderboard(s.group_id,s.id)}</div>`; };
-// ════════════════════════════════════════════════
-// صفحة الحفظ اليومي (الحصون الخمسة بالتفصيل)
-// ════════════════════════════════════════════════
-PAGES.student_myhifz=async function(){ setTop('حفظي اليومي','سجّل أوردادك اليومية');
-  const s=await myStudentRow(); if(!s) return noStudentMsg();
-  const today=new Date().toISOString().slice(0,10);
-  const todayAr=new Date().toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long'});
-  const { data:log }=await sb.from('daily_hifz').select('*').eq('student_id',s.id).eq('date',today).single().catch(()=>({data:null}));
-  const d=log||{};
-  // احسب الشارة (كم حصن أكملت اليوم)
-  const done=[d.new_hifz_done,d.review_near_done,d.daily_read_done,d.review_far_done,d.listening_done].filter(Boolean).length;
-  const pct5=Math.round(done*100/5);
-  // سجل الأسبوع
-  const { data:week }=await sb.from('daily_hifz').select('date,new_hifz_done,review_near_done,daily_read_done,review_far_done,listening_done').eq('student_id',s.id).gte('date',new Date(Date.now()-6*86400000).toISOString().slice(0,10)).order('date');
-  const weekDays=(week||[]).map(w=>{
-    const cnt=[w.new_hifz_done,w.review_near_done,w.daily_read_done,w.review_far_done,w.listening_done].filter(Boolean).length;
-    return `<div class="wd-day"><div class="wd-bar" style="height:${cnt*18+4}px;background:${cnt===5?'var(--emerald)':cnt>=3?'var(--gold)':'var(--line)'}"></div><span>${new Date(w.date).toLocaleDateString('ar-EG',{weekday:'short'})}</span></div>`;
-  }).join('');
-  return pageHead('حفظي اليومي — '+todayAr,'')+
-  // شريط التقدم اليومي
-  `<div class="hifz-progress-card">
-    <div class="hp-top"><span>إنجاز اليوم</span><b>${ar(done)} من ٥ ${done===5?'🏆 أكملت الجميع!':''}</b></div>
-    <div class="hp-bar"><div class="hp-fill" style="width:${pct5}%"></div></div>
-    <div class="hp-labels"><span>الحصن الأول</span><span>الثاني</span><span>الثالث</span><span>الرابع</span><span>الخامس</span></div>
-  </div>
-  <!-- سجل الأسبوع -->
-  <div class="card" style="margin-bottom:18px"><div class="ch"><h3>${mi('calendar')} سجل الأسبوع</h3></div><div class="week-bars">${weekDays||'<p style="color:var(--muted)">ابدأ اليوم!</p>'}</div></div>
-  <!-- الحصن الأول: الحفظ الجديد -->
-  <div class="hifz-castle ${d.new_hifz_done?'done':''}">
-    <div class="hc-head"><div class="hc-num">١</div><div class="hc-title"><b>الحفظ الجديد</b><span>نصف صفحة يومياً</span></div><label class="hc-toggle"><input type="checkbox" ${d.new_hifz_done?'checked':''} onchange="saveHifzField(${s.id},'new_hifz_done',this.checked)"><span>أدّيته</span></label></div>
-    <div class="hc-body">
-      <div class="hc-method"><p>خطوات الحفظ: اقرأ السطر ٣ مرات → غيّبه ٣ مرات → السطر التالي نفس الطريقة → اقرأ السطرين غيّباً ٣ مرات → واصل حتى نصف الصفحة.</p></div>
-      <div class="hc-inputs"><label>كم صفحة حفظت؟</label><input type="number" step="0.25" min="0" max="3" value="${d.new_hifz_pages||0}" onchange="saveHifzField(${s.id},'new_hifz_pages',+this.value)" style="width:80px"><label>ملاحظة</label><input placeholder="مثال: صعوبة في الآية ٥" value="${d.new_hifz_note||''}" onchange="saveHifzField(${s.id},'new_hifz_note',this.value)"></div>
-    </div>
-  </div>
-  <!-- الحصن الثاني: مراجعة القريب -->
-  <div class="hifz-castle ${d.review_near_done?'done':''}">
-    <div class="hc-head"><div class="hc-num">٢</div><div class="hc-title"><b>مراجعة القريب</b><span>آخر ما حفظت حتى ١٠ صفحات</span></div><label class="hc-toggle"><input type="checkbox" ${d.review_near_done?'checked':''} onchange="saveHifzField(${s.id},'review_near_done',this.checked)"><span>أدّيته</span></label></div>
-    <div class="hc-body">
-      <div class="hc-method"><p>راجع كل ما حفظته مؤخّراً: اليوم الأول نصف صفحة، الثاني + أمس، الثالث + أمس وأول أمس... حتى ١٠ صفحات ثم ثبّتها يومياً.</p></div>
-      <div class="hc-inputs"><label>ملاحظة</label><input placeholder="مثال: مراجعة من الملك حتى القيامة" value="${d.review_near_note||''}" onchange="saveHifzField(${s.id},'review_near_note',this.value)"></div>
-    </div>
-  </div>
-  <!-- الحصن الثالث: القراءة اليومية -->
-  <div class="hifz-castle ${d.daily_read_done?'done':''}">
-    <div class="hc-head"><div class="hc-num">٣</div><div class="hc-title"><b>القراءة اليومية</b><span>وجهان — يُليّن الحفظ ويُثبّته</span></div><label class="hc-toggle"><input type="checkbox" ${d.daily_read_done?'checked':''} onchange="saveHifzField(${s.id},'daily_read_done',this.checked)"><span>أدّيته</span></label></div>
-    <div class="hc-body">
-      <div class="hc-method"><p>اقرأ وجهين من المصحف يومياً من أي مكان. القراءة تُليّن الحفظ، تزيد الأنس بالقرآن، وتُسهّل الحفظ الجديد.</p></div>
-      <div class="hc-inputs"><label>عدد الأوجه</label><input type="number" min="0" max="10" value="${d.daily_read_pages||0}" onchange="saveHifzField(${s.id},'daily_read_pages',+this.value)" style="width:70px"></div>
-    </div>
-  </div>
-  <!-- الحصن الرابع: مراجعة البعيد -->
-  <div class="hifz-castle ${d.review_far_done?'done':''}">
-    <div class="hc-head"><div class="hc-num">٤</div><div class="hc-title"><b>مراجعة البعيد</b><span>الحفظ القديم — لا تنسَه</span></div><label class="hc-toggle"><input type="checkbox" ${d.review_far_done?'checked':''} onchange="saveHifzField(${s.id},'review_far_done',this.checked)"><span>أدّيته</span></label></div>
-    <div class="hc-body">
-      <div class="hc-method"><p>قسّم ما حفظته قديماً على ٦ أيام (يوم للراحة). مثال: ٦٠ صفحة ÷ ٦ = ١٠ صفحات يومياً. أوقاتها: في الصلاة، القيادة، المشي.</p></div>
-      <div class="hc-inputs"><label>ملاحظة</label><input placeholder="مثال: راجعت الجزء ٢٩ و٣٠" value="${d.review_far_note||''}" onchange="saveHifzField(${s.id},'review_far_note',this.value)"></div>
-    </div>
-  </div>
-  <!-- الحصن الخامس: السماع -->
-  <div class="hifz-castle ${d.listening_done?'done':''}">
-    <div class="hc-head"><div class="hc-num">٥</div><div class="hc-title"><b>ورد السماع</b><span>وجهان — تدبّر واستمع</span></div><label class="hc-toggle"><input type="checkbox" ${d.listening_done?'checked':''} onchange="saveHifzField(${s.id},'listening_done',this.checked)"><span>أدّيته</span></label></div>
-    <div class="hc-body">
-      <div class="hc-method"><p>﴿وَإِذَا قُرِئَ الْقُرْآنُ فَاسْتَمِعُوا لَهُ وَأَنْصِتُوا لَعَلَّكُمْ تُرْحَمُونَ﴾<br>استمع وجهين يومياً — يثبّت الحفظ، يحسّن التجويد، ويزيد الارتباط بالقرآن.</p></div>
-      <div class="hc-inputs"><label>ملاحظة</label><input placeholder="مثال: استمعت مع الحصري" value="${d.listening_note||''}" onchange="saveHifzField(${s.id},'listening_note',this.value)"></div>
-    </div>
-  </div>
-  <div class="field" style="margin-top:8px"><label>ملاحظة عامة لمعلمك</label><textarea rows="2" placeholder="شاركه أي صعوبة أو تقدّم..." onchange="saveHifzField(${s.id},'general_note',this.value)" style="width:100%">${d.general_note||''}</textarea></div>
-  <div class="hifz-formula">✨ المعادلة الذهبية: حفظ + مراجعة قريب + قراءة + مراجعة بعيد + سماع = حفظ متين بإذن الله</div>`;
-};
-// حفظ حقل الحفظ اليومي (upsert)
+// حفظ حقل الحفظ اليومي (upsert) — يبقى مستخدماً من صفحة متابعة ولي الأمر
 let HIFZ_SAVE_TIMER={};
 async function saveHifzField(studentId, field, value){
   clearTimeout(HIFZ_SAVE_TIMER[field]);
@@ -2946,19 +2847,6 @@ PAGES.parent_fees=async function(){ const kids=await myChildren(); if(!kids.leng
    ============================================================ */
 async function myGroups(){ const { data }=await sb.from('groups').select('*').eq('teacher_id',ME.id); return data||[]; }
 // ===== إتاحة المعلم وسيرته الذاتية =====
-// ===== نقل طالب (معلم) — طلاب حلقاته فقط =====
-PAGES.teacher_transfer=async function(){ setTop('نقل طالب','حوّل طالباً إلى معلم آخر');
-  const gs=await myGroups();
-  if(!gs.length) return pageHead('نقل طالب','')+'<div class="card"><p style="color:var(--muted)">لا حلقات مُسندة إليك.</p></div>';
-  const gids=gs.map(g=>g.id);
-  const { data:sts }=await sb.from('students').select('*, g:groups!students_group_id_fkey(name)').in('group_id',gids).eq('enrollment_status','active').order('full_name');
-  const s=sts||[];
-  if(!s.length) return pageHead('نقل طالب','')+`<div class="card" style="text-align:center;padding:30px"><div class="empty-ic">${mi('refresh')}</div><p style="color:var(--muted)">لا طلاب في حلقاتك لنقلهم.</p></div>`;
-  return pageHead('نقل طالب','اختر طالباً لتحويله إلى معلم آخر من نفس مساره ونوعه')+
-  `<div class="card"><p style="color:var(--muted);font-size:14px;margin-bottom:16px">سيُحوَّل الطالب إلى المعلم الجديد، ويظهر عنده في «طلاب جدد» لينسّقا موعداً ويبدآ المسار معاً.</p>
-    <div class="priv-sessions-list">${s.map(x=>`<div class="priv-session"><div class="ps-icon">${mi('child')}</div><div class="ps-info"><b>${esc(x.full_name)}</b><span>${x.g?esc(x.g.name):'—'} • ${pathName(x.quran_path)||''}</span></div><button class="btn-sm" onclick="transferStudentModal(${x.id},'${escJs(x.full_name)}')">${mi('refresh')} نقل لمعلم آخر</button></div>`).join('')}</div>
-  </div>`;
-};
 PAGES.teacher_availability=async function(){ setTop('إتاحتي وسيرتي','تحكّم في استقبال الطلاب الجدد وعرّف بنفسك');
   const { data:me }=await sb.from('profiles').select('*').eq('id',ME.id).single();
   const avail=me?.is_available!==false;
@@ -2998,7 +2886,18 @@ PAGES.teacher_newstudents=async function(){ setTop('طلاب جدد','الطلا
   // نجلب استبياناتهم
   let reqs={};
   if(list.length){ const ids=list.map(s=>s.id); const { data:jr }=await sb.from('join_requests').select('*').in('student_id',ids); (jr||[]).forEach(j=>{ reqs[j.student_id]=j; }); }
-  return pageHead('طلاب جدد','تواصل معهم لتنسيق المواعيد ثم أضفهم لحلقة')+
+  // طلبات النقل الواردة (من مشرف/مدير) بانتظار قبولي أو رفضي
+  let transfers=[];
+  try{
+    const { data:tr }=await sb.from('student_transfers').select('*, s:students!student_transfers_student_id_fkey(full_name,initials), from_t:profiles!student_transfers_from_teacher_id_fkey(full_name)').eq('to_teacher_id',ME.id).eq('status','pending');
+    transfers=tr||[];
+  }catch(e){}
+  const transferCards=transfers.length?`<div class="card" style="margin-bottom:20px;border:2px solid var(--gold)"><div class="ch"><h3>${mi('refresh')} طلبات نقل بانتظار ردّك (${ar(transfers.length)})</h3></div>
+    <div class="priv-sessions-list">${transfers.map(t=>`<div class="priv-session"><div class="ps-icon">${mi('child')}</div><div class="ps-info"><b>${esc(t.s?.full_name||'طالب')}</b><span>معلمه السابق: ${t.from_t?esc(t.from_t.full_name):'—'}${t.reason?' • السبب: '+esc(t.reason):''}</span></div>
+      <div style="display:flex;gap:6px"><button class="btn-sm" onclick="acceptTransfer('${t.id}',${t.student_id},'${escJs(t.s?.full_name||'الطالب')}','${t.from_teacher_id||''}')">${mi('check')} قبول</button><button class="btn-sm ghost" style="color:#E74C3C" onclick="rejectTransfer('${t.id}','${escJs(t.s?.full_name||'الطالب')}','${t.from_teacher_id||''}')">رفض</button></div>
+    </div>`).join('')}</div>
+  </div>`:'';
+  return pageHead('طلاب جدد','تواصل معهم لتنسيق المواعيد ثم أضفهم لحلقة')+transferCards+
   (list.length?`<div class="newstud-grid">${list.map(s=>{ const r=reqs[s.id]||{}; return `<div class="newstud-card">
     <div class="ns-head"><div class="ns-av">${s.initials||s.full_name.slice(0,2)}</div><div><b>${esc(s.full_name)}</b><span>${s.age?ar(s.age)+' سنة':''} • ${pathName(s.quran_path)}</span><span>${s.plan_type?planName(s.plan_type):'—'} • ${s.package_sessions?packageLabel(s.package_sessions):'—'}</span></div></div>
     <div class="ns-survey">
@@ -3009,10 +2908,9 @@ PAGES.teacher_newstudents=async function(){ setTop('طلاب جدد','الطلا
     <div class="cc-actions">
       <button class="btn" onclick="startChatWith('${s.login_id||s.parent_id||''}','${escJs(s.full_name)}')">${mi('chat')} بدء محادثة</button>
       <button class="btn ghost" onclick="addToGroupModal(${s.id},'${escJs(s.full_name)}')">${mi('plus')} إنشاء حلقة خاصة</button>
-      <button class="btn ghost" style="font-size:12px" onclick="transferStudentModal(${s.id},'${escJs(s.full_name)}')">${mi('refresh')} نقل</button>
     </div>
   </div>`; }).join('')}</div>`
-  :`<div class="card" style="text-align:center;padding:40px"><div class="empty-ic">${mi('sparkle')}</div><h3 style="color:var(--navy-deep)">لا طلاب جدد حالياً</h3><p style="color:var(--muted);font-size:14px">سيظهر هنا الطلاب فور اختيارك معلماً لهم.</p></div>`);
+  :(transfers.length?'':`<div class="card" style="text-align:center;padding:40px"><div class="empty-ic">${mi('sparkle')}</div><h3 style="color:var(--navy-deep)">لا طلاب جدد حالياً</h3><p style="color:var(--muted);font-size:14px">سيظهر هنا الطلاب فور اختيارك معلماً لهم.</p></div>`));
 };
 async function startChatWith(uid, name){
   if(!uid){ toast('لا يمكن بدء المحادثة (لا حساب مرتبط لهذا الطالب بعد)'); return; }
@@ -3180,27 +3078,44 @@ async function transferStudentModal(studentId, studentName){
   }
   $('#modalHost').innerHTML=`<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal">
     <h3>${mi('refresh')} نقل ${studentName} لمعلم آخر</h3>
-    <p style="color:var(--muted);font-size:13px;margin-bottom:14px;line-height:1.7">اختر المعلم الجديد. سيُنقل الطالب وحلقته إليه.</p>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:14px;line-height:1.7">يُرسل طلب نقل للمعلم الجديد، ويظهر عنده في «طلاب جدد» مع اسم معلمه السابق وسبب النقل. يتم النقل فعلياً بعد قبوله.</p>
     ${list.length?`<div class="field"><label>المعلم الجديد</label><select id="trTeacher">${list.map(t=>`<option value="${t.id}|${esc(t.full_name)}">${esc(t.full_name)}</option>`).join('')}</select></div>
-    <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إلغاء</button><button class="btn" id="trBtn" onclick="doTransfer(${studentId},'${studentName.replace(/'/g,'')}')">تأكيد النقل</button></div>`
+    <div class="field"><label>سبب النقل (اختياري)</label><input id="trReason" placeholder="مثال: تعارض المواعيد، طلب ولي الأمر..."></div>
+    <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إلغاء</button><button class="btn" id="trBtn" onclick="doTransfer(${studentId},'${studentName.replace(/'/g,'')}')">إرسال طلب النقل</button></div>`
     :'<p style="color:var(--muted);text-align:center;padding:20px">لا يوجد معلمون آخرون متاحون من نفس النوع.</p><div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إغلاق</button></div>'}
   </div></div>`;
 }
 async function doTransfer(studentId, studentName){
   const val=$('#trTeacher').value; const [tid,tname]=val.split('|');
   if(!tid){ toast('اختر المعلم الجديد'); return; }
-  if(!confirm('نقل '+studentName+' إلى '+tname+'؟ سيظهر عنده في «طلاب جدد».'))return;
-  $('#trBtn').disabled=true; $('#trBtn').textContent='جارٍ النقل...';
-  const { data:st }=await sb.from('students').select('group_id,login_id,parent_id,quran_path').eq('id',studentId).single();
-  // نحوّله للمعلم الجديد: نعيّن chosen_teacher_id ونزيله من الحلقة الحالية ليبدأ من جديد
-  await sb.from('students').update({ chosen_teacher_id:tid, group_id:null }).eq('id',studentId);
-  // الحلقة القديمة (إن كانت خاصة بالطالب) نحذف ربطه بها — تبقى للأرشفة
-  // إشعارات
-  try{ await pushNotif(tid,'✨ طالب جديد محوّل',studentName+' حُوِّل إليك. تجده في «طلاب جدد» لتنسيق موعد وبدء المسار.','enrollment',studentId); }catch(e){}
-  if(st?.login_id) try{ await pushNotif(st.login_id,'🔄 تغيّر معلمك','أصبح معلمك الآن '+tname+'. سينسّق معك موعد حلقتك.','enrollment',studentId); }catch(e){}
-  if(st?.parent_id) try{ await pushNotif(st.parent_id,'🔄 تغيّر معلم ابنك','أصبح معلم ابنك الآن '+tname+'.','enrollment',studentId); }catch(e){}
+  const reason=($('#trReason')?.value||'').trim();
+  if(!confirm('إرسال طلب نقل '+studentName+' إلى '+tname+'؟'))return;
+  $('#trBtn').disabled=true; $('#trBtn').textContent='جارٍ الإرسال...';
+  const { data:st }=await sb.from('students').select('chosen_teacher_id,login_id,parent_id').eq('id',studentId).single();
+  const { error }=await sb.from('student_transfers').insert({ student_id:studentId, from_teacher_id:st?.chosen_teacher_id||null, to_teacher_id:tid, reason:reason||null, status:'pending', requested_by:ME.id });
+  if(error){ $('#trBtn').disabled=false; $('#trBtn').textContent='إرسال طلب النقل'; alert('تعذّر إرسال طلب النقل: '+error.message+(error.message&&error.message.includes('relation')?' — يلزم إنشاء جدول student_transfers أولاً':'')); return; }
+  try{ await pushNotif(tid,'✨ طلب نقل طالب جديد',studentName+' مُقترَح نقله إليك'+(reason?' — السبب: '+reason:'')+'. راجع «طلاب جدد» للقبول أو الرفض.','enrollment',studentId); }catch(e){}
   $('#trBtn').disabled=false; closeModal();
-  await navigate(SESSION.page||'transfer'); toast('✅ تم نقل الطالب للمعلم الجديد');
+  await navigate(SESSION.page||'transfer'); toast('✅ أُرسل طلب النقل، بانتظار قبول المعلم الجديد');
+}
+async function acceptTransfer(reqId, studentId, studentName, fromTeacherId){
+  if(!confirm('قبول نقل '+studentName+' إليك؟'))return;
+  const { data:st }=await sb.from('students').select('group_id,login_id,parent_id').eq('id',studentId).single();
+  if(st?.group_id){ const { data:g }=await sb.from('groups').select('id,is_private,student_id').eq('id',st.group_id).single(); if(g&&g.is_private&&g.student_id===studentId){ await sb.from('groups').delete().eq('id',g.id); } }
+  await sb.from('students').update({ chosen_teacher_id:ME.id, group_id:null }).eq('id',studentId);
+  await sb.from('student_transfers').update({ status:'accepted' }).eq('id',reqId);
+  try{
+    if(fromTeacherId) await pushNotif(fromTeacherId,'🔄 تم نقل الطالب',studentName+' انتقل إلى معلم آخر بعد قبوله النقل.','enrollment',studentId);
+    if(st?.login_id) await pushNotif(st.login_id,'🔄 تغيّر معلمك','أصبح معلمك الآن '+ME.full_name+'. سينسّق معك موعد حلقتك.','enrollment',studentId);
+    if(st?.parent_id) await pushNotif(st.parent_id,'🔄 تغيّر معلم ابنك','أصبح معلم ابنك الآن '+ME.full_name+'.','enrollment',studentId);
+  }catch(e){}
+  toast('✅ تم قبول الطالب ونقله إليك'); await navigate('newstudents');
+}
+async function rejectTransfer(reqId, studentName, fromTeacherId){
+  if(!confirm('رفض نقل '+studentName+'؟'))return;
+  await sb.from('student_transfers').update({ status:'rejected' }).eq('id',reqId);
+  try{ if(fromTeacherId) await pushNotif(fromTeacherId,'❌ رُفض طلب النقل',studentName+' — رفض المعلم المقترَح استقباله. يمكنك اختيار معلم آخر.','enrollment',null); }catch(e){}
+  toast('تم رفض طلب النقل'); await navigate('newstudents');
 }
 // ===== الربط ثنائي الاتجاه =====
 // الطالب يضيف ولي أمره
@@ -3359,41 +3274,6 @@ PAGES.teacher_quickrecord=async function(){ setTop('الرصد السريع','س
   <div style="margin-top:16px;padding:12px;background:var(--cream);border-radius:10px;font-size:12.5px;color:var(--muted)">⚡ الرصد السريع — كل ضغطة تُحفظ فوراً ولا حاجة لزر حفظ.</div>`;
 };
 // ===== التقرير الأسبوعي (معلم يرسله لأولياء الأمور) =====
-PAGES.teacher_weeklyreport=async function(){ setTop('التقرير الأسبوعي','أرسل تقرير لأولياء الأمور');
-  const gs=await myGroups();
-  if(!gs.length) return pageHead('التقرير الأسبوعي','')+'<div class="card"><p style="color:var(--muted)">لا حلقات.</p></div>';
-  if(!SESSION.activeGroup&&gs[0]) SESSION.activeGroup=gs[0].id;
-  const g=gs.find(x=>x.id===SESSION.activeGroup)||gs[0];
-  const { data:sts }=await sb.from('students').select('*, parent:profiles!students_parent_id_fkey(id,full_name,phone)').eq('group_id',g.id);
-  const s=sts||[];
-  const week=new Date().toLocaleDateString('ar-EG',{day:'numeric',month:'long',year:'numeric'});
-  return pageHead('التقرير الأسبوعي','أرسل تقرير أداء مخصّص لكل ولي أمر')+
-  `<div style="margin-bottom:14px;display:flex;gap:8px;flex-wrap:wrap">${gs.map(x=>`<button class="btn-sm ${x.id===g.id?'':'ghost'}" onclick="openGroup(${x.id})">${x.name}</button>`).join('')}</div>
-  <div class="card" style="margin-bottom:16px"><div class="ch"><h3>تقرير أسبوع ${week}</h3></div>
-    <p style="color:var(--muted);font-size:13.5px;margin-bottom:14px">اضغط على أي طالب لإرسال تقرير مخصّص لولي أمره عبر المحادثة.</p>
-    ${s.length?s.map(st=>`<div class="wr-item">
-      <div class="wr-info"><div class="miniava">${st.initials||'؟'}</div><div><b>${esc(st.full_name)}</b><span>${st.parent?st.parent.full_name:'بدون ولي أمر'}</span></div></div>
-      <div class="wr-stats"><span class="chip ${(st.mastery||0)>=80?'g':'gold'}">${pct(st.mastery||0)}</span><span class="chip ${(st.attendance||0)>=80?'g':'gold'}">${pct(st.attendance||0)} حضور</span></div>
-      ${st.parent?`<button class="btn-sm" onclick="sendWeeklyReport(${st.id},'${(st.full_name||'').replace(/'/g,'')}','${st.parent.id}','${(st.parent.full_name||'').replace(/'/g,'')}',${st.mastery||0},${st.attendance||0})">${mi('mail')} إرسال لولي الأمر</button>`:'<span style="color:var(--muted);font-size:12px">لا ولي أمر</span>'}
-    </div>`).join(''):'<p style="color:var(--muted)">لا طلاب.</p>'}
-  </div>`;
-};
-async function sendWeeklyReport(sid,sName,parentId,parentName,mastery,attendance){
-  const week=new Date().toLocaleDateString('ar-EG',{day:'numeric',month:'long'});
-  const msg=`📊 تقرير ${sName} — أسبوع ${week}\n\n✅ نسبة الإتقان: ${pct(mastery)}\n📅 الحضور: ${pct(attendance)}\n\nمن: ${ME.full_name} (معلم حلقة ${SESSION.activeGroup?'الحلقة':''})`;
-  // إنشاء محادثة مع ولي الأمر أو إيجاد موجودة
-  const { data:existing }=await sb.from('chats').select('*').contains('party_ids',[ME.id,parentId]);
-  let chatId;
-  if(existing&&existing.length) chatId=existing[0].id;
-  else{
-    const { data:nc,error }=await sb.from('chats').insert({ title:parentName, party_ids:[ME.id,parentId] }).select().single();
-    if(error){ alert('تعذّر: '+error.message); return; }
-    chatId=nc.id;
-  }
-  const { error:me }=await sb.from('messages').insert({ chat_id:chatId, sender_id:ME.id, body:msg });
-  if(me){ alert('تعذّر: '+me.message); return; }
-  toast('✅ تم إرسال التقرير لـ'+parentName);
-}
 // ===== طلاب بدون حلقة (مدير) =====
 PAGES.admin_unassigned=async function(){ setTop('طلاب بدون حلقة','دفعوا ولم يُوزَّعوا بعد');
   const { data:sts }=await sb.from('students').select('*, teacher:profiles!students_chosen_teacher_id_fkey(full_name)').eq('enrollment_status','active').is('group_id',null).order('full_name');
@@ -3529,38 +3409,7 @@ async function groupsTable(){ const { data:gs }=await sb.from('groups').select('
   if(!gs||!gs.length) return '<p style="color:var(--muted)">لا حلقات بعد.</p>';
   return `<div style="overflow-x:auto"><table class="dtable"><thead><tr><th>الحلقة</th><th>المعلم</th><th>الموعد</th><th>الإتقان</th></tr></thead><tbody>${gs.map(g=>`<tr><td>${g.name}</td><td><span class="miniava">${g.teacher?g.teacher.initials:'؟'}</span>${g.teacher?g.teacher.full_name:'—'}</td><td>${g.meet_time||'—'}</td><td><span class="chip ${(g.avg_mastery||0)>=85?'g':(g.avg_mastery||0)>=70?'gold':'r'}">${pct(g.avg_mastery||0)}</span></td></tr>`).join('')}</tbody></table></div>`;
 }
-PAGES.supervisor_groups=async function(){ setTop('الحلقات','إدارة كاملة للحلقات');
-  const { data:gs }=await sb.from('groups').select('*, teacher:profiles!groups_teacher_id_fkey(full_name,initials,gender)').order('id');
-  let allGs=gs||[];
-  // الفصل بين الجنسين: المشرف يرى حلقات المعلمين من جنسه فقط
-  if(!seesAllGenders()){ const g=await myGender(); if(g) allGs=allGs.filter(x=>!x.teacher||!x.teacher.gender||x.teacher.gender===g); }
-  let cards='';
-  for(const g of allGs){
-    const { count }=await sb.from('students').select('*',{count:'exact',head:true}).eq('group_id',g.id);
-    const { data:lastAtt }=await sb.from('attendance').select('date').eq('group_id',g.id).order('date',{ascending:false}).limit(1);
-    const lastDate=lastAtt&&lastAtt[0]?lastAtt[0].date:'لم يُرصد بعد';
-    const daysSince=lastAtt&&lastAtt[0]?Math.floor((Date.now()-new Date(lastAtt[0].date))/(86400000)):99;
-    cards+=`<div class="group-card-sup">
-      <div class="gcs-head">
-        <div><b>${g.name}</b><div class="gc-teacher">${g.teacher?g.teacher.full_name:'بدون معلم'}</div></div>
-        <div class="gcs-btns">
-          <button class="btn-sm" onclick="supGroupModal(${g.id})">تعديل</button>
-          <button class="btn-sm ghost" onclick="navigate('groupreport')">تقرير</button>
-          <button class="btn-sm" style="background:#E74C3C" onclick="supDelGroup(${g.id},'${(g.name||'').replace(/'/g,'')}')">حذف</button>
-        </div>
-      </div>
-      <div class="gcs-stats">
-        <span>👥 ${ar(count||0)} طالب</span>
-        <span>⏰ ${g.meet_time||'—'}</span>
-        <span class="${daysSince>7?'text-warn':''}">📅 آخر رصد: ${lastDate}</span>
-        <span class="chip ${(g.avg_mastery||0)>=85?'g':'gold'}">${pct(g.avg_mastery||0)} إتقان</span>
-      </div>
-    </div>`;
-  }
-  return pageHead('الحلقات','إدارة كاملة: إضافة وتعديل وحذف وتقارير')+
-  `<div style="margin-bottom:18px"><button class="btn" onclick="supGroupModal()">+ إضافة حلقة جديدة</button></div>
-  ${allGs.length?`<div class="sup-groups-list">${cards}</div>`:`<div class="card" style="text-align:center;padding:36px"><div class="empty-ic">${mi('users')}</div><h3 style="color:var(--navy-deep)">لا حلقات بعد</h3><p style="color:var(--muted)">اضغط «إضافة حلقة» لتبدأ.</p></div>`}`;
-};
+PAGES.supervisor_groups=async function(){ return unifiedHalqatPage(); };
 async function supGroupModal(editId){
   const { data:ts }=await sb.from('profiles').select('id,full_name').eq('role','teacher');
   let g={name:'',teacher_id:null,age_range:'',meet_time:'',track:'both'};
@@ -3570,7 +3419,7 @@ async function supGroupModal(editId){
     <div class="field"><label>المعلم</label><select id="sgTeacher"><option value="">— بدون —</option>${(ts||[]).map(t=>`<option value="${t.id}" ${t.id===g.teacher_id?'selected':''}>${esc(t.full_name)}</option>`).join('')}</select></div>
     <div class="field"><label>الفئة العمرية</label><input id="sgAge" value="${g.age_range||''}" placeholder="٨–١٢"></div>
     <div class="field"><label>الموعد</label><input id="sgTime" value="${g.meet_time||''}" placeholder="السبت ٤ع"></div>
-    <div class="field"><label>المسار</label><select id="sgTrack"><option value="both" ${g.track==='both'?'selected':''}>المساران</option><option value="quran" ${g.track==='quran'?'selected':''}>الحفظ</option><option value="tarbiya" ${g.track==='tarbiya'?'selected':''}>التربية</option></select></div>
+    <div class="field"><label>المسار</label><select id="sgTrack"><option value="quran" ${g.track==='quran'||g.track==='both'?'selected':''}>الحفظ</option><option value="tarbiya" disabled style="color:#bbb">التربية (سيتوفر قريباً)</option></select></div>
     <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إلغاء</button><button class="btn" id="sgBtn" onclick="supSaveGroup(${editId||'null'})">${editId?'حفظ التعديل':'إنشاء الحلقة'}</button></div>
   </div></div>`;
 }
@@ -3609,42 +3458,15 @@ PAGES.supervisor_groupreport=async function(){ setTop('تقارير الحلقا
   return pageHead('تقارير الحلقات','نظرة شاملة على أداء كل حلقة')+`<div class="group-reports-grid">${reports}</div>`;
 };
 // ===== نقل طالب بين الحلقات (مشرف) =====
-PAGES.supervisor_transfer=async function(){ setTop('نقل طالب','انقل طالباً من حلقة لأخرى');
-  let { data:sts }=await sb.from('students').select('*, g:groups!students_group_id_fkey(name), gender').eq('enrollment_status','active').order('full_name');
-  let { data:gs }=await sb.from('groups').select('id,name,teacher:profiles!groups_teacher_id_fkey(full_name,gender)').order('name');
-  if(!seesAllGenders()){ const _g=await myGender(); if(_g){ if(sts) sts=sts.filter(x=>!x.gender||x.gender===_g); if(gs) gs=gs.filter(x=>!x.teacher||!x.teacher.gender||x.teacher.gender===_g); } }
-  const s=sts||[]; const allGs=gs||[];
-  return pageHead('نقل طالب','اختر الطالب والحلقة الجديدة')+
-  `<div class="card"><div class="field"><label>اختر الطالب <span class="req">*</span></label>
-    <select id="trStudent" onchange="updateTransferInfo()">${s.length?s.map(x=>`<option value="${x.id}" data-group="${x.group_id||''}">${x.full_name} — ${x.g?x.g.name:'بدون حلقة'}</option>`).join(''):'<option>لا طلاب نشطون</option>'}</select></div>
-    <div id="trCurrentInfo" style="background:var(--cream);border-radius:12px;padding:12px;margin-bottom:16px;font-size:13.5px;color:var(--muted)">اختر طالباً لعرض حلقته الحالية</div>
-    <div class="field"><label>الحلقة الجديدة <span class="req">*</span></label>
-    <select id="trGroup">${allGs.map(g=>`<option value="${g.id}">${g.name}${g.teacher?' — '+g.teacher.full_name:''}</option>`).join('')}</select></div>
-    <div class="field"><label>سبب النقل (اختياري)</label><input id="trReason" placeholder="مثال: تعارض المواعيد، تغيير المعلم..."></div>
-    <button class="btn" id="trBtn" onclick="doTransferGroup()">${mi('refresh')} تأكيد النقل</button>
-  </div>
-  <div class="card" style="margin-top:18px"><div class="ch"><h3>${mi('clipboard')} سجل النقل الأخير</h3></div>
-    <p style="color:var(--muted);font-size:13.5px">ملاحظة: كل عمليات النقل تؤثر فوراً على الرصد والتقارير.</p>
+PAGES.supervisor_transfer=async function(){ setTop('نقل طالب','انقل طالباً لمعلم آخر');
+  let { data:sts }=await sb.from('students').select('*, g:groups!students_group_id_fkey(name), t:profiles!students_chosen_teacher_id_fkey(full_name), gender').eq('enrollment_status','active').order('full_name');
+  if(!seesAllGenders()){ const _g=await myGender(); if(_g&&sts) sts=sts.filter(x=>!x.gender||x.gender===_g); }
+  const s=sts||[];
+  return pageHead('نقل طالب','اختر طالباً لنقله لمعلم آخر')+
+  `<div class="card"><p style="color:var(--muted);font-size:13.5px;margin-bottom:14px;line-height:1.8">اختيار المعلم الجديد يرسل له طلب نقل يظهر في «طلاب جدد» عنده مع اسم المعلم السابق والسبب، وعليه القبول أو الرفض.</p>
+    <div class="priv-sessions-list">${s.length?s.map(x=>`<div class="priv-session"><div class="ps-icon">${mi('child')}</div><div class="ps-info"><b>${esc(x.full_name)}</b><span>معلمه الحالي: ${x.t?esc(x.t.full_name):'—'} • ${x.g?esc(x.g.name):'بدون حلقة'}</span></div><button class="btn-sm" onclick="transferStudentModal(${x.id},'${escJs(x.full_name)}')">${mi('refresh')} نقل لمعلم آخر</button></div>`).join(''):'<p style="color:var(--muted);text-align:center;padding:20px">لا طلاب نشطون حالياً.</p>'}</div>
   </div>`;
 };
-async function doTransferGroup(){
-  const sid=$('#trStudent').value, gid=$('#trGroup').value;
-  if(!sid||!gid){toast('اختر الطالب والحلقة');return;}
-  const sName=$('#trStudent').selectedOptions[0]?.text.split('—')[0].trim();
-  const gName=$('#trGroup').selectedOptions[0]?.text.split('—')[0].trim();
-  if(!confirm(`نقل ${sName} إلى حلقة ${gName}؟`))return;
-  $('#trBtn').disabled=true;
-  const { error }=await sb.from('students').update({ group_id:+gid }).eq('id',+sid);
-  if(error){ $('#trBtn').disabled=false; alert('تعذّر: '+error.message); return; }
-  toast('✅ تم النقل بنجاح'); await navigate('transfer');
-}
-function updateTransferInfo(){
-  const sel=$('#trStudent'); const opt=sel.selectedOptions[0];
-  const info=$('#trCurrentInfo'); if(!info||!opt)return;
-  const gname=opt.text.split('—')[1]?.trim()||'بدون حلقة';
-  info.textContent='الحلقة الحالية: '+gname;
-  info.style.color='var(--navy-deep)';
-}
 PAGES.supervisor_staff=async function(){ setTop('المعلمون','أداء المعلمين');
   const { data:ts }=await sb.from('profiles').select('*').eq('role','teacher');
   if(!seesAllGenders()){ const _g=await myGender(); if(_g&&ts) ts=ts.filter(x=>!x.gender||x.gender===_g); }
@@ -3795,7 +3617,7 @@ PAGES.supervisor_students=async function(){ setTop('كل الطلاب','نظرة
   if(!seesAllGenders()){ const _g=await myGender(); if(_g&&studs) studs=studs.filter(x=>!x.gender||x.gender===_g); }
   const s=studs||[];
   const geoMap=await residenceMap(s);
-  return pageHead('كل الطلاب',ar(s.length)+' طالباً')+`<div style="margin-bottom:14px;text-align:left"><button class="btn" style="background:#1D6F42" onclick="exportAcademyExcel()">${mi('chart')} تصدير تقرير Excel شامل</button></div>`+
+  return pageHead('كل الطلاب',ar(s.length)+' طالباً')+
   `<div class="card">${s.length?`<div style="overflow-x:auto"><table class="dtable"><thead><tr><th>الطالب</th><th>الحلقة</th><th>المسار</th><th>النظام/الباقة</th><th>بلد الإقامة</th><th>الإتقان</th><th>الحضور</th><th>النقاط</th><th>إجراء</th></tr></thead><tbody>${s.map(x=>`<tr><td><span class="miniava">${x.initials||'؟'}</span>${esc(x.full_name)}</td><td>${x.g?x.g.name:'—'}</td><td>${trackAr(x.track)}</td><td>${planChips(x)}</td><td>${esc(geoMap[x.id]?.residence||'—')}</td><td><span class="prog-mini"><i style="width:${x.mastery||0}%"></i></span></td><td>${pct(x.attendance||0)}</td><td><b style="font-family:Amiri;color:var(--emerald)">${ar(x.points||0)}</b></td><td><button class="btn-sm" onclick="studentDetailModal(${x.id})">تفاصيل</button></td></tr>`).join('')}</tbody></table></div>`:'<p style="color:var(--muted)">لا طلاب بعد.</p>'}</div>`;
 };
 // جلب بلد الإقامة لمجموعة طلاب دفعة واحدة (من حساب الطالب نفسه، أو حساب وليّ أمره لو الطالب صغير بلا حساب)
@@ -4217,7 +4039,7 @@ async function groupModal(editId){
     <div class="field"><label>المعلم</label><select id="gTeacher"><option value="">— بدون —</option>${(ts||[]).map(t=>`<option value="${t.id}" ${t.id===g.teacher_id?'selected':''}>${esc(t.full_name)}</option>`).join('')}</select></div>
     <div class="field"><label>الفئة العمرية</label><input id="gAge" value="${g.age_range||''}" placeholder="٨–١٠"></div>
     <div class="field"><label>الموعد</label><input id="gTime" value="${g.meet_time||''}" placeholder="السبت ٤ع"></div>
-    <div class="field"><label>المسار</label><select id="gTrack"><option value="both" ${g.track==='both'?'selected':''}>المساران</option><option value="quran" ${g.track==='quran'?'selected':''}>الحفظ</option><option value="tarbiya" ${g.track==='tarbiya'?'selected':''}>التربية</option></select></div>
+    <div class="field"><label>المسار</label><select id="gTrack"><option value="quran" ${g.track==='quran'||g.track==='both'?'selected':''}>الحفظ</option><option value="tarbiya" disabled style="color:#bbb">التربية (سيتوفر قريباً)</option></select></div>
     <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إلغاء</button><button class="btn" id="gBtn" onclick="saveGroup(${editId||0})">حفظ</button></div></div></div>`;
 }
 async function saveGroup(editId){
@@ -4364,43 +4186,6 @@ async function startChat(){
   SESSION.activeChat=chat.id;
   closeModal(); await navigate(SESSION.page); toast('✅ تم إرسال الرسالة');
 }
-PAGES.teacher_homework=async function(){ setTop('الواجبات','إدارة واجبات حلقاتك');
-  const { data:gs }=await sb.from('groups').select('*, s:students!groups_student_id_fkey(full_name)').eq('teacher_id',ME.id).eq('is_private',true);
-  const halqat=gs||[];
-  // إحصاء واجبات كل حلقة
-  let cards='';
-  for(const g of halqat){
-    let cnt=0,done=0;
-    try{ const { data:a }=await sb.from('assignments').select('status').eq('group_id',g.id); cnt=(a||[]).length; done=(a||[]).filter(x=>x.status==='done').length; }catch(e){}
-    cards+=`<div class="priv-session" style="cursor:pointer" onclick="openPrivHalqa(${g.id})">
-      <div class="ps-icon">${mi('pencil')}</div>
-      <div class="ps-info"><b>${g.s?g.s.full_name:'طالب'}</b><span>${g.name} • ${ar(cnt)} واجب (${ar(done)} مُنجَز)</span></div>
-      <button class="btn-sm" onclick="event.stopPropagation();openPrivHalqa(${g.id})">فتح الواجبات</button>
-    </div>`;
-  }
-  return pageHead('الواجبات','اختر حلقة لإضافة ومتابعة واجباتها')+
-  (halqat.length?`<div class="card"><div class="ch"><h3>حلقاتك الخاصة</h3></div><div class="priv-sessions-list">${cards}</div></div><div style="margin-top:14px;padding:14px;background:var(--cream);border-radius:12px;font-size:13px;color:var(--muted)">💡 افتح أي حلقة ← تبويب «الواجبات» لإضافة واجب (يوتيوب، PDF، صوت...)، أو أضف واجباً بعد كل حصة من زر «📝 واجب».</div>`
-  :`<div class="card" style="text-align:center;padding:36px"><div class="empty-ic">${mi('pencil')}</div><h3 style="color:var(--navy-deep)">لا حلقات خاصة بعد</h3><p style="color:var(--muted)">أنشئ حلقة خاصة لطالب أولاً، ثم أضف واجباته.</p></div>`);
-};
-async function hwModal(){
-  const gs=await myGroups();
-  if(!gs.length){ toast('لا حلقات مُسندة إليك'); return; }
-  $('#modalHost').innerHTML=`<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal"><h3>واجب جديد</h3>
-    <div class="field"><label>عنوان الواجب</label><input id="hTitle" placeholder="حفظ الملك ١٢-١٦"></div>
-    <div class="field"><label>الوصف</label><input id="hDesc" placeholder="تفاصيل الواجب"></div>
-    <div class="field"><label>الحلقة</label><select id="hGroup">${gs.map(g=>`<option value="${g.id}">${g.name}</option>`).join('')}</select></div>
-    <div class="field"><label>تاريخ التسليم</label><input id="hDue" type="date"></div>
-    <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إلغاء</button><button class="btn" id="hwBtn" onclick="saveHw()">حفظ</button></div></div></div>`;
-}
-async function saveHw(){
-  const title=$('#hTitle').value.trim(); if(!title){toast('أدخل العنوان');return;}
-  $('#hwBtn').disabled=true;
-  const rec={title, description:$('#hDesc').value.trim(), group_id:+$('#hGroup').value, teacher_id:ME.id, due_date:$('#hDue').value||null};
-  const { error }=await sb.from('homework').insert(rec);
-  if(error){ $('#hwBtn').disabled=false; alert('تعذّر: '+error.message); return; }
-  closeModal(); await navigate('homework'); toast('✅ تم إنشاء الواجب');
-}
-async function delHw(id){ if(!confirm('حذف الواجب؟'))return; const { error }=await sb.from('homework').delete().eq('id',id); if(error){alert('تعذّر: '+error.message);return;} await navigate('homework'); toast('تم الحذف'); }
 PAGES.student_homework=async function(){
   const s=await myStudentRow(); if(!s) return noStudentMsg();
   if(!s.group_id){ setTop('واجباتي','واجبات حلقتك'); return `<div class="card" style="text-align:center;padding:36px"><div class="empty-ic">${mi('pencil')}</div><h3 style="color:var(--navy-deep)">لا حلقة بعد</h3><p style="color:var(--muted)">بعد إنشاء حلقتك الخاصة، ستظهر واجباتك هنا.</p></div>`; }
@@ -5149,26 +4934,47 @@ PAGES.teacher_schedule=async function(){ setTop('جدول حصصي','نظرة أ
   </div>`;
 };
 // ===== الحلقات الخاصة (للإدارة: مشرف/تنفيذي/مدير) =====
-async function privHalqatPage(){ setTop('الحلقات الخاصة','اطّلاع كامل على حلقات الطلاب');
-  const { data:gs }=await sb.from('groups').select('*, teacher:profiles!groups_teacher_id_fkey(full_name,gender), s:students!groups_student_id_fkey(full_name,mastery)').eq('is_private',true).order('id',{ascending:false});
-  let halqat=gs||[];
-  if(!seesAllGenders()){ const _g=await myGender(); if(_g) halqat=halqat.filter(x=>!x.teacher||!x.teacher.gender||x.teacher.gender===_g); }
-  if(!halqat.length) return pageHead('الحلقات الخاصة','')+`<div class="card" style="text-align:center;padding:36px"><div class="empty-ic">${mi('mosque')}</div><h3 style="color:var(--navy-deep)">لا حلقات خاصة بعد</h3><p style="color:var(--muted)">ستظهر هنا حلقات الطلاب فور إنشائها من المعلمين.</p></div>`;
-  // إحصاء الحصص لكل حلقة
-  let cards='';
-  for(const g of halqat){
+async function unifiedHalqatPage(){ const isAdmin=(ME.role==='admin'||ME.role==='executive');
+  setTop('الحلقات','إدارة كاملة: عامة وخاصة — تعديل وتقارير ونقل وحذف');
+  const { data:gs }=await sb.from('groups').select('*, teacher:profiles!groups_teacher_id_fkey(full_name,initials,gender), s:students!groups_student_id_fkey(full_name,mastery)').order('id',{ascending:false});
+  let allGs=gs||[];
+  if(!seesAllGenders()){ const _g=await myGender(); if(_g) allGs=allGs.filter(x=>!x.teacher||!x.teacher.gender||x.teacher.gender===_g); }
+  const pub=allGs.filter(g=>!g.is_private), priv=allGs.filter(g=>g.is_private);
+  let pubCards='';
+  for(const g of pub){
+    const { count }=await sb.from('students').select('*',{count:'exact',head:true}).eq('group_id',g.id);
+    const editFn=isAdmin?`groupModal(${g.id})`:`supGroupModal(${g.id})`;
+    const delFn=isAdmin?`delGroup(${g.id},'${(g.name||'').replace(/'/g,'')}')`:`supDelGroup(${g.id},'${(g.name||'').replace(/'/g,'')}')`;
+    pubCards+=`<div class="group-card-sup">
+      <div class="gcs-head"><div><b>${g.name}</b><div class="gc-teacher">${g.teacher?g.teacher.full_name:'بدون معلم'}</div></div>
+        <div class="gcs-btns">
+          <button class="btn-sm" onclick="${editFn}">تعديل</button>
+          <button class="btn-sm ghost" onclick="navigate('groupreport')">تقرير</button>
+          <button class="btn-sm" style="background:#E74C3C" onclick="${delFn}">حذف</button>
+        </div></div>
+      <div class="gcs-stats"><span>👥 ${ar(count||0)} طالب</span><span>⏰ ${g.meet_time||'—'}</span><span class="chip ${(g.avg_mastery||0)>=85?'g':'gold'}">${pct(g.avg_mastery||0)} إتقان</span></div>
+    </div>`;
+  }
+  let privCards='';
+  for(const g of priv){
     const { count:sesCount }=await sb.from('sessions').select('*',{count:'exact',head:true}).eq('group_id',g.id);
-    cards+=`<div class="group-card-sup">
+    privCards+=`<div class="group-card-sup">
       <div class="gcs-head"><div><b>${g.name}</b><div class="gc-teacher">${mi('child')} ${g.s?g.s.full_name:'—'} • ${mi('teacher')} ${g.teacher?g.teacher.full_name:'—'}</div></div>
         <div style="display:flex;gap:6px"><button class="btn-sm" onclick="adminViewHalqa(${g.id})">اطّلاع</button>${g.student_id?`<button class="btn-sm ghost" onclick="transferStudentModal(${g.student_id},'${(g.s?g.s.full_name:'طالب').replace(/'/g,'')}')">${mi('refresh')} نقل</button>`:''}</div></div>
       <div class="gcs-stats"><span>${mi('calendar')} ${g.meet_time||'—'}</span><span>${mi('video')} ${ar(sesCount||0)} حصة</span><span class="chip ${(g.s?.mastery||0)>=80?'g':'gold'}">${pct(g.s?.mastery||0)} إتقان</span></div>
     </div>`;
   }
-  return pageHead('الحلقات الخاصة',ar(halqat.length)+' حلقة')+`<div class="sup-groups-list">${cards}</div>`;
+  const addBtn=isAdmin?`<button class="btn" onclick="groupModal()">+ إضافة حلقة جديدة</button>`:`<button class="btn" onclick="supGroupModal()">+ إضافة حلقة جديدة</button>`;
+  return pageHead('الحلقات','إدارة كاملة: عامة وخاصة — تعديل وتقارير ونقل وحذف')+
+  `<div style="margin-bottom:18px">${addBtn}</div>
+  <h3 style="margin:6px 0 10px;color:var(--navy-deep)">الحلقات العامة (${ar(pub.length)})</h3>
+  ${pub.length?`<div class="sup-groups-list" style="margin-bottom:26px">${pubCards}</div>`:`<div class="card" style="text-align:center;padding:26px;margin-bottom:26px"><p style="color:var(--muted)">لا حلقات عامة بعد.</p></div>`}
+  <h3 style="margin:6px 0 10px;color:var(--navy-deep)">الحلقات الخاصة (${ar(priv.length)})</h3>
+  ${priv.length?`<div class="sup-groups-list">${privCards}</div>`:`<div class="card" style="text-align:center;padding:26px"><p style="color:var(--muted)">لا حلقات خاصة بعد. ستظهر هنا فور إنشائها من المعلمين.</p></div>`}`;
 }
-PAGES.supervisor_privhalqat=privHalqatPage;
-PAGES.admin_privhalqat=privHalqatPage;
-PAGES.executive_privhalqat=privHalqatPage;
+PAGES.supervisor_privhalqat=unifiedHalqatPage;
+PAGES.admin_privhalqat=unifiedHalqatPage;
+PAGES.executive_privhalqat=unifiedHalqatPage;
 async function adminViewHalqa(gid){
   const { data:g }=await sb.from('groups').select('*, teacher:profiles!groups_teacher_id_fkey(id,full_name,initials)').eq('id',gid).single();
   if(!g){ toast('الحلقة غير موجودة'); return; }
@@ -5180,9 +4986,7 @@ async function adminViewHalqa(gid){
 }
 /* ───────── إضافة عناصر القائمة لكل دور ───────── */
 function injectBatch1Menus(){
-  // الواجبات
-  MENUS.teacher.sections[1].items.push(['homework',mi('pencil'),'الواجبات']);
-  // (واجبات الطالب تظهر داخل الحلقة، لا كصفحة منفصلة)
+  // (الواجبات تُدار من داخل الحلقة مباشرة، لا كصفحة منفصلة للمعلم)
   // ولي الأمر: حلقة الأبناء
   MENUS.parent.sections[0].items.splice(1,0,['myhalqa',mi('mosque'),'حلقة الأبناء']);
   // المعلم: جدول الحصص الأسبوعي
@@ -5193,12 +4997,11 @@ function injectBatch1Menus(){
   // المشرف + المدير: المعلمون + الحلقات + رسالة محب
   MENUS.admin.sections[0].items.push(['pulse',mi('pulse'),'نبض المنصة']);
   MENUS.admin.sections[1].items.push(['teachers',mi('star'),'المعلمون والتقييم']);
-  MENUS.admin.sections[1].items.push(['privhalqat',mi('mosque'),'الحلقات الخاصة']);
+  MENUS.admin.sections[1].items.push(['privhalqat',mi('mosque'),'الحلقات']);
   MENUS.admin.sections[1].items.push(['welcomebook',mi('heart'),'رسالة محب']);
   MENUS.admin.sections[1].items.push(['import',mi('download'),'استيراد Excel']);
-  MENUS.supervisor.sections[0].items.push(['teachers',mi('star'),'تقييم المعلمين']);
-  MENUS.supervisor.sections[0].items.push(['privhalqat',mi('mosque'),'الحلقات الخاصة']);
-  if(MENUS.executive){ MENUS.executive.sections[0].items.push(['team',mi('team'),'فريق الإشراف']); MENUS.executive.sections[0].items.push(['privhalqat',mi('mosque'),'الحلقات الخاصة']); }
+  MENUS.supervisor.sections[1].items.push(['teachers',mi('star'),'تقييم المعلمين']);
+  if(MENUS.executive){ MENUS.executive.sections[1].items.push(['privhalqat',mi('mosque'),'كل الحلقات']); }
   // ولي الأمر: تحديد المستوى
   MENUS.parent.sections[1].items.push(['placement',mi('pencil'),'تحديد المستوى']);
 }
@@ -5531,6 +5334,17 @@ injectBatch1Menus();
      action text,
      before_data jsonb,
      after_data jsonb,
+     created_at timestamptz default now()
+   );
+   -- جدول طلبات نقل الطلاب بين المعلمين (يتطلب قبول المعلم الجديد)
+   create table if not exists student_transfers(
+     id uuid primary key default gen_random_uuid(),
+     student_id bigint references students(id) on delete cascade,
+     from_teacher_id uuid references profiles(id),
+     to_teacher_id uuid references profiles(id),
+     requested_by uuid references profiles(id),
+     reason text,
+     status text default 'pending',
      created_at timestamptz default now()
    );
 
