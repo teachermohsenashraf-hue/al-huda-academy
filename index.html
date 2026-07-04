@@ -6100,6 +6100,27 @@ const QURAN_SURAHS = [
 ];
 function surahByNo(n){ return QURAN_SURAHS.find(s=>s.no===parseInt(n))||null; }
 function surahName(n){ const s=surahByNo(n); return s?s.name:''; }
+/* ===== تحويل ذكي بين الآيات والصفحات (حسب كثافة آيات كل سورة، لا بمعدل ثابت) ===== */
+function surahAyahDensity(surahNo){
+  const s = surahByNo(surahNo); if(!s) return 15;
+  const next = QURAN_SURAHS.find(x=>x.no===surahNo+1);
+  const endPage = next ? next.page : 604;
+  const span = Math.max(1, endPage - s.page + ((next && next.page===s.page) ? 1 : 0));
+  return s.ayat / span;
+}
+function ayahsToPagesLabel(surahNo, ayahCount){
+  const density = surahAyahDensity(surahNo)||15;
+  const pages = (ayahCount||0)/density;
+  if(pages<=0) return '';
+  if(Math.abs(pages-0.5)<0.18) return '≈ نصف صفحة';
+  if(Math.abs(pages-1)<0.22) return '≈ صفحة كاملة';
+  if(pages<0.5) return '≈ أقل من نصف صفحة';
+  return '≈ '+(Math.round(pages*10)/10)+' صفحة';
+}
+function snapAyahsForPages(surahNo, targetPages){
+  const density = surahAyahDensity(surahNo)||15;
+  return Math.max(1, Math.round(targetPages*density));
+}
 
 /* ===== محرك التوليد ===== */
 async function generatePlanSchedule(planId){
@@ -6603,7 +6624,30 @@ async function renderStep5(stu){
     ? Object.entries(d.custom_rates).filter(([,v])=>v>0).length + ' حصن بمعدل مخصّص لهذا الطالب'
     : 'معدلات المحطة الافتراضية';
 
-  return `<div class="qpv">
+  // تحويل ذكي آية↔صفحة لحصن الحفظ الجديد تحديداً، لتفادي أوراد تقطع منتصف صفحة بشكل غير عملي
+  let smartHifzBlock = '';
+  const { data: forts } = await sb.from('quran_fortresses').select('*').eq('system_id',d.system_id).eq('is_enabled',true);
+  const hifzFort = (forts||[]).find(f=>f.code==='new_hifz');
+  if(hifzFort && curS){
+    const { data: cfgs } = d.station_id ? await sb.from('quran_station_fortress_config').select('*').eq('station_id',d.station_id) : {data:[]};
+    const cfg = (cfgs||[]).find(c=>c.fortress_id===hifzFort.id);
+    const curRate = (d.custom_rates && d.custom_rates[hifzFort.id]!=null) ? d.custom_rates[hifzFort.id] : (cfg?.daily_amount||5);
+    const isVerseUnit = (cfg?.unit||hifzFort.default_unit)==='verse';
+    if(isVerseUnit){
+      const label = ayahsToPagesLabel(d.current_surah_no, curRate);
+      smartHifzBlock = `<div class="qpv" style="border:1px dashed var(--gold)">
+        <h4>📐 تحويل ذكي للحفظ الجديد</h4>
+        <div class="qpvrow"><span>المعدل الحالي</span><b>${ar(curRate)} آية من ${esc(curS.name)} ${label?'('+label+')':''}</b></div>
+        <p style="color:var(--muted);font-size:12.5px;margin:6px 0 10px">اضبط المعدل تلقائياً ليتوافق مع حدود صفحة كاملة، بدل ما ينتهي الورد في منتصف صفحة تالية.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-sm ghost" onclick="qSnapHifzRate('${esc(hifzFort.id)}',0.5,'${esc(stu.id)}')">اضبط لنصف صفحة</button>
+          <button class="btn-sm ghost" onclick="qSnapHifzRate('${esc(hifzFort.id)}',1,'${esc(stu.id)}')">اضبط لصفحة كاملة</button>
+        </div>
+      </div>`;
+    }
+  }
+
+  return `${smartHifzBlock}<div class="qpv">
     <h4>📋 ملخص الخطة</h4>
     <div class="qpvrow"><span>الطالب</span><b>${esc(stu.full_name)}</b></div>
     <div class="qpvrow"><span>النظام</span><b>${esc(sys?sys.name:'')}</b></div>
@@ -6630,6 +6674,14 @@ async function renderStep5(stu){
       <button class="btn" id="qwSaveBtn" onclick="qSaveAndGenerate('${esc(stu.id)}')">${mi('rocket')} إنشاء الخطة وتوليد الجدول</button>
     </div>
   </div>`;
+}
+function qSnapHifzRate(fortId, targetPages, studentId){
+  const d = QPLAN_STATE.data;
+  const snapped = snapAyahsForPages(d.current_surah_no, targetPages);
+  if(!d.custom_rates) d.custom_rates={};
+  d.custom_rates[fortId] = snapped;
+  toast('✅ ضُبط المعدل على '+ar(snapped)+' آية ('+(targetPages===0.5?'نصف صفحة':'صفحة كاملة')+' تقريباً)');
+  renderWizardInline();
 }
 
 function qWizNext(currentStep){
@@ -6755,8 +6807,9 @@ async function renderPlanDetailForTeacher(planId){
       const statusTxt = p?(p.status==='done'?'✓ مكتمل':p.status==='need_help'?'🆘 يحتاج مساعدة':p.status==='skipped'?'تم تخطّيه':'قيد التنفيذ'):'لم يبدأ';
       return `<div class="qplan-mini">
         <div class="qpmic" style="background:${esc(f.color)}">${esc(f.icon||'🛡️')}</div>
-        <div style="flex:1;min-width:0"><b>${esc(f.name)}</b><small>${esc(c.amount_label||'—')}</small></div>
+        <div style="flex:1;min-width:0"><b>${esc(f.name)}</b><small id="qward-label-${esc(c.id)}">${esc(c.amount_label||'—')}</small></div>
         <div style="font-size:11.5px;color:${p&&p.status==='done'?'var(--emerald)':'var(--muted)'};font-weight:700">${esc(statusTxt)}</div>
+        <button class="btn-sm ghost" style="padding:4px 8px" title="تعديل ورد هذا اليوم" onclick="editWardModal('${esc(c.id)}','${escJs(c.amount_label||'')}')">${mi('pencil')}</button>
       </div>`;
     }).join('');
     return `<div class="qplan-day" id="qpd-${esc(d)}">
@@ -6787,6 +6840,25 @@ async function renderPlanDetailForTeacher(planId){
     daysHtml;
 }
 
+function editWardModal(wardId, curLabel){
+  $('#modalHost').innerHTML=`<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <h3>${mi('pencil')} تعديل ورد هذا اليوم</h3>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:14px;line-height:1.7">عدّل تفاصيل هذا الورد يدوياً — مفيد لو ظرف الطالب يحتاج تعديل الخطة المولَّدة تلقائياً لهذا اليوم بالذات.</p>
+    <div class="field"><label>وصف الورد</label><textarea id="wardEditText" rows="2">${esc(curLabel||'')}</textarea></div>
+    <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إلغاء</button><button class="btn" id="wardEditBtn" onclick="saveWardEdit('${esc(wardId)}')">حفظ التعديل</button></div>
+  </div></div>`;
+}
+async function saveWardEdit(wardId){
+  const t=$('#wardEditText').value.trim();
+  if(!t){ toast('اكتب وصف الورد'); return; }
+  $('#wardEditBtn').disabled=true;
+  const { error }=await sb.from('quran_plan_wards').update({ amount_label:t }).eq('id',wardId);
+  $('#wardEditBtn').disabled=false;
+  if(error){ alert('تعذّر الحفظ: '+error.message); return; }
+  closeModal();
+  const lbl=document.getElementById('qward-label-'+wardId); if(lbl) lbl.textContent=t;
+  toast('✅ تم تعديل الورد');
+}
 /* ===== صفحة الطالب: ورد اليوم ===== */
 
 
