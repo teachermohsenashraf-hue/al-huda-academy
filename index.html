@@ -3783,7 +3783,6 @@ PAGES.admin_dash=async function(){ setTop('لوحة القيادة 🛡️','ن�
   <div class="grid2"><div class="card"><div class="ch"><h3>توزيع المسارات</h3></div><div class="rbars">
     <div class="rbar"><div class="l"><span>${mi('book')} الحفظ فقط</span><b>${ar(dist.quran)}</b></div><div class="rtrack"><div class="rfill e" style="width:${dist.quran*100/(studC||1)}%"></div></div></div>
     <div class="rbar"><div class="l"><span>${mi('leaf')} التربية فقط</span><b>${ar(dist.tarbiya)}</b></div><div class="rtrack"><div class="rfill g" style="width:${dist.tarbiya*100/(studC||1)}%"></div></div></div>
-    <div class="rbar"><div class="l"><span>${mi('sparkle')} المساران</span><b>${ar(dist.both)}</b></div><div class="rtrack"><div class="rfill e" style="width:${dist.both*100/(studC||1)}%"></div></div></div>
   </div></div>
   <div class="card"><div class="ch"><h3>إجراءات سريعة</h3></div><div style="display:flex;flex-direction:column;gap:10px"><button class="btn" onclick="navigate('users')">${mi('users')} إدارة الطلاب</button><button class="btn ghost" onclick="navigate('tracks')">${mi('cap')} البرامج</button><button class="btn ghost" onclick="navigate('finance')">${mi('card')} المالية</button><button class="btn" style="background:#1D6F42" onclick="exportAcademyExcel()">${mi('chart')} تصدير تقرير Excel شامل</button></div></div></div>`;
 };
@@ -3806,7 +3805,6 @@ PAGES.admin_analytics=async function(){ setTop('التحليلات','مؤشرا�
     <div class="card"><div class="ch"><h3>توزيع الطلاب على المسارات</h3></div><div class="rbars">
       <div class="rbar"><div class="l"><span>${mi('book')} الحفظ فقط</span><b>${ar(dist.quran)} (${Math.round(dist.quran*100/tot)}٪)</b></div><div class="rtrack"><div class="rfill e" style="width:${dist.quran*100/tot}%"></div></div></div>
       <div class="rbar"><div class="l"><span>${mi('leaf')} التربية فقط</span><b>${ar(dist.tarbiya)} (${Math.round(dist.tarbiya*100/tot)}٪)</b></div><div class="rtrack"><div class="rfill g" style="width:${dist.tarbiya*100/tot}%"></div></div></div>
-      <div class="rbar"><div class="l"><span>${mi('sparkle')} المساران</span><b>${ar(dist.both)} (${Math.round(dist.both*100/tot)}٪)</b></div><div class="rtrack"><div class="rfill e" style="width:${dist.both*100/tot}%"></div></div></div>
     </div></div>
     <div class="card"><div class="ch"><h3>متوسطات الأداء</h3></div><div class="rbars">
       <div class="rbar"><div class="l"><span>الإتقان</span><b>${pct(avgMastery)}</b></div><div class="rtrack"><div class="rfill e" style="width:${avgMastery}%"></div></div></div>
