@@ -1713,7 +1713,8 @@ async function enrollSurvey(pathId, type, p, childId){
       ${(isParent && isNew)||!isParent?`
       <div class="field"><label>اسم ${isParent?'الابن':'الطالب'} <span class="req">*</span></label><input id="enName" value="${nameVal}" placeholder="الاسم الكامل"></div>
       <div class="field"><label>السن <span class="req">*</span></label><input id="enAge" type="number" value="${childData?childData.age||'':''}" placeholder="٩"></div>
-      ${isParent?`<div class="field"><label>بريد الابن (اختياري — ليدخل بحسابه)</label><input id="enEmail" type="email" placeholder="اتركه فارغاً للأطفال الصغار"></div>`:''}
+      ${isParent?`<div class="field"><label>بريد الابن (اختياري — ليدخل بحسابه)</label><input id="enEmail" type="email" placeholder="اتركه فارغاً للأطفال الصغار" oninput="document.getElementById('enPassWrap').style.display=this.value.trim()?'block':'none'"></div>
+      <div class="field" id="enPassWrap" style="display:none"><label>كلمة سر دخول الابن</label><input id="enPass" placeholder="كلمة سر يدخل بها الابن"><small style="color:var(--muted);font-size:11.5px">يدخل الابن ببريده وهذه الكلمة على صفحته الخاصة.</small></div>`:''}
       `:`<input type="hidden" id="enName" value="${nameVal}"><input type="hidden" id="enAge" value="${childData?childData.age||9:9}">`}
       <div class="field"><label>هل لديه خبرة سابقة في الحفظ؟ <span class="req">*</span></label><textarea id="enExp" rows="2" placeholder="مثال: حفظ جزء عمّ، أو لا توجد خبرة"></textarea></div>
       <div class="field"><label>ما الصعوبات التي يواجهها؟</label><textarea id="enDiff" rows="2" placeholder="مثال: ضعف المراجعة، قلة الوقت"></textarea></div>
@@ -1776,7 +1777,14 @@ async function submitEnrollment(pathId, type, childId){
         });
         if(e1) throw new Error('خطأ في إنشاء ملف الطالب: '+e1.message);
         studentId=ns.id;
-        if(email){ await sb.from('link_invites').insert({ inviter_id:ME.id, inviter_role:'parent', invite_name:name, invite_email:email, student_id:ns.id }); }
+        if(email){
+          const childPass=$('#enPass')?.value.trim();
+          if(childPass&&childPass.length>=6){
+            try{ await sb.rpc('create_linked_account',{ p_email:email, p_password:childPass, p_name:name, p_role:'student', p_student_id:ns.id }); }catch(e){}
+          } else {
+            await sb.from('link_invites').insert({ inviter_id:ME.id, inviter_role:'parent', invite_name:name, invite_email:email, student_id:ns.id });
+          }
+        }
       } else {
         studentId=+childId;
         const { error:eu }=await sbUpdateWithFallback('students',{ quran_path:pathId, ...planFields, enrollment_status:(type==='subsidy'?'awaiting_subsidy':'awaiting_payment'), is_subsidized:type==='subsidy' }, 'id', studentId);
