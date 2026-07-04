@@ -13,3 +13,6 @@ Thumbs.db
 
 # Local dev tooling
 .claude/
+
+# Supabase CLI local state
+supabase/.temp/
