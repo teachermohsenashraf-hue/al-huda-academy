@@ -4130,7 +4130,7 @@ async function chatPage(){ setTop('الرسائل','تواصل مباشر');
     <div class="chat-list">${list.length?list.map(c=>`<div class="chat-item ${active&&c.id===active.id?'on':''}" onclick="openChat(${c.id})"><div class="cav">${chatTitle(c).slice(0,2)}</div><div class="cmeta"><b>${chatTitle(c)}</b><span>اضغط للفتح</span></div></div>`).join(''):'<p style="color:var(--muted);padding:14px;font-size:13.5px">لا محادثات. ابدأ واحدة جديدة.</p>'}</div>
     <div class="chat-main">${active?`
       <div class="chat-head"><div class="cav">${chatTitle(active).slice(0,2)}</div><div><b>${chatTitle(active)}</b><small>محادثة</small></div></div>
-      <div class="chat-body" id="chatBody">${msgs.map(m=>`<div class="bubble ${m.sender_id===ME.id?'me':'them'}">${esc(m.body)}<span class="tm">${new Date(m.created_at).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})}</span></div>`).join('')||'<p style="color:var(--muted);text-align:center;margin-top:30px">ابدأ المحادثة بأول رسالة 👋</p>'}</div>
+      <div class="chat-body" id="chatBody">${msgs.length?msgs.map(renderMainBubble).join(''):'<p style="color:var(--muted);text-align:center;margin-top:30px">ابدأ المحادثة بأول رسالة 👋</p>'}</div>
       <div class="chat-input"><input id="chatInput" placeholder="اكتب رسالتك..." onkeydown="if(event.key==='Enter')sendMsg()"><button onclick="sendMsg()">${mi('arrowRight')}</button></div>
     `:'<div style="display:grid;place-items:center;height:100%;color:var(--muted)">اختر محادثة أو ابدأ واحدة جديدة</div>'}</div>
   </div>`;
@@ -4139,14 +4139,32 @@ function chatTitle(c){
   // العنوان = اسم الطرف الآخر إن وُجد، وإلا عنوان المحادثة
   return c.title || 'محادثة';
 }
+function renderMainBubble(m){
+  return `<div class="bubble ${m.sender_id===ME.id?'me':'them'}">${esc(m.body)}<span class="tm">${new Date(m.created_at).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})}</span>${m.sender_id===ME.id?`<button style="border:none;background:none;cursor:pointer;opacity:.65;padding:0;margin-inline-start:6px;vertical-align:middle" title="تعديل الرسالة" onclick="editMyMessage(${m.id},'${escJs(m.body)}','main')">${mi('pencil')}</button>`:''}</div>`;
+}
 function openChat(id){ SESSION.activeChat=id; navigate(SESSION.page); }
 async function sendMsg(){ const inp=$('#chatInput'); const t=inp.value.trim(); if(!t)return;
   const { error }=await sb.from('messages').insert({chat_id:SESSION.activeChat,sender_id:ME.id,body:t});
   if(error){ alert('تعذّر الإرسال: '+error.message); return; }
   inp.value='';
   const { data:msgs }=await sb.from('messages').select('*').eq('chat_id',SESSION.activeChat).order('created_at');
-  $('#chatBody').innerHTML=(msgs||[]).map(m=>`<div class="bubble ${m.sender_id===ME.id?'me':'them'}">${esc(m.body)}<span class="tm">الآن</span></div>`).join('');
+  $('#chatBody').innerHTML=(msgs||[]).map(renderMainBubble).join('');
   $('#chatBody').scrollTop=$('#chatBody').scrollHeight;
+}
+async function editMyMessage(msgId, oldBody, kind){
+  const nb=prompt('عدّل رسالتك:', oldBody);
+  if(nb===null) return;
+  const t=nb.trim(); if(!t){ toast('لا يمكن أن تكون الرسالة فارغة'); return; }
+  const { error }=await sb.from('messages').update({ body:t }).eq('id',msgId).eq('sender_id',ME.id);
+  if(error){ alert('تعذّر التعديل: '+error.message); return; }
+  toast('✅ تم تعديل الرسالة');
+  if(kind==='halqa'){
+    const ctx=SESSION._halqaChat;
+    if(ctx&&ctx.chatId){ const { data:msgs }=await sb.from('messages').select('*').eq('chat_id',ctx.chatId).order('created_at'); const body=$('#halqaChatBody'); if(body) body.innerHTML=(msgs||[]).map(renderHalqaBubble).join(''); }
+  } else {
+    const { data:msgs }=await sb.from('messages').select('*').eq('chat_id',SESSION.activeChat).order('created_at');
+    const body=$('#chatBody'); if(body) body.innerHTML=(msgs||[]).map(renderMainBubble).join('');
+  }
 }
 // بدء محادثة جديدة: يختار المستخدم طرفاً حقيقياً حسب دوره
 async function newChatModal(){
@@ -4391,9 +4409,12 @@ async function halqaChatBox(g, student, isTeacher){
   if(chat){ const { data }=await sb.from('messages').select('*').eq('chat_id',chat.id).order('created_at'); msgs=data||[]; }
   SESSION._halqaChat={ groupId:g.id, parties, chatId:chat?.id||null };
   return `<div class="halqa-chat">
-    <div class="halqa-chat-body" id="halqaChatBody">${msgs.length?msgs.map(m=>`<div class="bubble ${m.sender_id===ME.id?'me':'them'}">${m.sender_id!==ME.id?'<small style="display:block;font-size:10px;opacity:0.7;margin-bottom:2px">'+esc(m.sender_name||'')+'</small>':''}${esc(m.body)}<span class="tm">${new Date(m.created_at).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})}</span></div>`).join(''):'<p style="color:var(--muted);text-align:center;margin-top:40px">ابدأ المحادثة 👋<br><span style="font-size:12px">نسّقا مواعيد الحصص وتابعا الحفظ هنا.</span></p>'}</div>
+    <div class="halqa-chat-body" id="halqaChatBody">${msgs.length?msgs.map(renderHalqaBubble).join(''):'<p style="color:var(--muted);text-align:center;margin-top:40px">ابدأ المحادثة 👋<br><span style="font-size:12px">نسّقا مواعيد الحصص وتابعا الحفظ هنا.</span></p>'}</div>
     <div class="chat-input"><input id="halqaChatInput" placeholder="اكتب رسالتك..." onkeydown="if(event.key==='Enter')sendHalqaMsg()"><button onclick="sendHalqaMsg()">${mi('arrowRight')} </button></div>
   </div>`;
+}
+function renderHalqaBubble(m){
+  return `<div class="bubble ${m.sender_id===ME.id?'me':'them'}">${m.sender_id!==ME.id?'<small style="display:block;font-size:10px;opacity:0.7;margin-bottom:2px">'+esc(m.sender_name||'')+'</small>':''}${esc(m.body)}<span class="tm">${new Date(m.created_at).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})}</span>${m.sender_id===ME.id?`<button style="border:none;background:none;cursor:pointer;opacity:.65;padding:0;margin-inline-start:6px;vertical-align:middle" title="تعديل الرسالة" onclick="editMyMessage(${m.id},'${escJs(m.body)}','halqa')">${mi('pencil')}</button>`:''}</div>`;
 }
 async function sendHalqaMsg(){
   const inp=$('#halqaChatInput'); const t=inp.value.trim(); if(!t)return;
@@ -4410,7 +4431,7 @@ async function sendHalqaMsg(){
   inp.value='';
   const { data:msgs }=await sb.from('messages').select('*').eq('chat_id',chatId).order('created_at');
   const body=$('#halqaChatBody');
-  body.innerHTML=(msgs||[]).map(m=>`<div class="bubble ${m.sender_id===ME.id?'me':'them'}">${m.sender_id!==ME.id?'<small style="display:block;font-size:10px;opacity:0.7;margin-bottom:2px">'+esc(m.sender_name||'')+'</small>':''}${esc(m.body)}<span class="tm">${new Date(m.created_at).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})}</span></div>`).join('');
+  body.innerHTML=(msgs||[]).map(renderHalqaBubble).join('');
   body.scrollTop=body.scrollHeight;
 }
 // تقارير الحلقة (تقييمات الحصص + الحصون الخمسة)
