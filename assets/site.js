@@ -497,25 +497,39 @@ document.querySelectorAll('a[href*="index.html#signup"]').forEach(a=>{
    ============================================================ */
 const EGP_TO_SAR = 0.076; /* تقريباً 13.2 جنيه = 1 ريال — حدّث الرقم ده لما سعر الصرف يتغيّر بشكل واضح */
 const EGP_TO_USD = 0.0204; /* تقريباً 49 جنيه = 1 دولار — حدّث الرقم ده لما سعر الصرف يتغيّر بشكل واضح */
+function applyPricingForCountry(cc){
+  if(!cc || cc === 'EG') return; /* مصر أو تعذّر التحديد: يفضل الجنيه المصري كما هو */
+  const isSA = cc === 'SA';
+  const rate = isSA ? EGP_TO_SAR : EGP_TO_USD;
+  const newLabel = isSA ? 'ر.س' : '$';
+  document.querySelectorAll('[data-egp]').forEach(el=>{
+    const egp = parseFloat(el.getAttribute('data-egp'));
+    if(isNaN(egp)) return;
+    const converted = Math.round(egp * rate);
+    el.textContent = isSA ? arNum(converted) : String(converted);
+    const label = el.closest('[data-price-wrap]')?.querySelector('.cur-label') || el.parentElement?.querySelector('.cur-label');
+    if(label) label.textContent = label.textContent.replace(/ج\.م/g, newLabel);
+  });
+}
 function applyLocalizedPricing(){
-  fetch('https://ipapi.co/json/', { cache:'no-store' })
-    .then(r=>r.ok ? r.json() : null)
+  // المصدر الأول: نفس السيرفر (Vercel) بيحدّد دولة الزائر مباشرة من الطلب نفسه —
+  // سريع، بدون حد لعدد الطلبات، وبدون الاعتماد على خدمة خارجية قابلة للحظر أو التعطّل.
+  fetch('/api/geo', { cache:'no-store' })
+    .then(r=>r.ok ? r.json() : Promise.reject())
     .then(info=>{
-      const cc = info && (info.country_code || info.country);
-      if(!cc || cc === 'EG') return; /* مصر أو تعذّر التحديد: يفضل الجنيه المصري كما هو */
-      const isSA = cc === 'SA';
-      const rate = isSA ? EGP_TO_SAR : EGP_TO_USD;
-      const newLabel = isSA ? 'ر.س' : '$';
-      document.querySelectorAll('[data-egp]').forEach(el=>{
-        const egp = parseFloat(el.getAttribute('data-egp'));
-        if(isNaN(egp)) return;
-        const converted = Math.round(egp * rate);
-        el.textContent = isSA ? arNum(converted) : String(converted);
-        const label = el.closest('[data-price-wrap]')?.querySelector('.cur-label') || el.parentElement?.querySelector('.cur-label');
-        if(label) label.textContent = label.textContent.replace(/ج\.م/g, newLabel);
-      });
+      if(!info || !info.country) return Promise.reject();
+      applyPricingForCountry(info.country);
     })
-    .catch(()=>{ /* فشل تحديد الموقع: يفضل الجنيه المصري كإعداد افتراضي آمن */ });
+    .catch(()=>{
+      // احتياطي: لو الموقع شغّال محلياً أو مش على Vercel، نجرّب خدمة خارجية كبديل
+      fetch('https://ipapi.co/json/', { cache:'no-store' })
+        .then(r=>r.ok ? r.json() : null)
+        .then(info=>{
+          const cc = info && (info.country_code || info.country);
+          applyPricingForCountry(cc);
+        })
+        .catch(()=>{ /* فشل تحديد الموقع من الطريقتين: يفضل الجنيه المصري كإعداد افتراضي آمن */ });
+    });
 }
 
 /* ============================================================
