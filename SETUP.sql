@@ -29,6 +29,7 @@ create table if not exists student_transfers(
   created_at timestamptz default now()
 );
 alter table student_transfers enable row level security;
+drop policy if exists "allow all to authenticated" on student_transfers;
 create policy "allow all to authenticated" on student_transfers for all to authenticated using (true) with check (true);
 
 -- ------------------------------------------------------------
@@ -43,6 +44,7 @@ create table if not exists push_subscriptions(
   created_at timestamptz default now()
 );
 alter table push_subscriptions enable row level security;
+drop policy if exists "user manages own subscriptions" on push_subscriptions;
 create policy "user manages own subscriptions" on push_subscriptions for all to authenticated
   using (user_id = auth.uid()) with check (user_id = auth.uid());
 -- Edge Function بتستخدم service role key فبتتخطى RLS تلقائياً — مش محتاجة policy إضافية.
