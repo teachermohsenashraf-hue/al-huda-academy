@@ -2304,12 +2304,14 @@ const MENUS = {
     {label:'المتابعة', items:[['dash',mi('home'),'نظرة عامة'],['children',mi('family'),'أبنائي'],['hifztrack',mi('book'),'متابعة الحفظ اليومي']]},
     {label:'الالتحاق', items:[['choose',mi('chooseTeacher'),'اختيار معلم'],['fees',mi('card'),'الرسوم والتجديد']]},
     {label:'التواصل', items:[['chat',mi('chat'),'مراسلة الإشراف']]},
+    {label:'حسابي', items:[['mydata',mi('lock'),'بياناتي']]},
   ]},
   student:{ skin:'s-emerald', title:'لوحة الطالب', sections:[
     {label:'مساري', items:[['roadmap',mi('map'),'خطة مساري'],['myhalqa',mi('mosque'),'حلقتي']]},
     {label:'قسم القرآن', items:[['qtoday',mi('book'),'ورد اليوم'],['qmyplan',mi('calendar'),'خطتي الكاملة']]},
     {label:'حلقتي', items:[['choose',mi('chooseTeacher'),'معلمي'],['myparent',mi('family'),'ولي أمري']]},
     {label:'عام', items:[['chat',mi('chat'),'الرسائل'],['renewal',mi('refresh'),'تجديد اشتراكي']]},
+    {label:'حسابي', items:[['mydata',mi('lock'),'بياناتي']]},
   ]},
 };
 
@@ -2520,6 +2522,54 @@ async function worshipTable(sid){
 }
 function setTrack(t){ document.querySelectorAll('.ttb').forEach(b=>b.classList.toggle('on',b.dataset.t===t)); document.querySelectorAll('.track-sec').forEach(s=>{ s.style.display=(t==='all'||t===s.dataset.track)?'':'none'; }); }
 
+// ===== بياناتي (طالب/ولي أمر) =====
+function myDataRow(lbl,val){ return `<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px"><span style="color:var(--muted)">${lbl}</span><b>${esc(val||'—')}</b></div>`; }
+function myDataPasswordBlock(){
+  return `<div class="card" style="margin-top:18px"><div class="ch"><h3>${mi('lock')} تغيير كلمة المرور</h3></div>
+    <div class="field"><label>كلمة المرور الحالية</label><input id="mdCurPass" type="password" placeholder="أدخل كلمة مرورك الحالية"></div>
+    <div class="field"><label>كلمة المرور الجديدة</label><input id="mdNewPass" type="password" placeholder="٦ أحرف على الأقل"></div>
+    <div class="field"><label>تأكيد كلمة المرور الجديدة</label><input id="mdNewPass2" type="password" placeholder="أعد كتابتها"></div>
+    <button class="btn" id="mdPassBtn" onclick="changeMyPassword()">حفظ كلمة المرور الجديدة</button>
+  </div>`;
+}
+async function changeMyPassword(){
+  const cur=$('#mdCurPass').value, np=$('#mdNewPass').value, np2=$('#mdNewPass2').value;
+  if(!cur||!np||!np2){ toast('أكمل كل الحقول'); return; }
+  if(np.length<6){ toast('كلمة المرور ٦ أحرف على الأقل'); return; }
+  if(np!==np2){ toast('كلمتا المرور الجديدتان غير متطابقتين'); return; }
+  const btn=$('#mdPassBtn'); btn.disabled=true; btn.textContent='جارٍ الحفظ...';
+  const { error:authErr }=await sb.auth.signInWithPassword({ email:ME.email, password:cur });
+  if(authErr){ btn.disabled=false; btn.textContent='حفظ كلمة المرور الجديدة'; toast('كلمة المرور الحالية غير صحيحة'); return; }
+  const { error }=await sb.auth.updateUser({ password:np });
+  btn.disabled=false; btn.textContent='حفظ كلمة المرور الجديدة';
+  if(error){ alert('تعذّر: '+error.message); return; }
+  $('#mdCurPass').value=''; $('#mdNewPass').value=''; $('#mdNewPass2').value='';
+  toast('✅ تم تغيير كلمة المرور بنجاح');
+}
+PAGES.student_mydata=async function(){ setTop('بياناتي','بيانات تسجيلك وحسابك');
+  const s=await myStudentRow(); if(!s) return noStudentMsg();
+  return pageHead('بياناتي','بيانات تسجيلك وحسابك')+
+  `<div class="card"><div class="ch"><h3>${mi('child')} بيانات التسجيل</h3></div>
+    ${myDataRow('الاسم',s.full_name)}
+    ${myDataRow('البريد الإلكتروني',ME.email)}
+    ${myDataRow('العمر',s.age?ar(s.age)+' سنة':null)}
+    ${myDataRow('النوع',s.gender==='male'?'ذكر':s.gender==='female'?'أنثى':null)}
+    ${myDataRow('المسار',pathName(s.quran_path))}
+    ${myDataRow('النظام',s.plan_type?planName(s.plan_type):null)}
+    ${myDataRow('الباقة',s.package_sessions?packageLabel(s.package_sessions):null)}
+    ${myDataRow('حالة الاشتراك',statusLabel(s.enrollment_status))}
+  </div>`+myDataPasswordBlock();
+};
+PAGES.parent_mydata=async function(){ setTop('بياناتي','بيانات حسابك');
+  const kids=await myChildren();
+  return pageHead('بياناتي','بيانات حسابك')+
+  `<div class="card"><div class="ch"><h3>${mi('family')} بيانات الحساب</h3></div>
+    ${myDataRow('الاسم',ME.full_name)}
+    ${myDataRow('البريد الإلكتروني',ME.email)}
+    ${myDataRow('رقم الهاتف',ME.phone)}
+    ${myDataRow('عدد الأبناء المسجّلين',ar((kids||[]).length))}
+  </div>`+myDataPasswordBlock();
+};
 PAGES.student_challenge=async function(){ setTop('تحدي رجل الأسبوع',''); const s=await myStudentRow(); return pageHead('تحدي رجل الأسبوع','عادات يومية')+`<div class="card"><div id="chalBox">${await challengeBox(s.id)}</div></div>`; };
 PAGES.student_worship=async function(){ setTop('متابعة العبادات',''); const s=await myStudentRow(); return pageHead('متابعة العبادات','أسبوعك مع العبادة')+`<div class="card">${await worshipTable(s.id)}</div>`; };
 PAGES.student_rank=async function(){ setTop('الترتيب','تنافس شريف'); const s=await myStudentRow(); return pageHead('ترتيب الحلقة','')+`<div class="card">${await leaderboard(s.group_id,s.id)}</div>`; };
