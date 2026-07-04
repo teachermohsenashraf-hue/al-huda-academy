@@ -4196,8 +4196,9 @@ async function editMyMessage(msgId, oldBody, kind){
   const nb=prompt('عدّل رسالتك:', oldBody);
   if(nb===null) return;
   const t=nb.trim(); if(!t){ toast('لا يمكن أن تكون الرسالة فارغة'); return; }
-  const { error }=await sb.from('messages').update({ body:t }).eq('id',msgId).eq('sender_id',ME.id);
+  const { data:updated, error }=await sb.from('messages').update({ body:t }).eq('id',msgId).eq('sender_id',ME.id).select();
   if(error){ alert('تعذّر التعديل: '+error.message); return; }
+  if(!updated||!updated.length){ alert('تعذّر التعديل: قاعدة البيانات رفضت الحفظ (سياسة الصلاحيات RLS لا تسمح بتعديل الرسائل). شغّل كود السماح بالتعديل في SQL Editor.'); return; }
   toast('✅ تم تعديل الرسالة');
   if(kind==='halqa'){
     const ctx=SESSION._halqaChat;

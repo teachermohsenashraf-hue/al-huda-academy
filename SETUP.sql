@@ -6,6 +6,16 @@
 create extension if not exists pgcrypto;
 
 -- ------------------------------------------------------------
+-- ٠) السماح لصاحب الرسالة بتعديل رسالته في المحادثات
+--    (كانت السياسة الموجودة تسمح بالإرسال والقراءة فقط، فالتعديل كان يفشل بصمت)
+-- ------------------------------------------------------------
+drop policy if exists "sender can update own messages" on messages;
+create policy "sender can update own messages" on messages
+  for update to authenticated
+  using (sender_id = auth.uid())
+  with check (sender_id = auth.uid());
+
+-- ------------------------------------------------------------
 -- ١) جدول طلبات نقل الطلاب بين المعلمين (يتطلب قبول المعلم الجديد)
 -- ------------------------------------------------------------
 create table if not exists student_transfers(
