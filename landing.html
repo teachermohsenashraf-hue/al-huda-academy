@@ -92,6 +92,37 @@
   <span class="tb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1.5 3 3 6 3s6-1.5 6-3v-5"/></svg> معلّمون معتمدون</span>
 </div>
 
+<!-- ═══════════ مساران رئيسيان: القرآن والتربية ═══════════ -->
+<section class="sec">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="tag">مسارا الأكاديمية</div>
+      <h2>رحلتان لبناء جيلٍ ربّاني</h2>
+      <p>حفظ كتاب الله وتربية النشء على هويته الإسلامية — ركيزتان نبني عليهما في أكاديمية الهدى.</p>
+    </div>
+    <div class="systems-grid">
+      <div class="system-card featured reveal" onclick="document.getElementById('systems').scrollIntoView({behavior:'smooth'})" style="cursor:pointer">
+        <img class="sc-thumb" src="assets/teaser-quran.jpg" alt="مسار حفظ القرآن" loading="lazy">
+        <div class="sc-body">
+          <h3>مسار حفظ القرآن</h3>
+          <p class="sc-desc">نظامان تعليميان متكاملان (رسوخ والنظام المرن)، وستة مسارات متدرّجة تناسب كل طالب — من جزء عمّ إلى ختم القرآن كاملاً.</p>
+          <a class="btn-primary" href="#systems" style="width:100%;justify-content:center">اكتشف نظامَي الحفظ ←</a>
+        </div>
+      </div>
+      <div class="system-card muted reveal" onclick="showTarbiyaToast()" style="cursor:pointer">
+        <span class="pc-badge">سيتوفر قريباً إن شاء الله</span>
+        <img class="sc-thumb" src="assets/teaser-tarbiya.jpg" alt="مسار التربية" loading="lazy">
+        <div class="sc-body">
+          <h3>مسار التربية</h3>
+          <p class="sc-desc">برنامج متكامل لتربية النشء على القيم الإسلامية وبناء الأخلاق وتعزيز الهوية — نعمل عليه حالياً ليكون بجودة تليق بأبنائكم.</p>
+          <span class="btn-ghost" style="width:100%;justify-content:center;pointer-events:none">قريباً إن شاء الله</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<div id="landingToast" class="landing-toast"></div>
+
 <!-- ═══════════ اختر طريقك في التعلّم ═══════════ -->
 <section class="sec" id="systems">
   <div class="wrap">
@@ -324,6 +355,16 @@
 
 <div id="chatbotHost"></div>
 
+<script>
+function showTarbiyaToast(){
+  const el = document.getElementById('landingToast');
+  if(!el) return;
+  el.textContent = 'مسار التربية سيتوفر قريباً إن شاء الله 🌿';
+  el.classList.add('show');
+  clearTimeout(window._tarbiyaToastTimer);
+  window._tarbiyaToastTimer = setTimeout(()=>el.classList.remove('show'), 2800);
+}
+</script>
 <script src="assets/site.js"></script>
 </body>
 </html>
