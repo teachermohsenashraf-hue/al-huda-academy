@@ -3162,10 +3162,11 @@ async function chooseTeacherPage(studentId){
   const { data:teachers }=await q;
   const tlist=teachers||[];
   if(!tlist.length) return `<div class="card" style="text-align:center;padding:36px"><div class="empty-ic">${mi('hourglass')}</div><h3 style="color:var(--navy-deep)">لا يوجد معلمون متاحون حالياً</h3><p style="color:var(--muted);font-size:14px">سيتم توفير معلمين قريباً، أو تواصل مع الإدارة.</p></div>`;
-  // 2) حساب حمل كل معلم (عدد طلابه النشطين) — الاعتماد على chosen_teacher_id وحده مش كافٍ،
-  // لأن طلاب كتير بيتوصلوا بمعلمهم عن طريق حلقة (استيراد، نقل، إنشاء يدوي) من غير ما يتحدّث
-  // هذا الحقل بالضرورة. فبنجمع الاثنين: من اختار المعلم صراحةً، ومن هو فعلاً داخل حلقته.
-  const { data:allStuds }=await sb.from('students').select('id,chosen_teacher_id,group_id').eq('enrollment_status','active');
+  // 2) حساب حمل كل معلم (عدد طلابه) — بنعتمد على وجود ربط حقيقي بالمعلم (اختيار صريح أو
+  // عضوية في حلقته) بدل الاعتماد على enrollment_status، لأن القيمة دي بتختلف حسب مرحلة
+  // الطالب (نشط، بانتظار تأكيد، إلخ) وأي طالب مرتبط فعلياً بمعلم هو حمل حقيقي عليه
+  // بغض النظر عن حالة اشتراكه الحالية.
+  const { data:allStuds }=await sb.from('students').select('id,chosen_teacher_id,group_id');
   const s0=allStuds||[];
   const groupIds=[...new Set(s0.filter(x=>x.group_id).map(x=>x.group_id))];
   let groupTeacherMap={};
