@@ -3700,9 +3700,12 @@ async function confirmPay(payId, studentId, pathId){
   if(!confirm('تأكيد هذه الدفعة وتفعيل اشتراك الطالب؟'))return;
   const nowIso=new Date().toISOString();
   const today=nowIso.slice(0,10);
-  // هل الطالب نشط بالفعل؟ (تجديد) أم التحاق أول؟
   const { data:st }=await sb.from('students').select('enrollment_status,sub_end,full_name,login_id,parent_id').eq('id',studentId).single();
-  const isRenewal = st && st.enrollment_status==='active';
+  // هل الدفعة دي تجديد ولا التحاق أول؟ نعتمد على وجود طلب التحاق مرتبط بالدفعة نفسها (join_request_id)
+  // بدل حالة الطالب الحالية (enrollment_status)، لأن الحالة ممكن تفضل "active" من بيانات قديمة/تجريبية
+  // حتى لو دي فعلياً أول دفعة حقيقية بتتأكّد له — وده كان بيسبب توريث تاريخ تفعيل قديم غلط.
+  const { data:pay }=await sb.from('payments').select('join_request_id').eq('id',payId).single();
+  const isRenewal = !pay?.join_request_id;
   // نقطة البداية: من نهاية الاشتراك الحالي إن لم ينتهِ (بنفس توقيته)، وإلا من الآن بالضبط
   let base=new Date();
   if(isRenewal && st.sub_end && new Date(st.sub_end)>base) base=new Date(st.sub_end);
