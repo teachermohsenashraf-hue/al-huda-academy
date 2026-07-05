@@ -6,6 +6,13 @@
 <meta name="theme-color" content="#1B4D3E">
 <title>أكاديمية الهدى — منصة متخصصة في تعليم القرآن الكريم وبناء النشء على الهوية الإسلامية</title>
 <meta name="description" content="منصة متكاملة لتعليم القرآن الكريم بنظامين تعليميين (رسوخ والنظام المرن) — حلقات فردية، متابعة يومية، وبناء إنسان ربّاني.">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" type="image/png" href="/assets/favicon-32.png">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="أكاديمية الهدى">
+<meta name="mobile-web-app-capable" content="yes">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -364,6 +371,7 @@ function showTarbiyaToast(){
   clearTimeout(window._tarbiyaToastTimer);
   window._tarbiyaToastTimer = setTimeout(()=>el.classList.remove('show'), 2800);
 }
+if('serviceWorker' in navigator){ navigator.serviceWorker.register('/sw.js').catch(()=>{}); }
 </script>
 <script src="assets/site.js"></script>
 </body>

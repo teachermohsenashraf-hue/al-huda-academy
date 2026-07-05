@@ -1,0 +1,19 @@
+{
+  "name": "أكاديمية الهدى",
+  "short_name": "أكاديمية الهدى",
+  "description": "منصة متخصصة في تعليم القرآن الكريم وبناء النشء على الهوية الإسلامية",
+  "start_url": "/index.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F5F1E8",
+  "theme_color": "#1B4D3E",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": [
+    { "src": "/assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
