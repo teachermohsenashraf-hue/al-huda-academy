@@ -1324,6 +1324,16 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 <div id="tourHost"></div>
 <div class="toast" id="toast"></div>
 
+<div id="pwaInstallBanner" style="display:none;position:fixed;bottom:16px;inset-inline:16px;z-index:9999;background:#1B4D3E;color:#fff;padding:14px 16px;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.35);align-items:center;gap:12px;font-family:'Cairo',sans-serif;max-width:480px;margin:0 auto">
+  <img src="/assets/icon-192.png" width="42" height="42" style="border-radius:10px;flex-shrink:0" alt="">
+  <div style="flex:1;font-size:13px;line-height:1.6">
+    <b style="display:block;margin-bottom:2px;font-size:14px">ثبّت تطبيق أكاديمية الهدى</b>
+    <span id="pwaInstallText">أضِفه لشاشتك الرئيسية للدخول السريع بضغطة واحدة</span>
+  </div>
+  <button id="pwaInstallBtn" style="background:#C9A227;color:#123A2E;border:none;padding:9px 14px;border-radius:10px;font-weight:700;cursor:pointer;white-space:nowrap;font-size:13px">تثبيت</button>
+  <button id="pwaInstallCloseBtn" style="background:none;border:none;color:rgba(255,255,255,.7);font-size:22px;cursor:pointer;padding:0 2px;line-height:1">×</button>
+</div>
+
 <script>//
 // أكاديمية الهدى — النواة + المصادقة (Landing عامة، إقلاع المدير، تسجيل بقسمين)
 //
@@ -1473,6 +1483,39 @@ function waFloat(){
 
 // تهيئة عند الإقلاع
 if('serviceWorker' in navigator){ navigator.serviceWorker.register('/sw.js').catch(()=>{}); }
+/* ═══ بديل مخصّص لاقتراح "إضافة للشاشة الرئيسية" — لأن المتصفحات (خصوصاً كروم بعد أول زيارة، وسفاري على الآيفون دايماً) بقت مش بتظهر اقتراح التثبيت التلقائي من نفسها ═══ */
+let PWA_DEFERRED_PROMPT = null;
+function isIosDevice(){ return /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream; }
+function isStandalonePwa(){ return window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; }
+function showPwaBanner(iosMode){
+  if(isStandalonePwa()) return;
+  try{ if(localStorage.getItem('pwaInstallDismissed')) return; }catch(e){}
+  const b=document.getElementById('pwaInstallBanner'); if(!b) return;
+  if(iosMode){
+    document.getElementById('pwaInstallText').textContent='اضغط على زر المشاركة ⬆️ في الأسفل ثم اختر "إضافة إلى الشاشة الرئيسية"';
+    document.getElementById('pwaInstallBtn').style.display='none';
+  }
+  b.style.display='flex';
+}
+function installPwaApp(){
+  if(!PWA_DEFERRED_PROMPT) return;
+  PWA_DEFERRED_PROMPT.prompt();
+  PWA_DEFERRED_PROMPT.userChoice.finally(()=>{ PWA_DEFERRED_PROMPT=null; dismissPwaBanner(); });
+}
+function dismissPwaBanner(){
+  const b=document.getElementById('pwaInstallBanner'); if(b) b.style.display='none';
+  try{ localStorage.setItem('pwaInstallDismissed','1'); }catch(e){}
+}
+window.addEventListener('beforeinstallprompt', (e)=>{
+  e.preventDefault();
+  PWA_DEFERRED_PROMPT = e;
+  showPwaBanner(false);
+});
+document.addEventListener('DOMContentLoaded', ()=>{
+  document.getElementById('pwaInstallBtn')?.addEventListener('click', installPwaApp);
+  document.getElementById('pwaInstallCloseBtn')?.addEventListener('click', dismissPwaBanner);
+  if(isIosDevice() && !isStandalonePwa()){ setTimeout(()=>showPwaBanner(true), 2000); }
+});
 window.addEventListener('DOMContentLoaded', async ()=>{
   if(SUPABASE_URL.includes('YOUR-PROJECT')){ $('#setupWarn').classList.remove('hidden'); return; }
   // كشف رابط استعادة كلمة المرور (من الإيميل)

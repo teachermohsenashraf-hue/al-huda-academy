@@ -5,6 +5,10 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim());
 });
+// معالج fetch أساسي — بعض المتصفحات تشترطه ضمن شروط اعتبار الموقع "قابلاً للتثبيت"
+self.addEventListener('fetch', (event) => {
+  event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
+});
 
 self.addEventListener('push', (event) => {
   let data = {};
