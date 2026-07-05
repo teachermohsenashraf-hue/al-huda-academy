@@ -3162,10 +3162,22 @@ async function chooseTeacherPage(studentId){
   const { data:teachers }=await q;
   const tlist=teachers||[];
   if(!tlist.length) return `<div class="card" style="text-align:center;padding:36px"><div class="empty-ic">${mi('hourglass')}</div><h3 style="color:var(--navy-deep)">لا يوجد معلمون متاحون حالياً</h3><p style="color:var(--muted);font-size:14px">سيتم توفير معلمين قريباً، أو تواصل مع الإدارة.</p></div>`;
-  // 2) حساب حمل كل معلم (عدد طلابه النشطين)
-  const { data:allStuds }=await sb.from('students').select('chosen_teacher_id').eq('enrollment_status','active');
+  // 2) حساب حمل كل معلم (عدد طلابه النشطين) — الاعتماد على chosen_teacher_id وحده مش كافٍ،
+  // لأن طلاب كتير بيتوصلوا بمعلمهم عن طريق حلقة (استيراد، نقل، إنشاء يدوي) من غير ما يتحدّث
+  // هذا الحقل بالضرورة. فبنجمع الاثنين: من اختار المعلم صراحةً، ومن هو فعلاً داخل حلقته.
+  const { data:allStuds }=await sb.from('students').select('id,chosen_teacher_id,group_id').eq('enrollment_status','active');
+  const s0=allStuds||[];
+  const groupIds=[...new Set(s0.filter(x=>x.group_id).map(x=>x.group_id))];
+  let groupTeacherMap={};
+  if(groupIds.length){
+    const { data:gs }=await sb.from('groups').select('id,teacher_id').in('id',groupIds);
+    (gs||[]).forEach(g=>{ groupTeacherMap[g.id]=g.teacher_id; });
+  }
   const load={}; tlist.forEach(t=>load[t.id]=0);
-  (allStuds||[]).forEach(s=>{ if(s.chosen_teacher_id&&load[s.chosen_teacher_id]!==undefined) load[s.chosen_teacher_id]++; });
+  s0.forEach(x=>{
+    const tid = x.chosen_teacher_id || groupTeacherMap[x.group_id];
+    if(tid && load[tid]!==undefined) load[tid]++;
+  });
   // 3) التوزيع العادل: أقل حمل، ولا نعرض من يزيد عن الأقل بأكثر من 5
   const minLoad=Math.min(...tlist.map(t=>load[t.id]));
   const eligible=tlist.filter(t=>load[t.id]-minLoad<=5).sort((a,b)=>load[a.id]-load[b.id]);
