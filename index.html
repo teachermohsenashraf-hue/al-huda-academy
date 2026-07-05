@@ -3162,23 +3162,16 @@ async function chooseTeacherPage(studentId){
   const { data:teachers }=await q;
   const tlist=teachers||[];
   if(!tlist.length) return `<div class="card" style="text-align:center;padding:36px"><div class="empty-ic">${mi('hourglass')}</div><h3 style="color:var(--navy-deep)">لا يوجد معلمون متاحون حالياً</h3><p style="color:var(--muted);font-size:14px">سيتم توفير معلمين قريباً، أو تواصل مع الإدارة.</p></div>`;
-  // 2) حساب حمل كل معلم (عدد طلابه) — بنعتمد على وجود ربط حقيقي بالمعلم (اختيار صريح أو
-  // عضوية في حلقته) بدل الاعتماد على enrollment_status، لأن القيمة دي بتختلف حسب مرحلة
-  // الطالب (نشط، بانتظار تأكيد، إلخ) وأي طالب مرتبط فعلياً بمعلم هو حمل حقيقي عليه
-  // بغض النظر عن حالة اشتراكه الحالية.
-  const { data:allStuds }=await sb.from('students').select('id,chosen_teacher_id,group_id');
-  const s0=allStuds||[];
-  const groupIds=[...new Set(s0.filter(x=>x.group_id).map(x=>x.group_id))];
-  let groupTeacherMap={};
-  if(groupIds.length){
-    const { data:gs }=await sb.from('groups').select('id,teacher_id').in('id',groupIds);
-    (gs||[]).forEach(g=>{ groupTeacherMap[g.id]=g.teacher_id; });
-  }
+  // 2) حساب حمل كل معلم (عدد طلابه) — لازم يتم عن طريق دالة على السيرفر (RPC) لا استعلام
+  // مباشر من هنا، لأن الطالب/ولي الأمر اللي بيشوف الصفحة دي (خصوصاً واحد لسه بيسجّل)
+  // صلاحياته (RLS) بتمنعه أصلاً من قراءة صفوف طلاب تانيين أو جدول الحلقات كامل،
+  // فأي حساب هنا في المتصفح كان بيرجع صفر دايماً بغض النظر عن منطق الفلترة.
   const load={}; tlist.forEach(t=>load[t.id]=0);
-  s0.forEach(x=>{
-    const tid = x.chosen_teacher_id || groupTeacherMap[x.group_id];
-    if(tid && load[tid]!==undefined) load[tid]++;
-  });
+  try{
+    const { data:loads, error:loadsErr } = await sb.rpc('get_teacher_loads');
+    if(loadsErr) throw loadsErr;
+    (loads||[]).forEach(r=>{ if(load[r.teacher_id]!==undefined) load[r.teacher_id]=r.student_count||0; });
+  }catch(e){ console.warn('get_teacher_loads RPC غير متاح بعد — شغّل SETUP.sql. سيُعرض التوزيع بافتراض حمل صفر للجميع مؤقتاً.', e); }
   // 3) التوزيع العادل: أقل حمل، ولا نعرض من يزيد عن الأقل بأكثر من 5
   const minLoad=Math.min(...tlist.map(t=>load[t.id]));
   const eligible=tlist.filter(t=>load[t.id]-minLoad<=5).sort((a,b)=>load[a.id]-load[b.id]);

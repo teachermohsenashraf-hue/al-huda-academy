@@ -6,6 +6,34 @@
 create extension if not exists pgcrypto;
 
 -- ------------------------------------------------------------
+-- ٠-ب) دالة حساب عدد طلاب كل معلم (لصفحة "اختر معلمك")
+--      المشكلة: الطالب اللي بيسجّل ولسه ملوش صلاحيات كاملة، سياسات RLS بتمنعه
+--      من قراءة صفوف طلاب تانيين أو كل جدول الحلقات، فأي حساب في المتصفح كان
+--      بيرجع صفر دايماً. الدالة دي بتشتغل بصلاحيات أعلى على السيرفر (security definer)
+--      وترجّع بس الرقم الإجمالي لكل معلم، من غير ما تكشف أي بيانات حساسة عن الطلاب.
+-- ------------------------------------------------------------
+drop function if exists get_teacher_loads();
+create or replace function get_teacher_loads()
+returns table(teacher_id uuid, student_count bigint)
+language sql
+security definer
+set search_path = public
+as $$
+  with linked as (
+    select s.id as student_id, coalesce(s.chosen_teacher_id, g.teacher_id) as teacher_id
+    from students s
+    left join groups g on g.id = s.group_id
+    where s.chosen_teacher_id is not null or g.teacher_id is not null
+  )
+  select p.id as teacher_id, count(distinct linked.student_id) as student_count
+  from profiles p
+  left join linked on linked.teacher_id = p.id
+  where p.role = 'teacher'
+  group by p.id;
+$$;
+grant execute on function get_teacher_loads() to authenticated;
+
+-- ------------------------------------------------------------
 -- ٠-أ) صلاحيات رفع صور إيصالات الدفع (Storage) — كانت ناقصة تماماً،
 --      فكل رفع إيصال كان بيفشل بصمت والكود القديم كان بيخزّن الصورة
 --      كنص base64 عملاق في قاعدة البيانات بدل الرفع الفعلي للـ Storage.
