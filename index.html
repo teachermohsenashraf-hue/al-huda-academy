@@ -1924,30 +1924,86 @@ function enrollPayment(studentId, jrId, pathId, subsidized){
     <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">لاحقاً</button><button class="btn" id="rcBtn" onclick="submitReceipt(${studentId},${jrId},'${pathId}',${subsidized})">${mi('check')} تأكيد ورفع الإيصال</button></div>
   </div></div>`;
 }
-let RECEIPT_DATA=null;
-function previewReceipt(input){
+/* ═══ ضغط صورة الإيصال في المتصفح قبل الرفع ═══
+   الهدف: تقليل حجم صور الإيصالات (عادة 2-5 ميجا من الموبايل) لحوالي ١٠٠-١٥٠ كيلوبايت
+   من غير ما يقل وضوح القراءة، عشان نفضل تحت حد الـ Storage المجاني حتى مع آلاف الطلاب.
+   بنتحكم في الحجم عن طريق تصغير الأبعاد (maxWidth) بدل التضحية بالجودة، لأن المشرف
+   لازم يقدر يقرأ رقم العملية والمبلغ والتاريخ في الوصل بوضوح تام. */
+function compressImage(file, maxWidth=1200, quality=0.78){
+  return new Promise((resolve, reject)=>{
+    const objectUrl = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = ()=>{
+      URL.revokeObjectURL(objectUrl);
+      let { width, height } = img;
+      if(!width || !height){ reject(new Error('تعذّر قراءة أبعاد الصورة')); return; }
+      if(width > maxWidth){ height = Math.round(height * (maxWidth/width)); width = maxWidth; }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff'; ctx.fillRect(0,0,width,height); // خلفية بيضاء لو الأصل PNG شفاف
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(blob=>{
+        if(!blob){ reject(new Error('تعذّر تصدير الصورة المضغوطة')); return; }
+        resolve(blob);
+      }, 'image/jpeg', quality);
+    };
+    img.onerror = ()=>{ URL.revokeObjectURL(objectUrl); reject(new Error('تعذّر فتح الصورة — الصيغة قد تكون غير مدعومة من المتصفح')); };
+    img.src = objectUrl;
+  });
+}
+function isLikelyHeic(f){
+  const t=(f.type||'').toLowerCase(), n=(f.name||'').toLowerCase();
+  return t.includes('heic') || t.includes('heif') || n.endsWith('.heic') || n.endsWith('.heif');
+}
+let RECEIPT_DATA=null; /* يحمل الـ Blob الجاهز للرفع (مضغوط عادةً) */
+async function previewReceipt(input){
   const f=input.files[0]; if(!f)return;
   // تأكيد إن الملف صورة فقط
-  if(!f.type.startsWith('image/')){
+  if(!f.type.startsWith('image/') && !isLikelyHeic(f)){
     toast('يُسمح برفع الصور فقط (jpg, png...)');
     input.value=''; return;
   }
-  if(f.size>3*1024*1024){ toast('الصورة كبيرة — الحد الأقصى ٣ ميجا'); input.value=''; return; }
-  const reader=new FileReader();
-  reader.onload=e=>{ RECEIPT_DATA=e.target.result; $('#rcContent').innerHTML=`<img src="${e.target.result}" style="max-width:100%;max-height:160px;border-radius:10px"><span style="display:block;margin-top:8px;color:var(--emerald)">✓ تم اختيار الإيصال — اضغط للتغيير</span>`; };
-  reader.readAsDataURL(f);
+  if(f.size>8*1024*1024){ toast('الصورة كبيرة جداً — الحد الأقصى ٨ ميجا'); input.value=''; return; }
+  $('#rcContent').innerHTML = `<div style="font-size:28px">⏳</div><span>جارٍ تجهيز الصورة...</span>`;
+  try{
+    const blob = await compressImage(f, 1200, 0.78);
+    RECEIPT_DATA = blob;
+    const url = URL.createObjectURL(blob);
+    const beforeKb = Math.round(f.size/1024), afterKb = Math.round(blob.size/1024);
+    $('#rcContent').innerHTML = `<img src="${url}" style="max-width:100%;max-height:160px;border-radius:10px">
+      <span style="display:block;margin-top:8px;color:var(--emerald)">✓ تم اختيار الإيصال — اضغط للتغيير</span>
+      <small style="display:block;margin-top:4px;color:var(--muted)">حُسِّن الحجم: ${ar(beforeKb)} ك.ب ← ${ar(afterKb)} ك.ب</small>`;
+  }catch(e){
+    if(isLikelyHeic(f)){
+      toast('صيغة HEIC غير مدعومة في هذا المتصفح');
+      $('#rcContent').innerHTML = `<div style="font-size:28px">⚠️</div><span style="color:var(--rose);display:block;margin-bottom:6px">صورتك بصيغة HEIC ومتصفحك مش قادر يفتحها</span><span style="font-size:12px;color:var(--muted)">من آيفون: الإعدادات ← الكاميرا ← التنسيقات ← اختر «الأكثر توافقاً»، وبعدين صوّر الوصل تاني. أو حوّل الصورة لـ JPG واختارها من هنا.</span>`;
+      input.value=''; RECEIPT_DATA=null; return;
+    }
+    // فشل غير متوقع (نادر) — نرفع الصورة الأصلية بدل ما نمنع الطالب من إتمام الدفع
+    RECEIPT_DATA = f;
+    const url = URL.createObjectURL(f);
+    $('#rcContent').innerHTML = `<img src="${url}" style="max-width:100%;max-height:160px;border-radius:10px" onerror="this.remove()">
+      <span style="display:block;margin-top:8px;color:var(--gold)">⚠️ تعذّر تحسين حجم الصورة، سيتم رفعها بحجمها الأصلي</span>`;
+  }
 }
 async function submitReceipt(studentId, jrId, pathId, subsidized){
   if(!RECEIPT_DATA){ toast('ارفع صورة الإيصال أولاً'); return; }
   $('#rcBtn').disabled=true; $('#rcBtn').textContent='جارٍ الرفع...';
   let receiptUrl=null;
   try{
-    const blob=await (await fetch(RECEIPT_DATA)).blob();
-    const fileName=`${studentId}_${Date.now()}.jpg`;
-    const { error:upErr }=await sb.storage.from('receipts').upload(fileName, blob, { contentType:'image/jpeg', upsert:true });
-    if(!upErr){ const { data:pub }=sb.storage.from('receipts').getPublicUrl(fileName); receiptUrl=pub.publicUrl; }
-    else { receiptUrl=RECEIPT_DATA; }
-  }catch(e){ receiptUrl=RECEIPT_DATA; }
+    const blob=RECEIPT_DATA;
+    const ext = blob.type==='image/png' ? 'png' : 'jpg';
+    const fileName=`${studentId}_${Date.now()}.${ext}`;
+    const { error:upErr }=await sb.storage.from('receipts').upload(fileName, blob, { contentType: blob.type||'image/jpeg', upsert:true });
+    if(upErr) throw upErr;
+    const { data:pub }=sb.storage.from('receipts').getPublicUrl(fileName);
+    receiptUrl=pub.publicUrl;
+  }catch(e){
+    $('#rcBtn').disabled=false; $('#rcBtn').textContent='تأكيد ورفع الإيصال';
+    alert('تعذّر رفع الإيصال: '+(e.message||'خطأ غير متوقع')+'\n\nتأكّد من اتصالك بالإنترنت وحاول مرة أخرى، أو تواصل مع الدعم لو استمرت المشكلة.');
+    return;
+  }
   const isRenewal = !jrId;
   const fullFee = SELECTED_PLAN.fee||700;
   const dueFee = subsidized ? Math.round(fullFee/2) : fullFee;
