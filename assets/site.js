@@ -175,7 +175,8 @@ const CHATBOT_FAQ = [
     a:'كل الحلقات فردية بالكامل (1:1)، ومدة الحصة ٣٠ دقيقة، مع تقارير يومية لمتابعة تقدمك.' },
   { topic:'الفصل بين الجنسين', kw:['فصل بين الجنسين','بنات وولاد','ذكور واناث','معلمه للبنات'],
     a:'النظام بيراعي الفصل بين الجنسين تلقائياً: الطالب يُوجَّه لمعلمين ومشرفين من جنسه، والطالبة كذلك.' },
-  { topic:'متابعة ولي الأمر', kw:['ولي الامر','متابعه ابني','ابني','بنتي','لوحة ولي الامر'],
+  { topic:'متابعة ولي الأمر', kw:['ولي الامر','متابعه ابني','متابعة بنتي','لوحة ولي الامر','اشوف حلقة ابني','اتابع ابني ازاي'],
+    extra:['ابني','بنتي'],
     a:'لوليّ الأمر لوحة خاصة يتابع منها حلقات أبنائه، حصصهم، تقاريرهم، وحصونهم اليومية أولاً بأول.' },
   { topic:'التواصل', kw:['تواصل','دعم','مشرف','اكلمك ازاي','رقم واتساب','رقم تليفون','اكلمكم','كلمكم','ابعتلكم'],
     a:'تقدر تكلّمنا مباشرة على واتساب من زر «تواصل معنا» تحت 👇، أو من زر «تسجيل الدخول» لو عندك حساب بالفعل.' },
@@ -210,14 +211,14 @@ const CHATBOT_FAQ = [
   { topic:'عن الأكاديمية', kw:['ايه هي اكاديمية الهدى','ايه هي الاكاديمية','عن الاكاديمية','مين انتوا','تعريف بالاكاديمية'],
     extra:['اكاديميه','هدي','منصه'],
     a:'أكاديمية الهدى منصة متخصصة في تعليم القرآن الكريم وبناء النشء على الهوية الإسلامية، بتقدّم حفظاً فردياً بإشراف معلمين متخصصين ومتابعة يومية دقيقة لولي الأمر.' },
-  { topic:'الفئة العمرية', kw:['من سن كام','اصغر سن','اكبر سن','يصلح لعمر','مناسب لعمر','للكبار كمان'],
-    extra:['اطفال','كبار','عمر','سن'],
+  { topic:'الفئة العمرية', kw:['من سن كام','اصغر سن','اكبر سن','يصلح لعمر','مناسب لعمر','للكبار كمان','عنده كام سنة يصلح','كام سنة يبدأ'],
+    extra:['اطفال','كبار','عمر','سن','سنه'],
     a:'البرنامج يناسب كل الأعمار تقريباً من الأطفال (من حوالي ٦ سنوات مع متابعة ولي الأمر) وحتى الكبار — الخطة والمعلّم بيتحددوا حسب عمر ومستوى كل طالب.' },
   { topic:'الدول والمكان', kw:['بتشتغلوا في بلد ايه','برا مصر','خارج مصر','اي دولة','متاح فين'],
     extra:['السعوديه','الامارات','الخليج','بره','خارج'],
     a:'الأكاديمية أونلاين بالكامل، فتقدر تلتحق من أي دولة في العالم طالما عندك إنترنت — الأسعار بتتحول تلقائياً لعملة بلدك عند الدفع.' },
-  { topic:'مدة الاشتراك والتجديد', kw:['الاشتراك بكام شهر','اشترك سنه','التجديد ازاي','الاشتراك شهري ولا سنوي'],
-    extra:['تجديد','شهري','سنوي'],
+  { topic:'مدة الاشتراك والتجديد', kw:['الاشتراك بكام شهر','اشترك سنه','التجديد ازاي','الاشتراك شهري ولا سنوي','بيتجدد لوحده','تجديد تلقائي','هيتجدد ازاي'],
+    extra:['تجديد','شهري','سنوي','يتجدد'],
     a:'الاشتراك شهري ويتجدد تلقائياً من لوحتك بنفس طريقة الدفع، وتقدر توقف التجديد في أي وقت من غير أي التزام طويل المدى.' },
   { topic:'الضمان والجودة', kw:['فيه ضمان','ياريت اطمن','ضمان الجودة','لو الخدمة مش كويسة'],
     extra:['ضمان','جوده','مضمون'],
@@ -358,33 +359,63 @@ const CB_THANKS = ['شكرا','مشكور','تسلم','جزاك الله خير'
 function cbIsGreeting(nq){ return CB_GREETINGS.some(g=>nq.includes(cbNorm(g))) && nq.length<25; }
 function cbIsThanks(nq){ return CB_THANKS.some(g=>nq.includes(cbNorm(g))); }
 let CB_LAST_TOPIC = null;
-const CB_STOPWORDS = new Set(['من','في','فى','على','الى','إلى','عن','مع','هل','ما','او','أو','ان','إن','هو','هي','دي','ده','كده','يا','لو','لا','و','ف','ثم','كل','عند','عندي','عندك','بس','فقط','اللي','الذي','التي']);
+const CB_STOPWORDS = new Set(['من','في','فى','على','الى','إلى','عن','مع','هل','ما','او','أو','ان','إن','هو','هي','دي','ده','كده','يا','لو','لا','و','ف','ثم','كل','عند','عندي','عندك','بس','فقط','اللي','الذي','التي',
+  'انا','احنا','انت','انتوا','انتم','هم','بتاع','بتاعت','بتاعي','بتاعك','زي','ولا','منين','ازاى','دى','ايوه','لا','مش','ليست','ليس','كان','تكون','يكون','ممكن','اقدر','اقدرش','حابب','حبيت','عايزين','محتاج','محتاجه','سؤال','استفسار','معلومه','معلومة','واحد','واحده','شويه','شوي','خالص']);
 function cbStripAl(w){ return (w.length>4 && w.startsWith('ال')) ? w.slice(2) : w; }
 function cbTokens(s){ return cbNorm(s).split(' ').filter(w=>w.length>1 && !CB_STOPWORDS.has(w)).map(cbStripAl); }
-/* مطابقة أكثر مرونة: بدل ما نشترط تطابق العبارة كاملة كنص فرعي متجاور،
-   بنجمع نقاط من (أ) تطابق عبارة كاملة من كلمات الموضوع كنص فرعي (وزن أعلى)
-   و(ب) تداخل كلمة-كلمة بين سؤال الزائر وكل كلمات الموضوع (وزن أخف)،
-   عشان يفهم لو الكلام معاد ترتيبه أو جزء منه بس اتكتب. */
+/* وزن كل كلمة يتحدد عكسياً حسب عدد المواضيع اللي بتستخدمها (IDF) —
+   كلمة زي "نظام" أو "حصة" بتتكرر في عشرات المواضيع فوزنها ضعيف جداً،
+   بينما كلمة زي "استرجاع" أو "تجويد" نادرة فوزنها عالي ومحدِّد. هيك
+   مبقاش اشتراك كلمة عامة واحدة كفيل إنه يخلط بين موضوعين مختلفين تماماً. */
+let CB_TOKEN_IDF = null;
+let CB_ITEM_TOKENS = null;
+function cbBuildIndex(){
+  if(CB_TOKEN_IDF) return;
+  CB_ITEM_TOKENS = CHATBOT_FAQ.map(item=>{
+    const set = new Set();
+    item.kw.forEach(k=>cbTokens(cbNorm(k)).forEach(w=>set.add(w)));
+    (item.extra||[]).forEach(w=>cbTokens(cbNorm(w)).forEach(t=>set.add(t)));
+    return set;
+  });
+  const df = {};
+  CB_ITEM_TOKENS.forEach(set=>{ set.forEach(w=>{ df[w]=(df[w]||0)+1; }); });
+  const N = CHATBOT_FAQ.length;
+  CB_TOKEN_IDF = {};
+  Object.keys(df).forEach(w=>{ CB_TOKEN_IDF[w] = Math.log(1 + N/df[w]); });
+}
+function cbTokenWeight(w){ return CB_TOKEN_IDF[w] || 0.3; }
+/* مطابقة بوزن مزدوج: (أ) تطابق عبارة كاملة من كلمات الموضوع كنص فرعي
+   متجاور (وزن أعلى، مضروب في متوسط ندرة كلماتها)، و(ب) تداخل كلمة-كلمة
+   موزون بالندرة (IDF) بدل نقطة ثابتة لكل كلمة — فكلمة نادرة مشتركة بين
+   السؤال والموضوع بتفرق أكتر بكتير من كلمة عامة زي "حصة" أو "نظام".
+   وبعد الحساب، لازم أفضل نتيجة تتفوق بوضوح عن ثاني أفضل نتيجة قبل ما
+   نجاوب بثقة — لو النتيجتين متقاربتين، الأفضل نسأل توضيح بدل ما "نخرف". */
 function cbMatch(q){
+  cbBuildIndex();
   const nq = cbNorm(q);
   const qTokens = cbTokens(nq);
   if(!qTokens.length) return null;
-  let best=null, bestScore=0, second=null, secondScore=0;
-  CHATBOT_FAQ.forEach(item=>{
+  let best=null, bestScore=0, second=null, secondScore=0, bestIdx=-1;
+  CHATBOT_FAQ.forEach((item,idx)=>{
     let score=0;
-    const itemTokens = new Set();
     item.kw.forEach(k=>{
       const nk = cbNorm(k);
-      if(nq.includes(nk)) score += nk.split(' ').length * 1.6; /* عبارات أطول ومطابقة كاملة = وزن أعلى */
-      cbTokens(nk).forEach(w=>itemTokens.add(w));
+      if(nq.includes(nk)){
+        const toks = cbTokens(nk);
+        const avgW = toks.length ? toks.reduce((a,w)=>a+cbTokenWeight(w),0)/toks.length : 1;
+        score += toks.length * 1.3 * avgW; /* عبارات أطول وأندر كلمات = وزن أعلى بكتير */
+      }
     });
-    (item.extra||[]).forEach(w=>itemTokens.add(cbNorm(w)));
-    qTokens.forEach(w=>{ if(itemTokens.has(w)) score += 1; });
-    if(score>bestScore){ second=best; secondScore=bestScore; best=item; bestScore=score; }
+    const itemTokens = CB_ITEM_TOKENS[idx];
+    qTokens.forEach(w=>{ if(itemTokens.has(w)) score += cbTokenWeight(w); });
+    if(score>bestScore){ second=best; secondScore=bestScore; best=item; bestScore=score; bestIdx=idx; }
     else if(score>secondScore){ second=item; secondScore=score; }
   });
-  if(bestScore>=1){ CB_LAST_TOPIC = best; return { item:best, confident:bestScore>=2, alt:secondScore>=1?second:null }; }
-  return null;
+  const MIN_SCORE = 1.4; /* حد أدنى مطلق — تحت ده نعتبره مفيش تطابق حقيقي أصلاً */
+  if(bestScore < MIN_SCORE) return null;
+  const clearMargin = bestScore >= secondScore * 1.6 || (bestScore - secondScore) >= 1.2;
+  CB_LAST_TOPIC = best;
+  return { item:best, confident: clearMargin && bestScore>=2, alt: (!clearMargin && secondScore>=MIN_SCORE*0.6) ? second : null };
 }
 function cbEsc(t){ const d=document.createElement('div'); d.textContent=String(t||''); return d.innerHTML; }
 const CB_WHATSAPP_LINK = 'https://wa.me/'+CB_WHATSAPP;
