@@ -6,6 +6,31 @@
 create extension if not exists pgcrypto;
 
 -- ------------------------------------------------------------
+-- ٠-أ) صلاحيات رفع صور إيصالات الدفع (Storage) — كانت ناقصة تماماً،
+--      فكل رفع إيصال كان بيفشل بصمت والكود القديم كان بيخزّن الصورة
+--      كنص base64 عملاق في قاعدة البيانات بدل الرفع الفعلي للـ Storage.
+-- ------------------------------------------------------------
+insert into storage.buckets (id, name, public)
+values ('receipts', 'receipts', true)
+on conflict (id) do update set public = true;
+
+drop policy if exists "authenticated upload receipts" on storage.objects;
+create policy "authenticated upload receipts" on storage.objects
+  for insert to authenticated
+  with check (bucket_id = 'receipts');
+
+drop policy if exists "authenticated update own receipts" on storage.objects;
+create policy "authenticated update own receipts" on storage.objects
+  for update to authenticated
+  using (bucket_id = 'receipts')
+  with check (bucket_id = 'receipts');
+
+drop policy if exists "public read receipts" on storage.objects;
+create policy "public read receipts" on storage.objects
+  for select to public
+  using (bucket_id = 'receipts');
+
+-- ------------------------------------------------------------
 -- ٠) السماح لصاحب الرسالة بتعديل رسالته في المحادثات
 --    (كانت السياسة الموجودة تسمح بالإرسال والقراءة فقط، فالتعديل كان يفشل بصمت)
 -- ------------------------------------------------------------
