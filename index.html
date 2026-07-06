@@ -1920,8 +1920,7 @@ function enrollPayment(studentId, jrId, pathId, subsidized){
     </div>`:`
     <!-- خارج مصر: فودافون كاش مش متاحة، نوجّه لواتساب لطريقة دفع تناسب دولته -->
     <div style="background:var(--cream);border:1.5px solid var(--line);border-radius:16px;padding:18px;text-align:center;margin-bottom:16px">
-      <div style="color:var(--navy-deep);font-size:13.5px;font-weight:700;margin-bottom:8px">🌍 تواصل معنا لمعرفة طريقة الدفع المناسبة لدولتك</div>
-      <div style="color:var(--muted);font-size:12.5px;margin-bottom:10px">هنرسلّك رقم حساب أو وسيلة تحويل دولية، وبعد التحويل ارفع صورة الإيصال أدناه</div>
+      <div style="color:var(--navy-deep);font-size:13.5px;font-weight:700;margin-bottom:10px">🌍 تواصل معنا لمعرفة طريقة الدفع المناسبة لدولتك</div>
       <a href="https://wa.me/${WHATSAPP}" target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:#25D366;color:#fff;padding:9px 18px;border-radius:24px;text-decoration:none;font-weight:700;font-size:14px"><svg width="18" height="18" viewBox="0 0 24 24" fill="#fff"><path d="M17.5 14.4c-.3-.1-1.7-.8-1.9-.9-.3-.1-.5-.1-.7.1-.2.3-.7.9-.9 1.1-.2.2-.3.2-.6.1-.3-.1-1.2-.5-2.3-1.4-.9-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6.1-.1.3-.3.4-.5.1-.1.2-.2.2-.4.1-.2 0-.3 0-.5-.1-.1-.7-1.6-.9-2.2-.2-.6-.5-.5-.7-.5h-.5c-.2 0-.5.1-.7.3-.3.3-1 .9-1 2.3s1 2.7 1.2 2.9c.1.2 2 3.1 4.9 4.3.7.3 1.2.5 1.6.6.7.2 1.3.2 1.8.1.5-.1 1.7-.7 1.9-1.4.2-.7.2-1.2.2-1.4-.1-.1-.3-.2-.6-.3zM12 2a10 10 0 00-8.6 15l-1.4 5 5.2-1.4A10 10 0 1012 2z"/></svg>تواصل واتساب</a>
     </div>`}
     ${isEgyptPayer?`<div style="text-align:center;margin-bottom:16px">
@@ -3702,7 +3701,9 @@ PAGES.supervisor_confirm=async function(){ setTop('تأكيد المدفوعات
   const loginIds=p.map(x=>x.s?.login_id).filter(Boolean);
   let geoMap={};
   if(loginIds.length){ try{ const { data:profs }=await sb.from('profiles').select('id,country,governorate,residence,phone,email').in('id',loginIds); (profs||[]).forEach(pr=>geoMap[pr.id]=pr); }catch(e){} }
+  _supConfirmExportData=p.map(x=>({ x, geo:geoMap[x.s?.login_id]||{} }));
   return pageHead('تأكيد المدفوعات','إيصالات بانتظار المراجعة — أكّدها لتفعيل اشتراك الطالب')+
+  (p.length?`<div style="margin-bottom:14px;text-align:left"><button class="btn" style="background:#1D6F42" onclick="exportSupervisorConfirmExcel()">${mi('chart')} تصدير Excel</button></div>`:'')+
   (p.length?`<div class="confirm-grid">${p.map(x=>{ const geo=geoMap[x.s?.login_id]||{}; const isEgypt=(geo.residence||geo.country||'')==='مصر'; return `<div class="confirm-card">
     <div class="cc-head"><div><b>${x.s?esc(x.s.full_name):'—'}</b><span class="cc-path">${pathName(x.s?.quran_path)} — ${planName(x.s?.plan_type||'rasokh')} • ${packageLabel(x.s?.package_sessions||3)}</span></div><div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end"><span class="chip gold">${x.is_subsidized?'مخفّض':'كامل'}</span>${(x.note||'').startsWith('تجديد')?`<span class="chip n" style="font-size:10.5px">${mi('refresh')} تجديد اشتراك</span>`:''}</div></div>
     <div class="cc-geo" style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0;font-size:12px">
@@ -3719,6 +3720,25 @@ PAGES.supervisor_confirm=async function(){ setTop('تأكيد المدفوعات
   </div>`; }).join('')}</div>`
   :`<div class="card" style="text-align:center;padding:40px"><div class="empty-ic">${mi('inbox')}</div><h3 style="color:var(--navy-deep)">لا إيصالات بانتظار التأكيد</h3><p style="color:var(--muted);font-size:14px">ستظهر هنا إيصالات الطلاب فور رفعها.</p></div>`);
 };
+let _supConfirmExportData=[];
+function exportSupervisorConfirmExcel(){
+  if(!_supConfirmExportData.length){ toast('لا يوجد بيانات لتصديرها'); return; }
+  const rows=_supConfirmExportData.map(({x,geo},i)=>[
+    i+1, x.s?x.s.full_name:'—', pathName(x.s?.quran_path), planName(x.s?.plan_type||'rasokh'),
+    packageLabel(x.s?.package_sessions||3), fmtPayAmount(x.amount,x.currency_code),
+    x.payment_method==='vodafone'?'فودافون كاش':x.payment_method==='international'?'تحويل دولي':x.payment_method||'—',
+    x.reference_number||'—', x.is_subsidized?'نعم':'لا', (x.note||'').startsWith('تجديد')?'تجديد':'اشتراك جديد',
+    geo.residence||geo.country||'—', geo.phone||x.s?.phone||'—', geo.email||'—'
+  ]);
+  const ws=buildStyledSheet('💳 إيصالات بانتظار التأكيد — أكاديمية الهدى',
+    ['#','الطالب','المسار','النظام','الباقة','المبلغ','وسيلة الدفع','مرجع العملية','مخفّض؟','نوع الطلب','بلد الإقامة','الهاتف','البريد'], rows);
+  const wb=XLSX.utils.book_new();
+  wb.Props={ Title:'أكاديمية الهدى — إيصالات بانتظار التأكيد', Author:'أكاديمية الهدى', CreatedDate:new Date() };
+  XLSX.utils.book_append_sheet(wb,ws,'تأكيد المدفوعات');
+  const today=new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, 'تأكيد_المدفوعات_'+today+'.xlsx');
+  toast&&toast('✅ تم تصدير ملف Excel');
+}
 function pathName(id){ const p=(typeof QURAN_PATHS!=='undefined')&&QURAN_PATHS.find(x=>x.id===id); return p?p.name:'—'; }
 function viewReceipt(url){ $('#modalHost').innerHTML=`<div class="modal-bg show" onclick="closeModal()"><img src="${url}" style="max-width:90%;max-height:90vh;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,0.5)"></div>`; }
 async function confirmPay(payId, studentId, pathId){
@@ -4045,8 +4065,12 @@ async function studentDetailModal(id){
   let geo={};
   const geoOwnerId=s.login_id||s.parent_id;
   if(geoOwnerId){ try{ const { data:pr }=await sb.from('profiles').select('country,governorate,residence,phone,email').eq('id',geoOwnerId).maybeSingle(); geo=pr||{}; }catch(e){} }
+  // آخر طلب التحاق سجّله وليّ الأمر/الطالب وقت التسجيل — عشان الإشراف يشوف كل حاجة سجّلها وقت الدخول
+  let jr=null;
+  try{ const { data:jrs }=await sb.from('join_requests').select('*').eq('student_id',id).order('id',{ascending:false}).limit(1); jr=jrs&&jrs[0]||null; }catch(e){}
   const isEgypt=(geo.residence||geo.country||'')==='مصر';
   const row=(lbl,val)=>val?`<div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted);font-size:13px">${lbl}</span><b style="font-size:13.5px">${esc(val)}</b></div>`:'';
+  const longRow=(lbl,val)=>val?`<div style="padding:9px 0;border-bottom:1px solid var(--line)"><div style="color:var(--muted);font-size:13px;margin-bottom:4px">${lbl}</div><div style="font-size:13.5px;line-height:1.7">${esc(val)}</div></div>`:'';
   $('#modalHost').innerHTML=`<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal">
     <h3>${mi('child')} بيانات ${esc(s.full_name)}</h3>
     <div style="margin:6px 0 14px"><span class="chip ${isEgypt?'g':'n'}">${isEgypt?'🇪🇬 داخل مصر':'🌍 خارج مصر'}</span> <span class="chip ${s.enrollment_status==='active'?'g':'gold'}" style="font-size:11px">${{pending:'جديد',awaiting_payment:'ينتظر الدفع',awaiting_confirm:'ينتظر التأكيد',active:'نشط'}[s.enrollment_status]||s.enrollment_status}</span></div>
@@ -4061,6 +4085,15 @@ async function studentDetailModal(id){
     ${row('المحافظة / المدينة',geo.governorate)}
     ${row('الهاتف',geo.phone||s.phone)}
     ${row('البريد',geo.email)}
+    ${jr?`<div style="margin:14px 0 6px;font-weight:700;color:var(--navy-deep);font-size:13.5px">${mi('clipboard')} بيانات استبيان التسجيل</div>
+    ${row('نوع الطلب',jr.request_type==='subsidy'?'طلب تخفيض':'التحاق عادي')}
+    ${longRow('الخبرة السابقة في الحفظ',jr.prev_experience)}
+    ${longRow('الصعوبات التي واجهته',jr.difficulties)}
+    ${longRow('الدافع للالتحاق',jr.motivation)}
+    ${row('الحالة الأسرية',jr.family_status)}
+    ${row('حالة الأب',jr.father_status)}
+    ${row('عدد المُعالين',jr.dependents!=null?ar(jr.dependents):'')}
+    ${row('المبلغ الذي يستطيع دفعه',jr.affordable!=null?ar(jr.affordable)+' ج.م':'')}`:''}
     <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إغلاق</button></div>
   </div></div>`;
 }
