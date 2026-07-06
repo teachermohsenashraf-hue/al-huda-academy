@@ -162,7 +162,10 @@ document.addEventListener('click', (e)=>{
 const CB_WHATSAPP = '201227958232';
 const CHATBOT_FAQ = [
   { topic:'الأسعار', kw:['سعر','اسعار','تكلفه','فلوس','اشتراك شهري','رسوم','باقات','كام السعر','بكام','بكام الاشتراك','هيكلفني كام','السعر ايه','عايز اعرف السعر','ثمن الاشتراك','مصاريف الشهر','قد ايه الاشتراك'],
-    a:'باقة اشتراك واحدة بسيطة بنفس السعر لنظام رسوخ والنظام المرن معاً: ٤٥٠ ج.م/شهر لو من مصر، ١٠٥ ريال لو من السعودية، أو ٣٠ دولار لأي دولة تانية. الاشتراك فيه ٣ حصص أسبوعياً (٣٠ دقيقة)، وتقدر تنسّق مع معلمك تخليها حصتين (٤٥ دقيقة) أو حصة واحدة (ساعة ونصف) براحتك.' },
+    a:function(){
+      const priceStr = CB_DETECTED_CC==='SA' ? '١٠٥ ريال سعودي/شهر' : (CB_DETECTED_CC==='EG' ? '٤٥٠ ج.م/شهر' : '٣٠ دولار/شهر');
+      return 'باقة اشتراك واحدة بنفس السعر لنظام رسوخ والنظام المرن معاً: '+priceStr+'. الاشتراك فيه ٣ حصص أسبوعياً (٣٠ دقيقة)، وتقدر تنسّق مع معلمك تخليها حصتين (٤٥ دقيقة) أو حصة واحدة (ساعة ونصف) براحتك.';
+    } },
   { topic:'المسارات', kw:['مسار','مسارات','جزء عم','الزهراوان','المفصل','ربع القران','نصف القران','قران كامل','كام مسار','ايه المسارات المتاحه','عايز احفظ ايه','انهي مسار افضل','اختار مسار ازاي'],
     a:'عندنا ٦ مسارات لحفظ القرآن: جزء عمّ وتبارك، الزهراوان، المفصّل، ربع القرآن، نصف القرآن، والقرآن كاملاً — كل مسار متاح في نظام رسوخ والنظام المرن، وتقدر تختار المسار المناسب لمستواك وهدفك.' },
   { topic:'الحصون', kw:['حصون','حصن','ورد','اوراد','منهج الحفظ','حصون النظام المرن','حصون رسوخ'],
@@ -484,7 +487,7 @@ function cbSend(){
   const hit = cbMatch(q);
   if(hit){
     setTimeout(()=>{
-      cbAppendBot(hit.item.a);
+      cbAppendBot(typeof hit.item.a === 'function' ? hit.item.a() : hit.item.a);
       if(!hit.confident && hit.alt){
         const b = document.getElementById('cbBody');
         if(b) b.insertAdjacentHTML('beforeend', `<div class="cb-chips"><span class="cb-chip" onclick="cbAsk('${hit.alt.kw[0]}')">${hit.alt.kw[0]}</span></div>`);
@@ -526,7 +529,9 @@ document.querySelectorAll('a[href*="index.html#signup"]').forEach(a=>{
    (مش محسوبة بسعر صرف)، فكل عنصر سعر لازم يحمل data-egp وdata-sar
    وdata-usd الصريحة (شوف عنصر التسعير في صفحة الأسعار كمرجع).
    ============================================================ */
+let CB_DETECTED_CC = 'EG'; /* دولة الزائر المكتشفة — يستخدمها الشات بوت ليرد بعملة واحدة بس بدل الثلاث */
 function applyPricingForCountry(cc){
+  CB_DETECTED_CC = cc || 'EG';
   if(!cc || cc === 'EG') return; /* مصر أو تعذّر التحديد: يفضل الجنيه المصري كما هو */
   const isSA = cc === 'SA';
   const attr = isSA ? 'data-sar' : 'data-usd';
@@ -604,21 +609,18 @@ function goEnroll(pathId, system, sessions, fee, type){
 }
 
 /* ============================================================
-   قسم "اختر نظامك وباقتك" في نهاية صفحة كل مسار — مكوّن واحد
-   مشترك يُستخدم في كل صفحات المسارات الستة بدل تكرار نفس الأقسام.
-   لو الزائر جاي من صفحة نظام معيّن (?system=rasokh|flexible) يظهر
-   له الباقات الثلاثة مباشرة، ولو جاي من الصفحة الرئيسية يختار
-   نظامه الأول.
+   قسم "اختر نظامك" في نهاية صفحة كل مسار — مكوّن واحد مشترك
+   يُستخدم في كل صفحات المسارات الستة بدل تكرار نفس الأقسام.
+   الباقة موحّدة وبنفس السعر للنظامين، فاختيار النظام هنا خاص
+   بمحتوى الحفظ فقط وليس بالسعر.
    ============================================================ */
+const SINGLE_FEE = { EGP:450, SAR:105, USD:30 };
 const MKT_SYSTEMS = {
   rasokh:{ name:'نظام رسوخ', desc:'خمسة حصون يومية — الأكثر شمولاً وضبطاً',
-    icon:'<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3.5v5.2c0 5-3.4 8.4-8 9.8-4.6-1.4-8-4.8-8-9.8V6.5z"/><path d="M8.5 12.2l2.3 2.3 4.5-4.7"/></svg>',
-    packages:[ {sessions:4,fee:450}, {sessions:8,fee:700,popular:true}, {sessions:12,fee:850} ] },
+    icon:'<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3.5v5.2c0 5-3.4 8.4-8 9.8-4.6-1.4-8-4.8-8-9.8V6.5z"/><path d="M8.5 12.2l2.3 2.3 4.5-4.7"/></svg>' },
   flexible:{ name:'النظام المرن', desc:'ثلاثة حصون أساسية — أخف وأكثر مرونة',
-    icon:'<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h3.5a1 1 0 0 1 1 1v2a2 2 0 1 0 0 4v2a1 1 0 0 1-1 1H10a2 2 0 1 1-4 0H4.5a1 1 0 0 1-1-1V9a2 2 0 1 0 0-4V3.5a1 1 0 0 1 1-1H8a2 2 0 0 1 1 0"/><path d="M14 15h5.5a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1H14"/></svg>',
-    packages:[ {sessions:4,fee:400}, {sessions:8,fee:650,popular:true}, {sessions:12,fee:800} ] },
+    icon:'<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h3.5a1 1 0 0 1 1 1v2a2 2 0 1 0 0 4v2a1 1 0 0 1-1 1H10a2 2 0 1 1-4 0H4.5a1 1 0 0 1-1-1V9a2 2 0 1 0 0-4V3.5a1 1 0 0 1 1-1H8a2 2 0 0 1 1 0"/><path d="M14 15h5.5a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1H14"/></svg>' },
 };
-function pkgLabel(n){ return arNum(n)+' '+(n===12?'حصة':'حصص')+' شهرياً'; }
 function initPathEnroll(){
   const box = document.getElementById('pathEnrollBox');
   if(!box) return;
@@ -662,23 +664,24 @@ function renderPathPackages(box, pathId, sys){
   box.innerHTML = `
     <div class="sec-head reveal">
       <div class="tag">${s.name}</div>
-      <h2>باقات ${s.name} الشهرية لهذا المسار</h2>
-      <p>مدة الحصة 30 دقيقة، وكل الباقات تشمل تقارير يومية لوليّ الأمر. <a href="javascript:void(0)" onclick="clearPathSystem()" style="color:var(--emerald);font-weight:700">تغيير النظام ←</a></p>
+      <h2>اشتراك ${s.name} الشهري لهذا المسار</h2>
+      <p>باقة واحدة بنفس السعر لكل الأنظمة. <a href="javascript:void(0)" onclick="clearPathSystem()" style="color:var(--emerald);font-weight:700">تغيير النظام ←</a></p>
     </div>
-    <div class="pricing-grid">
-      ${s.packages.map(pk=>`
-      <div class="price-card ${pk.popular?'pop':''} reveal">
-        <div class="pc-name">${pkgLabel(pk.sessions)}</div>
-        <div class="pc-price"><span class="amt" data-egp="${pk.fee}">${pk.fee}</span><small class="cur-label"> ج.م/شهر</small></div>
+    <div class="pricing-grid" style="grid-template-columns:1fr;max-width:420px;margin:0 auto">
+      <div class="price-card pop reveal">
+        <div class="pc-name">الاشتراك الشهري</div>
+        <div class="pc-price"><span class="amt" data-egp="${SINGLE_FEE.EGP}" data-sar="${SINGLE_FEE.SAR}" data-usd="${SINGLE_FEE.USD}">${SINGLE_FEE.EGP}</span><small class="cur-label"> ج.م/شهر</small></div>
         <ul class="pc-feats">
-          <li><span class="ck">✓</span> حلقة فرديّة خاصّة (30 دقيقة)</li>
+          <li><span class="ck">✓</span> الاشتراك يشمل ٣ حصص أسبوعياً، مدة الحصة نصف ساعة</li>
+          <li><span class="ck">✓</span> مرونة بالتنسيق مع معلمك: حصّتان أسبوعياً (٤٥ دقيقة)، أو حصة واحدة (ساعة ونصف)</li>
+          <li><span class="ck">✓</span> حلقة فرديّة خاصّة بالكامل</li>
           <li><span class="ck">✓</span> متابعة وتقارير يومية</li>
           <li><span class="ck">✓</span> معلّم مخصّص حسب مستواك</li>
         </ul>
-        <a class="btn-primary" href="javascript:void(0)" onclick="goEnroll('${pathId}','${sys}',${pk.sessions},${pk.fee},'full')">اشترك الآن</a>
-      </div>`).join('')}
+        <a class="btn-primary" href="javascript:void(0)" onclick="goEnroll('${pathId}','${sys}',3,${SINGLE_FEE.EGP},'full')">اشترك الآن</a>
+      </div>
     </div>
-    <p style="text-align:center;margin-top:20px;font-size:13.5px;color:var(--ink-soft)">الاشتراك أعلى من إمكانياتك؟ <a href="javascript:void(0)" onclick="goEnroll('${pathId}','${sys}',${s.packages[0].sessions},${s.packages[0].fee},'subsidy')" style="color:var(--emerald);font-weight:700">اطلب تخفيضاً</a></p>`;
+    <p style="text-align:center;margin-top:20px;font-size:13.5px;color:var(--ink-soft)">الاشتراك أعلى من إمكانياتك؟ <a href="javascript:void(0)" onclick="goEnroll('${pathId}','${sys}',3,${SINGLE_FEE.EGP},'subsidy')" style="color:var(--emerald);font-weight:700">اطلب تخفيضاً</a></p>`;
   applyLocalizedPricing();
   revealBoxNow(box);
 }

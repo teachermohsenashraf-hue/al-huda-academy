@@ -1704,7 +1704,7 @@ function showPathDetail(pathId){
       <p class="plan-desc" id="planDesc">${PLAN_SYSTEMS.rasokh.desc}</p>
       <div class="plan-pkg active" style="cursor:default">
         <b id="singlePlanPrice">${fmtPrice()} <small>/شهر</small></b>
-        <span class="plan-pkg-fee" style="font-size:12.5px;font-weight:400;line-height:1.7">٣ حصص أسبوعياً (٣٠ د) — أو حصّتان (٤٥ د) أو حصة واحدة (ساعة ونصف) حسب اتفاقك مع معلمك</span>
+        <span class="plan-pkg-fee" style="font-size:12.5px;font-weight:400;line-height:1.7">الاشتراك يشمل ٣ حصص أسبوعياً مدة الحصة نصف ساعة، ويتيح لك النظام مرونة بالتنسيق مع معلمك أن تجعلهم حصّتين أسبوعياً مدة الحصة ٤٥ دقيقة، أو حصة واحدة مدتها ساعة ونصف.</span>
       </div>
       <p style="font-size:12px;color:var(--muted);margin-top:10px">السعر بيظهر تلقائياً بعملة دولتك، ولو محتاج مساعدة تواصل معنا على <a href="https://wa.me/${WHATSAPP}" target="_blank" style="color:var(--emerald);font-weight:700">واتساب</a>.</p>
     </div>
@@ -1898,7 +1898,7 @@ async function submitEnrollment(pathId, type, childId){
   }
 }
 function enrollPayment(studentId, jrId, pathId, subsidized){
-  const fullFee = SELECTED_PLAN.fee||700;
+  const fullFee = SELECTED_PLAN.fee||currentFee();
   const dueFee = subsidized ? Math.round(fullFee/2) : fullFee;
   const FAWRY_NUM = '01055747958';
   $('#modalHost').innerHTML=`<div class="modal-bg show"><div class="modal enroll-modal">
@@ -3003,7 +3003,7 @@ function subExpiredGate(s, isParent){
   </div>`;
 }
 async function renewSubscription(studentId, pathId, subsidized, planType, sessions, fee){
-  SELECTED_PLAN = { type:planType||'rasokh', sessions:sessions||8, fee:fee||700 };
+  SELECTED_PLAN = { type:planType||'rasokh', sessions:sessions||3, fee:fee||currentFee() };
   enrollPayment(studentId, null, pathId, subsidized);
 }
 PAGES.parent_fees=async function(){ const kids=await myChildren(); if(!kids.length) return noChildMsg(); setTop('الرسوم والتجديد','');
