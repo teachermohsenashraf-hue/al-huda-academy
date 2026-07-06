@@ -3,7 +3,11 @@
 -- (بند 2، 3، 4 اللي محتاجين خطوة يدوية برا الكود)
 -- ============================================================
 
-create extension if not exists pgcrypto;
+-- ملاحظة: في Supabase الإضافة دي بتتركّب افتراضياً في سكيمة extensions
+-- مش public، فأي دالة بتحدد search_path=public بس مش هتلاقي gen_salt/crypt
+-- (رسالة الخطأ: function gen_salt(unknown) does not exist). لو الإضافة
+-- مركّبة بالفعل بسكيمة تانية، السطر ده بس بيتجاهلها من غير ما يغيّر مكانها.
+create extension if not exists pgcrypto with schema extensions;
 
 -- ------------------------------------------------------------
 -- ٠-ج) عمود عملة الدفعة — لتوحيد الباقة بسعر واحد يظهر بعملة كل دولة
@@ -118,7 +122,7 @@ create or replace function admin_reset_password(target_email text, new_password 
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   target_user_id uuid;
@@ -155,7 +159,7 @@ create or replace function create_linked_account(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   new_user_id uuid;
