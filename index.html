@@ -2587,6 +2587,8 @@ PAGES.student_dash = async function(){
   SESSION._sid=s.id;
   // إذا لم يكتمل الالتحاق، نعرض شاشة الحالة
   if(s.enrollment_status!=='active') return studentStatusCard(s)||noStudentMsg();
+  // الاشتراك مفعّل لكن لسه ما اختارش معلماً — نوجّهه لاختيار المعلم قبل أي حاجة تانية
+  if(!s.group_id && !s.chosen_teacher_id) return `<div class="card" style="text-align:center;padding:40px"><div class="empty-ic">${mi('chooseTeacher')}</div><h3 style="color:var(--navy-deep);margin-bottom:8px">اشتراكك مفعّل! خطوة أخيرة قبل البدء</h3><p style="color:var(--muted);font-size:14px;line-height:1.8;max-width:440px;margin:0 auto">اختر معلمك الآن ليضع لك خطتك القرآنية ويبدأ التواصل معك على مواعيد حلقتك.</p><button class="btn" style="margin-top:16px" onclick="navigate('choose')">${mi('chooseTeacher')} اختر معلمك</button></div>`;
   const { data:hus }=await sb.from('husoon_marks').select('*').eq('student_id',s.id).order('hisn_no');
   const done=hus.filter(h=>h.state==='done').length, part=hus.filter(h=>h.state==='part').length;
   const hp=Math.round((done+part*0.5)/(hus.length||1)*100);
@@ -2951,7 +2953,8 @@ PAGES.parent_dash=async function(){
   const attMap={present:'p',absent:'a',late:'l'};
   const attRows=(att||[]).slice().reverse();
   return `<div style="display:flex;justify-content:flex-end;margin-bottom:16px">${kidSwitch(kids)}</div>
-  <div class="kid-hero"><div class="kid-av">🧒</div><div class="kid-info"><h1>${esc(k.full_name)}</h1><div class="meta">${g?g.name:''} • ${g?g.age_range:''} • ${g&&g.teacher?g.teacher.full_name:''}</div><div>${k.track!=='tarbiya'?'<span class="kbadge">📖 الحفظ</span>':''}${k.track!=='quran'?'<span class="kbadge">🌿 التربية</span>':''}</div></div><div style="position:relative;z-index:2;display:flex;gap:10px;flex-wrap:wrap">${k.group_id?`<button class="btn gold" onclick="SESSION._activeHalqa=${k.group_id};navigate('myhalqa')">${mi('mosque')} دخول الحلقة</button>`:''}<button class="btn ghost" onclick="navigate('chat')">${mi('chat')} راسل المعلم</button></div></div>
+  <div class="kid-hero"><div class="kid-av">🧒</div><div class="kid-info"><h1>${esc(k.full_name)}</h1><div class="meta">${g?g.name:''} • ${g?g.age_range:''} • ${g&&g.teacher?g.teacher.full_name:''}</div><div>${k.track!=='tarbiya'?'<span class="kbadge">📖 الحفظ</span>':''}${k.track!=='quran'?'<span class="kbadge">🌿 التربية</span>':''}</div></div><div style="position:relative;z-index:2;display:flex;gap:10px;flex-wrap:wrap">${k.group_id?`<button class="btn gold" onclick="SESSION._activeHalqa=${k.group_id};navigate('myhalqa')">${mi('mosque')} دخول الحلقة</button><button class="btn ghost" onclick="navigate('chat')">${mi('chat')} راسل المعلم</button>`:(k.enrollment_status==='active'?`<button class="btn gold" onclick="navigate('choose')">${mi('chooseTeacher')} اختر معلماً لابنك</button>`:'')}</div></div>
+  ${(!k.group_id&&k.enrollment_status==='active')?`<div style="background:var(--cream);padding:12px 16px;border-radius:12px;margin-bottom:16px;font-size:13px;color:var(--muted);line-height:1.7">💡 اشتراك ${esc(k.full_name.split(' ')[0])} مفعّل، وباقي خطوة: اختر له معلماً ليضع له خطته ويبدأ حلقته.</div>`:''}
   <div class="stats">${statCard(mi('check'),'e',pct(k.attendance),'الحضور')}${statCard(mi('book'),'e',ar(k.pages),'صفحة')}${statCard(mi('medal'),'g',ar(k.points),'نقطة')}${statCard(mi('medal'),'n',k.rank===1?'الأول':'ال'+ar(k.rank),'الترتيب')}</div>
   <div class="grid2"><div class="card"><div class="ch"><h3>تقرير الأداء</h3></div>${reportBars(k)}</div><div class="card"><div class="ch"><h3>ملاحظات المعلم</h3></div>${await notesBlock(k.id)}</div></div>
   <div class="card" style="margin-top:18px"><div class="ch"><h3>${mi('calendar')} الحضور — آخر ٧ أيام</h3></div><div class="att">${attRows.length?attRows.map(a=>`<div class="aday"><div class="d">${new Date(a.day).toLocaleDateString('ar-EG',{weekday:'short'})}</div><div class="m ${attMap[a.status]||'f'}">${a.status==='present'?'✓':a.status==='absent'?'✕':'—'}</div></div>`).join(''):'<p style="color:var(--muted)">لا سجلّ بعد.</p>'}</div></div>`;
@@ -3373,7 +3376,7 @@ PAGES.parent_children=async function(){ setTop('أبنائي','أضف أبناء
     <span class="ck-meta">${k.age?ar(k.age)+' سنة':''} ${k.quran_path?'• '+pathName(k.quran_path):''}</span>
     <div class="ck-status ${k.enrollment_status==='active'?'on':''}">${statusLabel(k.enrollment_status)}</div>
     <div class="ck-actions">
-      ${k.enrollment_status==='active'?`<button class="btn-sm" onclick="SESSION.currentChild=${k.id};navigate('dash')">نظرة عامة</button>`:k.enrollment_status==='pending'?`<button class="btn-sm" onclick="location.href='landing.html#systems'">اختر مساراً</button>`:''}
+      ${k.enrollment_status==='active'?(k.group_id?`<button class="btn-sm" onclick="SESSION.currentChild=${k.id};navigate('dash')">نظرة عامة</button>`:`<button class="btn-sm" onclick="navigate('choose')">${mi('chooseTeacher')} اختر معلماً</button>`):k.enrollment_status==='pending'?`<button class="btn-sm" onclick="location.href='landing.html#systems'">اختر مساراً</button>`:''}
       <button class="btn-sm ghost" onclick="editChildModal(${k.id})">تعديل</button>
     </div>
   </div>`).join('')}</div>`
@@ -7129,7 +7132,7 @@ PAGES.student_qtoday = async function(){
   const s = await myStudentRow();
   if(!s) return `<div class="qnoplan"><div class="nei">🌱</div><h3>لا توجد بيانات طالب</h3></div>`;
   const { data: plan } = await sb.from('quran_student_plans').select('*').eq('login_id',ME.id).eq('status','active').maybeSingle();
-  if(!plan) return `<div class="qnoplan"><div class="nei">🕋</div><h3>لا توجد خطة بعد</h3><p>سيقوم معلمك بإنشاء خطتك قريباً.</p></div>`;
+  if(!plan) return `<div class="qnoplan"><div class="nei">🕋</div><h3>لا توجد خطة بعد</h3><p>سينشئ معلمك خطتك بعد اختيارك له — اختر معلمك الآن لتبدأ.</p><button class="btn" style="margin-top:14px" onclick="navigate('choose')">${mi('chooseTeacher')} اختر معلمك</button></div>`;
   const today = qTodayStr();
   const { data: todayWards } = await sb.from('quran_plan_wards').select('*').eq('plan_id',plan.id).eq('planned_date',today).order('fortress_code');
   const { data: overdueWards } = await sb.from('quran_plan_wards').select('*').eq('plan_id',plan.id).lt('planned_date',today);
@@ -7226,7 +7229,7 @@ PAGES.student_qmyplan = async function(){
   const s = await myStudentRow();
   if(!s) return `<div class="qnoplan"><div class="nei">🌱</div><h3>لا بيانات</h3></div>`;
   const { data: plan } = await sb.from('quran_student_plans').select('*').eq('login_id',ME.id).eq('status','active').maybeSingle();
-  if(!plan) return `<div class="qnoplan"><div class="nei">🕋</div><h3>لا توجد خطة بعد</h3></div>`;
+  if(!plan) return `<div class="qnoplan"><div class="nei">🕋</div><h3>لا توجد خطة بعد</h3><p>سينشئ معلمك خطتك الكاملة بعد اختيارك له — اختر معلمك الآن لتبدأ.</p><button class="btn" style="margin-top:14px" onclick="navigate('choose')">${mi('chooseTeacher')} اختر معلمك</button></div>`;
   return await qRenderFullPlan(plan.id, 'student');
 };
 
