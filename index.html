@@ -5770,7 +5770,7 @@ const QURAN_DEFAULT_FORTRESSES = [
 ];
 const QURAN_DAY_NAMES = ['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت']; // index 0..6 → DB int 1..7
 
-let QSTATE = { view:'list', systemId:null, tab:'basic' };
+let QSTATE = { view:'list', systemId:null, tab:'basic', listFilter:null };
 
 function qStatusBadge(s){
   if(s==='active')   return '<span class="t">نشط</span>';
@@ -5801,57 +5801,80 @@ async function qsystemsRouter(){
   return await renderSystemsList();
 }
 
+// المستوى الأول: بطاقتا النظامين (رسوخ / المرن). المستوى الثاني: مسارات
+// النظام المختار الستة. كل مسار = صف واحد في quran_systems (فيه plan_type
+// وpath_key معاً)، فالتصنيف هنا عرض بصري بحت بدون أي تغيير في قاعدة البيانات.
 async function renderSystemsList(){
   const { data: systems, error } = await sb.from('quran_systems')
     .select('*').order('created_at',{ascending:false});
+  const all = systems||[];
 
-  let cards = '';
-  if(error || !systems || !systems.length){
-    cards = `<div class="qempty">
-      <div class="qei">🕋</div>
-      <h3>لا توجد أنظمة بعد</h3>
-      <p>ابدأ ببناء نظامك التعليمي الأول. كل نظام يحتوي على محطات متتالية، وكل محطة لها إعداداتها الخاصة للحصون الخمسة.</p>
-      <button class="btn" onclick="qNewSystem()">${mi('plus')} أنشئ نظامك الأول</button>
-    </div>`;
-  } else {
-    // fetch counts in parallel
-    const ids = systems.map(s=>s.id);
-    const { data: allStations } = await sb.from('quran_stations').select('id,system_id').in('system_id', ids);
-    const stationCount = {}; (allStations||[]).forEach(st=>{ stationCount[st.system_id]=(stationCount[st.system_id]||0)+1; });
+  if(error || !all.length){
+    return pageHead('أنظمة القرآن','الأنظمة التعليمية الكاملة (مسارات، محطات، حصون)') + qSystemsHero() +
+      `<div class="qempty">
+        <div class="qei">🕋</div>
+        <h3>لا توجد أنظمة بعد</h3>
+        <p>ابدأ ببناء نظامك التعليمي الأول. كل نظام يحتوي على مسارات، وكل مسار له محطاته المتتالية وحصونه الخاصة.</p>
+        <button class="btn" onclick="qNewSystem()">${mi('plus')} أنشئ نظامك الأول</button>
+      </div>`;
+  }
 
-    cards = `<div class="qgrid">` + systems.map(s=>{
-      const trackIcon = s.track==='fortresses' ? '🛡️' : '🎯';
+  const ids = all.map(s=>s.id);
+  const { data: allStations } = await sb.from('quran_stations').select('id,system_id').in('system_id', ids);
+  const stationCount = {}; (allStations||[]).forEach(st=>{ stationCount[st.system_id]=(stationCount[st.system_id]||0)+1; });
+
+  // المستوى الثاني: مسارات النظام المختار
+  if(QSTATE.listFilter){
+    const filtered = all.filter(s=>(s.plan_type||'rasokh')===QSTATE.listFilter);
+    const pathOrder = QURAN_PATHS.map(p=>p.id);
+    filtered.sort((a,b)=>pathOrder.indexOf(a.path_key)-pathOrder.indexOf(b.path_key));
+    const cards = `<div class="qgrid">` + filtered.map(s=>{
       const klass = s.status==='archived' ? 'qcard archived' : s.status==='draft' ? 'qcard draft' : 'qcard';
       const stCnt = stationCount[s.id]||0;
-      const studyDays = qIntsToDayNames(s.study_days);
+      const pathInfo = QURAN_PATHS.find(p=>p.id===s.path_key);
       return `<div class="${klass}" onclick="qOpenSystem('${esc(s.id)}')">
-        <div class="qcicon">${trackIcon}</div>
-        <h3>${esc(s.name)}</h3>
+        <div class="qcicon">${pathInfo?pathInfo.icon:'📖'}</div>
+        <h3>${pathInfo?esc(pathInfo.name):esc(s.name)}</h3>
         <div class="qcdesc">${esc(s.description||'—')}</div>
         <div class="qcmeta">
-          <span class="t">${qPlanTypeLabel(s.plan_type)}</span>
-          ${s.path_key ? `<span>${qPathLabel(s.path_key)}</span>` : ''}
           ${qStatusBadge(s.status)}
           ${s.expected_duration_weeks ? `<span>${ar(s.expected_duration_weeks)} أسبوع</span>` : ''}
         </div>
-        <div class="qcstats">
-          <div><b>${ar(stCnt)}</b><small>محطة</small></div>
-          <div style="text-align:start;flex:1;margin-inline-start:14px"><b style="font-size:12.5px;font-family:'Cairo';font-weight:700">${esc(studyDays||'—')}</b><small>أيام الدراسة</small></div>
-        </div>
+        <div class="qcstats"><div><b>${ar(stCnt)}</b><small>محطة</small></div></div>
       </div>`;
     }).join('') + `</div>`;
+    return `<button class="qback" onclick="qBackToSystemChoice()">← الرجوع للأنظمة</button>` +
+      pageHead(qPlanTypeLabel(QSTATE.listFilter), 'مسارات هذا النظام الستة — اضغط على مسار لإدارة محطاته وحصونه') + cards;
   }
 
-  return pageHead('أنظمة القرآن','الأنظمة التعليمية الكاملة (مسارات، محطات، حصون)') +
-    `<div class="qhero">
+  // المستوى الأول: بطاقتا النظامين
+  const byType = { rasokh: all.filter(s=>(s.plan_type||'rasokh')==='rasokh'), flexible: all.filter(s=>s.plan_type==='flexible') };
+  const tiles = ['rasokh','flexible'].map(pt=>{
+    const list = byType[pt];
+    const stCnt = list.reduce((a,s)=>a+(stationCount[s.id]||0),0);
+    return `<div class="qcard qsystile" onclick="qOpenSystemGroup('${pt}')">
+      <div class="qcicon">${pt==='rasokh'?'🛡️':'🧩'}</div>
+      <h3>${qPlanTypeLabel(pt)}</h3>
+      <div class="qcdesc">${pt==='rasokh'?'خمسة حصون يومية — الأكثر شمولاً وضبطاً':'ثلاثة حصون أساسية — أخف وأكثر مرونة'}</div>
+      <div class="qcstats"><div><b>${ar(list.length)}</b><small>مسار مُعدّ</small></div><div style="text-align:start;flex:1;margin-inline-start:14px"><b>${ar(stCnt)}</b><small>محطة إجمالاً</small></div></div>
+    </div>`;
+  }).join('');
+
+  return pageHead('أنظمة القرآن','الأنظمة التعليمية الكاملة (مسارات، محطات، حصون)') + qSystemsHero() +
+    `<div class="qgrid">${tiles}</div>`;
+}
+function qSystemsHero(){
+  return `<div class="qhero">
       <h1>🕋 إدارة الأنظمة التعليمية</h1>
-      <p>أنشئ أنظمة تعليمية متكاملة لحفظ القرآن: حدّد المسار، أضف المحطات، اضبط الحصون الخمسة لكل محطة، واحفظها كقالب جاهز للمعلمين.</p>
+      <p>اختر نظاماً (رسوخ أو المرن) لتشوف مساراته الستة، وكل مسار له محطاته المتتالية وحصونه الخاصة.</p>
       <div class="qhcta">
         <button onclick="qNewSystem()">${mi('plus')} نظام جديد</button>
         <button class="ghost" onclick="qSeedFortresses()">${mi('books')} معرفة الحصون الافتراضية</button>
       </div>
-    </div>` + cards;
+    </div>`;
 }
+function qOpenSystemGroup(planType){ try{ QSTATE.listFilter=planType; navigate('qsystems'); }catch(e){ alert('خطأ: '+e.message); console.error(e); } }
+function qBackToSystemChoice(){ try{ QSTATE.listFilter=null; navigate('qsystems'); }catch(e){ alert('خطأ: '+e.message); console.error(e); } }
 
 function qNewSystem(){ try{ QSTATE = { view:'editor', systemId:null, tab:'basic' }; navigate('qsystems'); }catch(e){ alert('خطأ: '+e.message); console.error(e); } }
 function qOpenSystem(id){ try{ QSTATE = { view:'editor', systemId:id, tab:'basic' }; navigate('qsystems'); }catch(e){ alert('خطأ: '+e.message); console.error(e); } }
@@ -5962,7 +5985,7 @@ function renderBasicTab(sys){
         <label>نوع الخطة <span class="hint">(يحدد عدد الحصون)</span></label>
         <select id="qfPlanType">
           <option value="rasokh" ${(sys.plan_type||'rasokh')==='rasokh'?'selected':''}>🛡️ رسوخ — الحصون الخمسة</option>
-          <option value="flexible" ${sys.plan_type==='flexible'?'selected':''}>🧩 الطالب يختار خطته — ٣ حصون</option>
+          <option value="flexible" ${sys.plan_type==='flexible'?'selected':''}>🧩 النظام المرن — ٣ حصون</option>
         </select>
       </div>
       <div>
@@ -7916,7 +7939,7 @@ const CHATBOT_FAQ = [
   { kw:['حصون','حصن','ورد','اوراد'],
     a:'منهج الإتقان قائم على أوراد يومية: الحفظ الجديد، المراجعة القريبة، المراجعة البعيدة، وفي مسار «رسوخ» بيتضاف ورد التلاوة وورد السماع (٥ حصون بدل ٣).' },
   { kw:['رسوخ','اختار خطته','يختار خطت','نوع الخطه','فرق بين'],
-    a:'مسار «رسوخ» نظام مُحكم بـ٥ حصون (يشمل التلاوة والسماع). أما «الطالب يختار خطته» فمرن بـ٣ حصون فقط (الحفظ، المراجعة القريبة، المراجعة البعيدة). معلمك بيضبط لك التفاصيل في أول حصة.' },
+    a:'مسار «رسوخ» نظام مُحكم بـ٥ حصون (يشمل التلاوة والسماع). أما «النظام المرن» فمرن بـ٣ حصون فقط (الحفظ، المراجعة القريبة، المراجعة البعيدة). معلمك بيضبط لك التفاصيل في أول حصة.' },
   { kw:['تسجيل','انشاء حساب','ازاي اسجل','عايز اشترك','التحق'],
     a:'تقدر تنشئ حساباً من زر «ابدأ الآن» في الصفحة الرئيسية، تختار مسارك، ترفع إيصال الدفع، وبعد تأكيد الإشراف هتقدر تختار معلمك وتبدأ حلقتك.' },
   { kw:['تغيير المعلم','ابدل المعلم','معلم تاني'],
