@@ -823,11 +823,16 @@ function showQuizResult(){
     <p style="color:var(--ink-soft);font-size:11.5px;margin-top:16px">هذا الاختبار استرشادي فقط، وتقدر تختار أي مسار آخر يعجبك.</p>
   </div>`;
 }
+// أيقونة "نجمة استرشاد" بنفس أسلوب أيقونات الموقع (خط رفيع، بدون تعبئة)
+const LQ_SPARKLE_ICON = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8"/></svg>';
 // بانر "لا تعرف مسارك؟" — يُحقن أعلى صفحة كل نظام وأعلى صفحة المسارات
 function levelQuizBanner(){
-  return `<div style="background:var(--cream-2,var(--cream));border:1.5px dashed var(--gold);border-radius:16px;padding:18px 22px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
-    <div><b style="font-family:Amiri;font-size:17px;color:var(--ink)">لا تعرف أي مسار يناسبك؟</b><p style="color:var(--ink-soft);font-size:13px;margin-top:4px">اختبار سريع بعشر أسئلة يرشّح لك المسار الأنسب لمستواك.</p></div>
-    <button class="btn-primary" onclick="openLevelQuiz()" style="white-space:nowrap">✨ ابدأ اختبار تحديد المستوى</button>
+  return `<div class="reveal" style="background:var(--cream-2,var(--cream));border:1.5px solid var(--line);border-radius:16px;padding:18px 22px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;gap:14px">
+      <div style="width:48px;height:48px;flex-shrink:0;border-radius:50%;display:grid;place-items:center;color:var(--emerald);background:color-mix(in srgb,var(--emerald) 12%, transparent)">${LQ_SPARKLE_ICON}</div>
+      <div><b style="font-family:Amiri;font-size:17px;color:var(--ink)">لا تعرف أي مسار يناسبك؟</b><p style="color:var(--ink-soft);font-size:13px;margin-top:4px">اختبار سريع بعشر أسئلة يرشّح لك المسار الأنسب لمستواك.</p></div>
+    </div>
+    <button class="btn-primary" onclick="openLevelQuiz()" style="white-space:nowrap;display:inline-flex;align-items:center;gap:8px">${LQ_SPARKLE_ICON} ابدأ اختبار تحديد المستوى</button>
   </div>`;
 }
 function mountLevelQuizBanner(){
