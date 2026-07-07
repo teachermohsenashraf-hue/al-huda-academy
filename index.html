@@ -5589,37 +5589,77 @@ async function approveReq(id){ await sb.from('enroll_requests').update({status:'
 /* ============================================================
     التقييم التشخيصي وتحديد المستوى
    ============================================================ */
-const PLACEMENT_Q = [
-  { q:'هل يستطيع الطالب قراءة الحروف العربية المنفصلة؟', a:[['نعم بطلاقة',3],['بعض الحروف',1],['لا',0]] },
-  { q:'هل يقرأ الكلمات المتصلة (مع التشكيل)؟', a:[['نعم',3],['بصعوبة',1],['لا',0]] },
-  { q:'كم يحفظ من القرآن حالياً؟', a:[['أكثر من جزء',3],['سور قصيرة',1],['لا شيء',0]] },
-  { q:'هل يعرف أحكام التجويد الأساسية؟', a:[['نعم',3],['القليل',1],['لا',0]] },
-  { q:'العمر التقريبي للطالب؟', a:[['أكبر من ١١',2],['٨–١٠',1],['٥–٧',0]] }
+// نفس بنك الأسئلة ومنطق الترشيح المستخدم حرفياً في واجهة الأكاديمية العامة
+// (PLACEMENT_QUIZ في assets/site.js) — لازم يفضلوا متطابقين لو اتعدّل أي منهم.
+const PLACEMENT_QUIZ = [
+  { q:'كم يحفظ الطالب من القرآن حالياً؟', options:[
+    {t:'لا شيء بعد',v:0},{t:'أجزاء قليلة (١–٣ أجزاء)',v:15},{t:'ربع القرآن تقريباً',v:35},{t:'نصف القرآن تقريباً',v:60},{t:'أكثر من نصف القرآن',v:85} ]},
+  { q:'ما مدى ثبات حفظه الحالي؟', options:[
+    {t:'ثابت ولا ينساه',v:10},{t:'أحياناً ينسى ويحتاج مراجعة',v:5},{t:'ينسى كثيراً',v:0} ]},
+  { q:'هل لديه خبرة سابقة في الحفظ المنظّم؟', options:[
+    {t:'لم يحفظ من قبل إطلاقاً',v:0},{t:'حفظ في كتّاب/مسجد سابقاً',v:8},{t:'درس في حلقات منظمة سابقاً',v:10} ]},
+  { q:'ما قدرته على المراجعة اليومية؟', options:[
+    {t:'يقدر يراجع يومياً بسهولة',v:10},{t:'أحياناً',v:5},{t:'صعب عليه',v:2} ]},
+  { q:'ما الهدف من الالتحاق؟', options:[
+    {t:'التأسيس والبداية',v:0},{t:'إتمام مسار متوسط',v:10},{t:'حفظ القرآن كاملاً',v:15} ]},
+  { q:'كم تحبّ أن يكون معدّل حفظه الأسبوعي؟', options:[
+    {t:'أقل من صفحة أسبوعياً',v:2},{t:'صفحة إلى صفحتين',v:6},{t:'أكثر من صفحتين',v:10} ]},
+  { q:'ما مستوى الالتزام المتوقع؟', options:[
+    {t:'عالٍ جداً',v:10},{t:'متوسط',v:5},{t:'محدود',v:2} ]},
+  { q:'كم من الوقت يستطيع تخصيصه يومياً؟', options:[
+    {t:'أقل من ١٥ دقيقة',v:2},{t:'١٥–٣٠ دقيقة',v:6},{t:'أكثر من ٣٠ دقيقة',v:10} ]},
+  { q:'هل سبق وانقطع عن الحفظ لفترة طويلة؟', options:[
+    {t:'لم ينقطع من قبل',v:10},{t:'انقطع لفترة قصيرة',v:5},{t:'انقطع لفترة طويلة',v:0} ]},
+  { q:'كيف تقيّم مستواه العام في الحفظ؟', options:[
+    {t:'مبتدئ تماماً',v:0},{t:'متوسط',v:12},{t:'متقدم',v:20} ]},
 ];
+function computePlacementResult(answers){
+  const raw = answers.reduce((sum,idx,qi)=>sum+(PLACEMENT_QUIZ[qi]?.options[idx]?.v||0),0);
+  const max = PLACEMENT_QUIZ.reduce((s,q)=>s+Math.max(...q.options.map(o=>o.v)),0);
+  const score = Math.round(raw/max*100);
+  const memAns = answers[0]||0;
+  let pathId, reason;
+  if(memAns>=3){
+    if(score>=80){ pathId='full'; reason='حفظه الحالي يتجاوز نصف القرآن، ومستوى التزامه وثباته عالٍ — رحلته القادمة الطبيعية هي إتمام القرآن كاملاً.'; }
+    else { pathId='half'; reason='وصل لنصف القرآن تقريباً، فمسار نصف القرآن يناسب استكمال ما بدأه بثبات.'; }
+  } else if(score>=65){ pathId='quarter'; reason='مستوى التزامه ووقته المتاح مرتفعان، فربع القرآن خطوة طموحة تناسبه.'; }
+  else if(score>=42){ pathId='mufassal'; reason='عنده أساس جيد والتزام مناسب، فمسار المفصّل يعطيه تقدماً واضحاً بمرونة معقولة.'; }
+  else if(score>=20){ pathId='zahrawan'; reason='مستوى مناسب للانطلاق في حفظ الزهراوين، سورتين عظيمتي الأجر والبركة.'; }
+  else { pathId='amma'; reason='بداية مثالية له مع جزء عمّ وتبارك، أسهل نقطة انطلاق ثابتة نحو حفظ القرآن.'; }
+  return { pathId, reason, score };
+}
+let PL_ANSWERS = [];
 PAGES.parent_placement = function(){
-  setTop('تحديد المستوى','اختبار تشخيصي سريع');
-  return pageHead('اختبار تحديد المستوى','أجب عن الأسئلة لنقترح البرنامج الأنسب لابنك')+
+  setTop('تحديد المستوى','اختبار احترافي بعشر أسئلة');
+  PL_ANSWERS = new Array(PLACEMENT_QUIZ.length).fill(null);
+  setTimeout(renderPlQuiz, 0); // بعد ما الصفحة تتحط في الـDOM فعلياً
+  return pageHead('اختبار تحديد المستوى','أجب عن الأسئلة لنرشّح المسار الأنسب لابنك — الاختبار استرشادي فقط ولا يمنعك من اختيار أي مسار آخر')+
   `<div class="card"><div class="field"><label>اسم الطالب</label><input id="plName" placeholder="اسم ابنك"></div>
-   <div id="plQs">${PLACEMENT_Q.map((item,i)=>`<div class="field"><label>${ar(i+1)}. ${item.q}</label><select id="plQ${i}">${item.a.map((opt,j)=>`<option value="${opt[1]}">${opt[0]}</option>`).join('')}</select></div>`).join('')}</div>
-   <button class="btn gold" onclick="calcPlacement()">احسب المستوى ←</button>
-   <div id="plResult" style="margin-top:20px"></div></div>`;
+   <div id="plQs"></div></div>`;
 };
+function renderPlQuiz(){
+  const host = $('#plQs'); if(!host) return;
+  const allAnswered = PL_ANSWERS.every(a=>a!==null);
+  const rows = PLACEMENT_QUIZ.map((item,qi)=>`
+    <div class="field">
+      <label>${ar(qi+1)}. ${item.q}</label>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${item.options.map((opt,oi)=>`<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13.5px;color:var(--muted);font-weight:400"><input type="radio" name="plq${qi}" onclick="PL_ANSWERS[${qi}]=${oi};renderPlQuiz()" ${PL_ANSWERS[qi]===oi?'checked':''}> ${opt.t}</label>`).join('')}
+      </div>
+    </div>`).join('');
+  host.innerHTML = rows + `<button class="btn gold" ${allAnswered?'':'disabled style="opacity:.5"'} onclick="calcPlacement()">${allAnswered?'اعرض النتيجة':'أجب عن كل الأسئلة أولاً'}</button><div id="plResult" style="margin-top:20px"></div>`;
+}
 async function calcPlacement(){
   const name=$('#plName').value.trim()||'الطالب';
-  let score=0; PLACEMENT_Q.forEach((_,i)=>{ score+=+$('#plQ'+i).value; });
-  const max=PLACEMENT_Q.reduce((a,it)=>a+Math.max(...it.a.map(x=>x[1])),0);
-  let level,prog,color;
-  if(score>=max*0.7){ level='متقدّم'; prog='حفظ المفصّل أو ربع القرآن'; color='g'; }
-  else if(score>=max*0.4){ level='متوسط'; prog='حفظ جزء عمّ وتبارك'; color='gold'; }
-  else { level='مبتدئ'; prog='التأسيس والقراءة + جزء عمّ'; color='n'; }
-  // حفظ النتيجة
-  await sb.from('placement_tests').insert({ student_name:name, parent_id:ME.id, score, level, recommended:prog });
+  const { pathId, reason, score } = computePlacementResult(PL_ANSWERS);
+  const p = QURAN_PATHS.find(x=>x.id===pathId);
+  await sb.from('placement_tests').insert({ student_name:name, parent_id:ME.id, score, level:pathId, recommended:p?p.name:pathId });
   $('#plResult').innerHTML=`<div style="background:linear-gradient(130deg,var(--emerald),var(--emerald-deep));border-radius:18px;padding:24px;color:#fff;text-align:center">
-    <div style="font-size:34px;margin-bottom:8px">🎯</div>
-    <h3 style="color:#fff;font-size:20px;margin-bottom:6px">مستوى ${name}: ${level}</h3>
-    <div style="font-family:Amiri;font-size:30px;color:var(--gold-light);margin:8px 0">${ar(score)} / ${ar(max)}</div>
-    <p style="color:rgba(255,255,255,0.9);margin-bottom:14px">البرنامج المقترح: <b style="color:var(--gold-light)">${prog}</b></p>
-    <button class="btn gold" onclick="navigate('choose')">اختر معلماً وابدأ ←</button>
+    <div style="font-size:34px;margin-bottom:8px">${p?p.icon:'🎯'}</div>
+    <h3 style="color:#fff;font-size:20px;margin-bottom:6px">المسار المقترح لـ${esc(name)}</h3>
+    <div style="font-family:Amiri;font-size:26px;color:var(--gold-light);margin:8px 0">${p?esc(p.name):''}</div>
+    <p style="color:rgba(255,255,255,0.9);margin-bottom:14px;line-height:1.8">${esc(reason)}</p>
+    <button class="btn gold" onclick="location.href='path-${pathId}.html'">اذهب لهذا المسار ←</button>
   </div>`;
   toast('✅ تم حفظ نتيجة التقييم');
 }

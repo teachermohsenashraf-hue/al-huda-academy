@@ -627,8 +627,8 @@ function initPathEnroll(){
   const pathId = box.closest('[data-path-id]')?.dataset.pathId;
   const params = new URLSearchParams(location.search);
   const sys = params.get('system');
-  if(sys && MKT_SYSTEMS[sys]){ renderPathPackages(box, pathId, sys); mountFunnelStepper(2); }
-  else { renderPathSystemChooser(box, pathId); mountFunnelStepper(1); }
+  if(sys && MKT_SYSTEMS[sys]){ renderPathPackages(box, pathId, sys); mountFunnelStepper(3); }
+  else { renderPathSystemChooser(box, pathId); mountFunnelStepper(2); }
 }
 function renderPathSystemChooser(box, pathId){
   box.innerHTML = `
@@ -656,7 +656,7 @@ function choosePathSystem(pathId, sys){
   history.replaceState(null, '', url);
   const box = document.getElementById('pathEnrollBox');
   renderPathPackages(box, pathId, sys);
-  mountFunnelStepper(2);
+  mountFunnelStepper(3);
   box.scrollIntoView({behavior:'smooth', block:'start'});
 }
 function renderPathPackages(box, pathId, sys){
@@ -704,7 +704,7 @@ document.addEventListener('DOMContentLoaded', initPathEnroll);
    ليطمئن الزائر إنه في مكانه الصحيح ويوريه الخطوات الباقية،
    نفس منطق شريط "sj-steps" الموجود جوّه لوحة الطالب بـ index.html.
    ============================================================ */
-const FUNNEL_STEPS = ['اختر نظامك','اختر مسارك','اختر باقتك','سجّل دخولك','ادفع','اختر معلمك'];
+const FUNNEL_STEPS = ['اختر نظامك','تحديد المستوى','اختر مسارك','اختر باقتك','سجّل دخولك','ادفع','اختر معلمك'];
 const FS_CHECK = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>';
 function mountFunnelStepper(activeIdx){
   const el = document.getElementById('funnelStepper');
@@ -721,4 +721,118 @@ function initFunnelStepper(){
   if(!el || el.dataset.step===undefined) return;
   mountFunnelStepper(+el.dataset.step);
 }
+
+/* ============================================================
+   اختبار تحديد المستوى — استرشادي فقط، ما بيمنعش الزائر من اختيار
+   أي مسار غير المُرشَّح. نفس بنك الأسئلة ومنطق الترشيح المستخدم
+   حرفياً في لوحة ولي الأمر داخل التطبيق (PLACEMENT_QUIZ في index.html)
+   — لازم يفضلوا متطابقين لو اتعدّل أي منهم مستقبلاً.
+   ============================================================ */
+const PLACEMENT_QUIZ = [
+  { q:'كم تحفظ من القرآن حالياً؟', options:[
+    {t:'لا شيء بعد',v:0},{t:'أجزاء قليلة (١–٣ أجزاء)',v:15},{t:'ربع القرآن تقريباً',v:35},{t:'نصف القرآن تقريباً',v:60},{t:'أكثر من نصف القرآن',v:85} ]},
+  { q:'ما مدى ثبات حفظك الحالي؟', options:[
+    {t:'ثابت ولا أنساه',v:10},{t:'أحياناً أنسى وأحتاج مراجعة',v:5},{t:'أنسى كثيراً',v:0} ]},
+  { q:'هل لديك خبرة سابقة في الحفظ المنظّم؟', options:[
+    {t:'لم أحفظ من قبل إطلاقاً',v:0},{t:'حفظت في كتّاب/مسجد سابقاً',v:8},{t:'درست في حلقات منظمة سابقاً',v:10} ]},
+  { q:'ما قدرتك على المراجعة اليومية؟', options:[
+    {t:'أقدر أراجع يومياً بسهولة',v:10},{t:'أحياناً',v:5},{t:'صعب عليّ',v:2} ]},
+  { q:'ما هدفك من الالتحاق؟', options:[
+    {t:'التأسيس والبداية',v:0},{t:'إتمام مسار متوسط',v:10},{t:'حفظ القرآن كاملاً',v:15} ]},
+  { q:'كم تحب أن يكون معدل حفظك الأسبوعي؟', options:[
+    {t:'أقل من صفحة أسبوعياً',v:2},{t:'صفحة إلى صفحتين',v:6},{t:'أكثر من صفحتين',v:10} ]},
+  { q:'ما مستوى التزامك المتوقع؟', options:[
+    {t:'عالٍ جداً',v:10},{t:'متوسط',v:5},{t:'محدود',v:2} ]},
+  { q:'كم من الوقت تستطيع تخصيصه يومياً؟', options:[
+    {t:'أقل من ١٥ دقيقة',v:2},{t:'١٥–٣٠ دقيقة',v:6},{t:'أكثر من ٣٠ دقيقة',v:10} ]},
+  { q:'هل سبق وانقطعت عن الحفظ لفترة طويلة؟', options:[
+    {t:'لم أنقطع من قبل',v:10},{t:'انقطعت لفترة قصيرة',v:5},{t:'انقطعت لفترة طويلة',v:0} ]},
+  { q:'كيف تقيّم مستواك العام في الحفظ؟', options:[
+    {t:'مبتدئ تماماً',v:0},{t:'متوسط',v:12},{t:'متقدم',v:20} ]},
+];
+const PLACEMENT_PATHS = {
+  amma:{name:'جزء عمّ وتبارك', icon:'🌱'}, zahrawan:{name:'الزهراوان', icon:'🌸'},
+  mufassal:{name:'المفصّل', icon:'📖'}, quarter:{name:'ربع القرآن', icon:'🕌'},
+  half:{name:'نصف القرآن', icon:'⭐'}, full:{name:'القرآن كامل', icon:'🏆'},
+};
+function computePlacementResult(answers){
+  const raw = answers.reduce((sum,idx,qi)=>sum+(PLACEMENT_QUIZ[qi]?.options[idx]?.v||0),0);
+  const max = PLACEMENT_QUIZ.reduce((s,q)=>s+Math.max(...q.options.map(o=>o.v)),0);
+  const score = Math.round(raw/max*100);
+  const memAns = answers[0]||0; // مقدار الحفظ الحالي: ٠..٤
+  let pathId, reason;
+  if(memAns>=3){
+    if(score>=80){ pathId='full'; reason='حفظك الحالي يتجاوز نصف القرآن، ومستوى التزامك وثباتك عالٍ — رحلتك القادمة الطبيعية هي إتمام القرآن كاملاً.'; }
+    else { pathId='half'; reason='وصلت لنصف القرآن تقريباً، فمسار نصف القرآن يناسب استكمال ما بدأته بثبات.'; }
+  } else if(score>=65){ pathId='quarter'; reason='مستوى التزامك ووقتك المتاح مرتفعان، فربع القرآن خطوة طموحة تناسبك.'; }
+  else if(score>=42){ pathId='mufassal'; reason='عندك أساس جيد والتزام مناسب، فمسار المفصّل يعطيك تقدماً واضحاً بمرونة معقولة.'; }
+  else if(score>=20){ pathId='zahrawan'; reason='مستوى مناسب للانطلاق في حفظ الزهراوين، سورتين عظيمتي الأجر والبركة.'; }
+  else { pathId='amma'; reason='بداية مثالية لك مع جزء عمّ وتبارك، أسهل نقطة انطلاق ثابتة نحو حفظ القرآن.'; }
+  return { pathId, reason, score };
+}
+let PQ_ANSWERS = [];
+function ensureQuizModal(){
+  if(document.getElementById('levelQuizModal')) return;
+  const m = document.createElement('div');
+  m.id = 'levelQuizModal'; m.className = 'compare-modal';
+  m.innerHTML = `<div class="compare-box" style="max-width:640px;padding:0">
+    <div class="compare-head" style="display:flex;justify-content:space-between;align-items:center;padding:20px 24px;border-bottom:1px solid var(--line)">
+      <b style="font-family:Amiri;font-size:19px;color:var(--ink)">اختبار تحديد المستوى</b>
+      <button onclick="closeLevelQuiz()" aria-label="إغلاق" style="border:none;background:none;font-size:22px;cursor:pointer;color:var(--ink-soft)">×</button>
+    </div>
+    <div id="lqBody" style="padding:24px;overflow-y:auto;max-height:70vh"></div>
+  </div>`;
+  document.body.appendChild(m);
+}
+function openLevelQuiz(){
+  ensureQuizModal();
+  PQ_ANSWERS = new Array(PLACEMENT_QUIZ.length).fill(null);
+  renderQuizStep();
+  document.getElementById('levelQuizModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeLevelQuiz(){
+  const m = document.getElementById('levelQuizModal'); if(!m) return;
+  m.classList.remove('open');
+  document.body.style.overflow = '';
+}
+function renderQuizStep(){
+  const body = document.getElementById('lqBody'); if(!body) return;
+  const allAnswered = PQ_ANSWERS.every(a=>a!==null);
+  const rows = PLACEMENT_QUIZ.map((item,qi)=>`
+    <div style="margin-bottom:18px">
+      <label style="display:block;font-weight:700;color:var(--ink);margin-bottom:8px;font-size:14px">${qi+1}. ${item.q}</label>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${item.options.map((opt,oi)=>`<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13.5px;color:var(--ink-soft)"><input type="radio" name="lq${qi}" onclick="PQ_ANSWERS[${qi}]=${oi};renderQuizStep()" ${PQ_ANSWERS[qi]===oi?'checked':''}> ${opt.t}</label>`).join('')}
+      </div>
+    </div>`).join('');
+  const btnStyle = 'width:100%;justify-content:center;margin-top:8px'+(allAnswered?'':';opacity:.5;cursor:not-allowed');
+  body.innerHTML = rows + `<button class="btn-primary" style="${btnStyle}" ${allAnswered?'':'disabled'} onclick="showQuizResult()">${allAnswered?'اعرض النتيجة':'أجب عن كل الأسئلة أولاً'}</button>`;
+}
+function showQuizResult(){
+  const { pathId, reason } = computePlacementResult(PQ_ANSWERS);
+  const p = PLACEMENT_PATHS[pathId];
+  const body = document.getElementById('lqBody'); if(!body) return;
+  body.innerHTML = `<div style="text-align:center">
+    <div style="font-size:48px;margin-bottom:10px">${p.icon}</div>
+    <div style="color:var(--ink-soft);font-size:13px;margin-bottom:4px">المسار المقترح لك</div>
+    <h3 style="font-family:Amiri;font-size:24px;color:var(--emerald);margin-bottom:12px">${p.name}</h3>
+    <p style="color:var(--ink-soft);font-size:14px;line-height:1.9;max-width:440px;margin:0 auto 20px">${reason}</p>
+    <a class="btn-primary" style="width:100%;justify-content:center;margin-bottom:10px" href="path-${pathId}.html">اذهب لمسار ${p.name} ←</a>
+    <a href="landing.html#paths" style="display:block;color:var(--emerald);font-weight:700;font-size:13.5px;text-decoration:none" onclick="closeLevelQuiz()">استعرض كل المسارات بنفسي</a>
+    <p style="color:var(--ink-soft);font-size:11.5px;margin-top:16px">هذا الاختبار استرشادي فقط، وتقدر تختار أي مسار آخر يعجبك.</p>
+  </div>`;
+}
+// بانر "لا تعرف مسارك؟" — يُحقن أعلى صفحة كل نظام وأعلى صفحة المسارات
+function levelQuizBanner(){
+  return `<div style="background:var(--cream-2,var(--cream));border:1.5px dashed var(--gold);border-radius:16px;padding:18px 22px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+    <div><b style="font-family:Amiri;font-size:17px;color:var(--ink)">لا تعرف أي مسار يناسبك؟</b><p style="color:var(--ink-soft);font-size:13px;margin-top:4px">اختبار سريع بعشر أسئلة يرشّح لك المسار الأنسب لمستواك.</p></div>
+    <button class="btn-primary" onclick="openLevelQuiz()" style="white-space:nowrap">✨ ابدأ اختبار تحديد المستوى</button>
+  </div>`;
+}
+function mountLevelQuizBanner(){
+  const slot = document.getElementById('levelQuizBanner');
+  if(slot) slot.innerHTML = levelQuizBanner();
+}
+document.addEventListener('DOMContentLoaded', mountLevelQuizBanner);
 document.addEventListener('DOMContentLoaded', initFunnelStepper);
