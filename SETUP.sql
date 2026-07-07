@@ -922,3 +922,9 @@ select st.id, f.id,
 from quran_stations st
 join quran_fortresses f on f.system_id = st.system_id
 where not exists (select 1 from quran_station_fortress_config c where c.station_id=st.id and c.fortress_id=f.id);
+
+-- ============================================================
+-- تمديد الخطة تلقائياً عند غياب الطالب — عمود لضمان فحص الغياب مرة
+-- واحدة فقط في اليوم لكل خطة (بدل ما يتزحزح نفس اليوم أكتر من مرة)
+-- ------------------------------------------------------------
+alter table quran_student_plans add column if not exists last_absence_check date;

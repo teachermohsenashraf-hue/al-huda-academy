@@ -1160,6 +1160,7 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 .qpchk .qpd.done{background:var(--emerald)}
 .qpchk .qpd.early{background:var(--gold)}
 .qpchk .qpd.late{background:var(--rose)}
+.qpchk .qpd.missed{background:#8a8a8a}
 .qplan-day-body{padding:14px 16px;display:none;border-top:1px dashed var(--line)}
 .qplan-day.open .qplan-day-body{display:block}
 .qplan-mini{display:flex;align-items:center;gap:10px;padding:8px;background:var(--cream);border-radius:10px;margin-bottom:6px;font-size:13px}
@@ -5783,6 +5784,10 @@ function qPlanTypeLabel(pt){ return pt==='flexible' ? 'النظام المرن (
 function qPathLabel(pk){ const p=QURAN_PATHS.find(x=>x.id===pk); return p?p.name:'—'; }
 function qDaysToInts(arr){ return (arr||[]).map(x=>parseInt(x)).filter(n=>n>=1&&n<=7); }
 function qIntsToDayNames(ints){ return (ints||[]).map(i=>QURAN_DAY_NAMES[i-1]).filter(Boolean).join(' • '); }
+// تاريخ اليوم بصيغة YYYY-MM-DD — نفس الصيغة المخزّنة في planned_date، تُستخدم
+// في كل صفحات خطة القرآن (كانت تُستدعى في نحو ١٥ موضعاً بدون تعريفها، وهو
+// عطل حقيقي كان يكسر ورد اليوم/خطتي الكاملة بالكامل قبل هذا الإصلاح).
+function qTodayStr(){ return new Date().toISOString().slice(0,10); }
 
 /* ---------- صفحة الأنظمة الرئيسية ---------- */
 PAGES.admin_qsystems = async function(){
@@ -7165,7 +7170,7 @@ async function renderPlanDetailForTeacher(planId){
     const klass = d===today?'today':d<today?'past':'';
     const dotEls = cards.map(c=>{
       const p = progMap[c.id];
-      const cls = p && p.status==='done' ? (p.is_late?'late':p.is_early?'early':'done') : '';
+      const cls = p && p.status==='done' ? (p.is_late?'late':p.is_early?'early':'done') : (p&&p.status==='missed'?'missed':'');
       return `<span class="qpd ${cls}" title="${esc(c.fortress_code)}"></span>`;
     }).join('');
     const dt = new Date(d);
@@ -7233,12 +7238,42 @@ async function saveWardEdit(wardId){
 
 
 
+// لو الطالب فوّت يوماً كاملاً بدون ما يسجّل ولا حصن واحد فيه، يتحسب اليوم ده
+// غياباً رسمياً، وتتزحزح كل الخطة المتبقية للأمام بعدد أيام الغياب — بدل ما
+// يتراكم "تأخير" بلا حد. بتتحقق مرة واحدة بس في اليوم لكل خطة (last_absence_check)
+// عشان ميعدش يزحزح نفس الفجوة مرتين.
+async function applyAbsenceShift(plan){
+  const todayStr = qTodayStr();
+  if(plan.last_absence_check === todayStr) return;
+  const sinceDate = plan.last_absence_check || '2000-01-01';
+  const { data: pastWards } = await sb.from('quran_plan_wards').select('id,planned_date').eq('plan_id',plan.id).gt('planned_date',sinceDate).lt('planned_date',todayStr);
+  if(!pastWards || !pastWards.length){ await sb.from('quran_student_plans').update({ last_absence_check:todayStr }).eq('id',plan.id); return; }
+  const wardIds = pastWards.map(w=>w.id);
+  const { data: progs } = await sb.from('quran_ward_progress').select('ward_id').in('ward_id',wardIds);
+  const doneSet = new Set((progs||[]).map(p=>p.ward_id));
+  const byDate = {}; pastWards.forEach(w=>{ (byDate[w.planned_date]=byDate[w.planned_date]||[]).push(w); });
+  const missedDates = Object.keys(byDate).filter(d=>byDate[d].every(w=>!doneSet.has(w.id))).sort();
+  if(!missedDates.length){ await sb.from('quran_student_plans').update({ last_absence_check:todayStr }).eq('id',plan.id); return; }
+  // نسجّل كل وِرد في الأيام الغائبة كغياب رسمي
+  const missRows = missedDates.flatMap(d=>byDate[d].map(w=>({ ward_id:w.id, status:'missed', planned_for_date:todayStr, actual_date:null })));
+  await sb.from('quran_ward_progress').insert(missRows);
+  // نزحزح كل ما تبقّى من الخطة (من النهاردة فصاعداً) بعدد أيام الغياب دفعة واحدة
+  const shiftDays = missedDates.length;
+  const { data: futureWards } = await sb.from('quran_plan_wards').select('id,planned_date').eq('plan_id',plan.id).gte('planned_date',todayStr);
+  const byOrigDate = {}; (futureWards||[]).forEach(w=>{ (byOrigDate[w.planned_date]=byOrigDate[w.planned_date]||[]).push(w.id); });
+  for(const [origDate, ids] of Object.entries(byOrigDate)){
+    const nd = new Date(origDate); nd.setDate(nd.getDate()+shiftDays);
+    await sb.from('quran_plan_wards').update({ planned_date: nd.toISOString().slice(0,10) }).in('id', ids);
+  }
+  await sb.from('quran_student_plans').update({ last_absence_check:todayStr }).eq('id',plan.id);
+}
 PAGES.student_qtoday = async function(){
   setTop('ورد اليوم','حصون خطتك اليومية');
   const s = await myStudentRow();
   if(!s) return `<div class="qnoplan"><div class="nei">🌱</div><h3>لا توجد بيانات طالب</h3></div>`;
   const { data: plan } = await sb.from('quran_student_plans').select('*').eq('login_id',ME.id).eq('status','active').maybeSingle();
   if(!plan) return `<div class="qnoplan"><div class="nei">🕋</div><h3>لا توجد خطة بعد</h3><p>سينشئ معلمك خطتك بعد اختيارك له — اختر معلمك الآن لتبدأ.</p><button class="btn" style="margin-top:14px" onclick="navigate('choose')">${mi('chooseTeacher')} اختر معلمك</button></div>`;
+  await applyAbsenceShift(plan);
   const today = qTodayStr();
   const { data: todayWards } = await sb.from('quran_plan_wards').select('*').eq('plan_id',plan.id).eq('planned_date',today).order('fortress_code');
   const { data: overdueWards } = await sb.from('quran_plan_wards').select('*').eq('plan_id',plan.id).lt('planned_date',today);
@@ -7336,6 +7371,7 @@ PAGES.student_qmyplan = async function(){
   if(!s) return `<div class="qnoplan"><div class="nei">🌱</div><h3>لا بيانات</h3></div>`;
   const { data: plan } = await sb.from('quran_student_plans').select('*').eq('login_id',ME.id).eq('status','active').maybeSingle();
   if(!plan) return `<div class="qnoplan"><div class="nei">🕋</div><h3>لا توجد خطة بعد</h3><p>سينشئ معلمك خطتك الكاملة بعد اختيارك له — اختر معلمك الآن لتبدأ.</p><button class="btn" style="margin-top:14px" onclick="navigate('choose')">${mi('chooseTeacher')} اختر معلمك</button></div>`;
+  await applyAbsenceShift(plan);
   return await qRenderFullPlan(plan.id, 'student');
 };
 
@@ -7420,7 +7456,7 @@ async function qRenderFullPlan(planId, role='student'){
     const klass = isToday?'today':isPast?'past':'';
     const dots = cards.map(c=>{
       const p=progMap[c.id];
-      const cls=p&&p.status==='done'?(p.is_late?'late':p.is_early?'early':'done'):'';
+      const cls=p&&p.status==='done'?(p.is_late?'late':p.is_early?'early':'done'):(p&&p.status==='missed'?'missed':'');
       return `<span class="qpd ${cls}"></span>`;
     }).join('');
     const dayLabel = isToday?'<span style="color:var(--gold);font-size:11px;font-weight:700;margin-inline-start:8px">• اليوم</span>':isFuture?`<span style="color:var(--muted);font-size:11px;margin-inline-start:8px">${role==='student'&&plan.allow_early_progress?'• اضغط للتقدم المبكر':''}</span>`:'';
