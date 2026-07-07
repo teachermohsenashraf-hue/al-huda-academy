@@ -837,7 +837,11 @@ function levelQuizBanner(){
 }
 function mountLevelQuizBanner(){
   const slot = document.getElementById('levelQuizBanner');
-  if(slot) slot.innerHTML = levelQuizBanner();
+  if(!slot) return;
+  slot.innerHTML = levelQuizBanner();
+  // البانر بيتحقن بعد ما مراقب الظهور (IntersectionObserver) يخلّص تمريرته
+  // الأولى، فيفوته ويفضل بـ opacity:0 للأبد لو محسيناهوش نظهره فوراً هنا
+  revealBoxNow(slot);
 }
 document.addEventListener('DOMContentLoaded', mountLevelQuizBanner);
 document.addEventListener('DOMContentLoaded', initFunnelStepper);
