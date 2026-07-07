@@ -6131,7 +6131,6 @@ async function renderStationsTab(sys){
         ${st.expected_duration_days ? `<span>⏱️ ${ar(st.expected_duration_days)} يوم</span>`:''}
         <span>📊 إنجاز ≥ ${ar(st.min_completion_pct||0)}٪</span>
         <span>⭐ إتقان ≥ ${ar(st.min_mastery_pct||0)}٪</span>
-        ${st.requires_exam ? '<span>📝 اختبار إلزامي</span>':''}
       </div>
     </div>`).join('');
   }
@@ -6151,7 +6150,7 @@ async function qEditStation(systemId, stationId){
   } else {
     const { data: existing } = await sb.from('quran_stations').select('order_index').eq('system_id',systemId).order('order_index',{ascending:false}).limit(1);
     if(existing && existing.length) nextOrder = (existing[0].order_index||0)+1;
-    st = { id:null, order_index:nextOrder, name:'', description:'', entry_conditions:'', exit_conditions:'', expected_duration_days:90, min_completion_pct:80, min_mastery_pct:70, requires_exam:true };
+    st = { id:null, order_index:nextOrder, name:'', description:'', entry_conditions:'', exit_conditions:'', expected_duration_days:90, min_completion_pct:80, min_mastery_pct:70 };
   }
 
   $('#qmodalHost').innerHTML = `<div class="qmodal" onclick="if(event.target===this)qCloseModal()">
@@ -6195,9 +6194,6 @@ async function qEditStation(systemId, stationId){
             <input type="number" id="qsMastery" value="${st.min_mastery_pct||70}" min="0" max="100" />
           </div>
         </div>
-        <div>
-          <label><input type="checkbox" id="qsExam" ${st.requires_exam?'checked':''} style="margin-inline-end:6px"> اختبار إلزامي للانتقال</label>
-        </div>
         <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
           <button class="btn ghost" onclick="qCloseModal()">إلغاء</button>
           <button class="btn" onclick="qSaveStation('${esc(systemId)}','${esc(stationId||'')}')">${mi('save')} حفظ</button>
@@ -6219,8 +6215,7 @@ async function qSaveStation(systemId, stationId){
     exit_conditions: $('#qsExit').value.trim() || null,
     expected_duration_days: parseInt($('#qsDays').value)||null,
     min_completion_pct: parseFloat($('#qsCompl').value)||0,
-    min_mastery_pct: parseFloat($('#qsMastery').value)||0,
-    requires_exam: $('#qsExam').checked
+    min_mastery_pct: parseFloat($('#qsMastery').value)||0
   };
 
   if(stationId){
@@ -7553,7 +7548,6 @@ async function qCheckTransition(planId){
 
   const minPct = station?.min_completion_pct||80;
   const canTransit = pct >= minPct;
-  const requiresExam = station?.requires_exam;
 
   $('#qmodalHost').innerHTML = `<div class="qmodal" onclick="if(event.target===this)qCloseModal()">
     <div class="qmbox">
@@ -7561,14 +7555,11 @@ async function qCheckTransition(planId){
       <div class="qpv" style="margin-top:14px">
         <div class="qpvrow"><span>المحطة الحالية</span><b>${esc(station?.name||'—')}</b></div>
         <div class="qpvrow"><span>نسبة الإنجاز</span><b style="color:${pct>=minPct?'var(--emerald)':'var(--rose)'}">${ar(pct)}٪ (المطلوب ${ar(minPct)}٪)</b></div>
-        <div class="qpvrow"><span>اختبار إلزامي</span><b>${requiresExam?'نعم ⚠️':'لا'}</b></div>
         <div class="qpvrow"><span>المحطة التالية</span><b>${esc(nextStation?.name||'لا توجد محطة تالية')}</b></div>
       </div>
-      ${canTransit && !requiresExam
+      ${canTransit
         ? `<div style="text-align:center;margin-top:14px"><button class="btn" onclick="qDoTransition('${esc(planId)}','${esc(nextStation?.id||'')}')">${mi('rocket')} انتقل للمحطة التالية</button></div>`
-        : requiresExam
-          ? `<div style="background:rgba(201,162,39,0.15);border-radius:12px;padding:14px;text-align:center;margin-top:14px;color:#8a6d1a">⚠️ هذه المحطة تتطلب اختباراً قبل الانتقال. أرسل اختباراً للطالب وبعد النجاح ينتقل تلقائياً.</div>`
-          : `<div style="background:rgba(231,76,60,0.1);border-radius:12px;padding:14px;text-align:center;margin-top:14px;color:var(--rose)">⚠️ نسبة الإنجاز ${ar(pct)}٪ أقل من الحد المطلوب ${ar(minPct)}٪</div>`}
+        : `<div style="background:rgba(231,76,60,0.1);border-radius:12px;padding:14px;text-align:center;margin-top:14px;color:var(--rose)">⚠️ نسبة الإنجاز ${ar(pct)}٪ أقل من الحد المطلوب ${ar(minPct)}٪</div>`}
       <div style="text-align:end;margin-top:14px"><button class="btn ghost" onclick="qCloseModal()">إغلاق</button></div>
     </div>
   </div>`;

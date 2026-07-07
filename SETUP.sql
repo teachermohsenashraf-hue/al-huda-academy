@@ -805,3 +805,120 @@ alter table notifications add column if not exists related_id bigint;
 alter table groups add column if not exists schedule_days int[];
 alter table groups add column if not exists schedule_time text;
 alter table groups add column if not exists schedule_duration_min int default 30;
+
+-- ============================================================
+-- إلغاء "الاختبار الإلزامي" من محطات أنظمة القرآن — القرار انتقال
+-- الطالب للمحطة التالية بقى معتمداً على نسبة الإنجاز/الإتقان فقط
+-- ------------------------------------------------------------
+alter table quran_stations alter column requires_exam set default false;
+update quran_stations set requires_exam = false;
+
+-- ============================================================
+-- تعبئة المحطات الحقيقية للمسارات الستة (نفس المحتوى في نظامي رسوخ
+-- والمرن، لأن المحطات تصف تقدّم المحتوى نفسه بغضّ النظر عن عدد الحصون).
+-- مدة كل محطة موزّعة من إجمالي مدة المسار المُراجَعة سابقاً بدقة (بند
+-- مراجعة المدد الفعلية)، بالنسبة لحجم محتوى كل محطة (الحفظ الجديد أبطأ
+-- من المراجعة). الأرقام قابلة للتعديل لاحقاً من واجهة إدارة المحطات
+-- مباشرة — النقل هنا فقط لتوفير بيانات واقعية بدل محطات فارغة.
+-- كل إدراج مشروط بعدم وجود محطات للنظام أصلاً، فتشغيل الملف أكتر من
+-- مرة لن يكرّر المحطات.
+-- ------------------------------------------------------------
+
+-- ١) جزء عمّ وتبارك — إجمالي ~٩ أسابيع
+insert into quran_stations (system_id, order_index, name, description, expected_duration_days, min_completion_pct, min_mastery_pct)
+select qs.id, v.order_index, v.name, v.description, v.duration_days, 80, 70
+from quran_systems qs, (values
+  (1,'جزء عمّ','حفظ جزء عمّ كاملاً',26),
+  (2,'جزء تبارك','حفظ جزء تبارك كاملاً',26),
+  (3,'مراجعة جزء عمّ وتبارك كاملاً','مراجعة شاملة للجزأين معاً وضبط الحفظ',11)
+) as v(order_index,name,description,duration_days)
+where qs.path_key='amma' and not exists (select 1 from quran_stations x where x.system_id=qs.id);
+
+-- ٢) المفصّل — إجمالي ~٢٠ أسبوع
+insert into quran_stations (system_id, order_index, name, description, expected_duration_days, min_completion_pct, min_mastery_pct)
+select qs.id, v.order_index, v.name, v.description, v.duration_days, 80, 70
+from quran_systems qs, (values
+  (1,'جزء عمّ وتبارك','حفظ الجزأين الأخيرين',41),
+  (2,'جزء قد سمع','حفظ جزء قد سمع',41),
+  (3,'الجزء السابع والعشرون (من الحديد إلى ق)','حفظ من سورة الحديد إلى سورة ق',41),
+  (4,'مراجعة المفصّل كاملاً','مراجعة شاملة لكل المفصّل وضبط الحفظ',17)
+) as v(order_index,name,description,duration_days)
+where qs.path_key='mufassal' and not exists (select 1 from quran_stations x where x.system_id=qs.id);
+
+-- ٣) ربع القرآن — إجمالي ~٤١ أسبوع
+insert into quran_stations (system_id, order_index, name, description, expected_duration_days, min_completion_pct, min_mastery_pct)
+select qs.id, v.order_index, v.name, v.description, v.duration_days, 80, 70
+from quran_systems qs, (values
+  (1,'جزء عمّ وتبارك','حفظ الجزأين الأخيرين',20),
+  (2,'من سورة ق إلى سورة التحريم','حفظ هذا القسم',49),
+  (3,'من سورة الأحقاف إلى سورة الحجرات','حفظ هذا القسم',41),
+  (4,'من سورة الشورى إلى سورة الجاثية','حفظ هذا القسم',41),
+  (5,'من سورة الزمر إلى سورة فصلت','حفظ هذا القسم',41),
+  (6,'من سورة يس إلى سورة ص','حفظ هذا القسم',41),
+  (7,'مراجعة من سورة ق إلى سورة الناس','مراجعة شاملة لهذا القسم',16),
+  (8,'مراجعة من سورة يس إلى سورة الحجرات','مراجعة شاملة لهذا القسم',16),
+  (9,'مراجعة ربع القرآن كاملاً','مراجعة شاملة نهائية لكل ربع القرآن',21)
+) as v(order_index,name,description,duration_days)
+where qs.path_key='quarter' and not exists (select 1 from quran_stations x where x.system_id=qs.id);
+
+-- ٤) نصف القرآن — إجمالي ~٧٢ أسبوع
+insert into quran_stations (system_id, order_index, name, description, expected_duration_days, min_completion_pct, min_mastery_pct)
+select qs.id, v.order_index, v.name, v.description, v.duration_days, 80, 70
+from quran_systems qs, (values
+  (1,'المفصّل (من سورة ق إلى سورة الناس)','حفظ المفصّل كاملاً',92),
+  (2,'من سورة يس إلى سورة الحجرات','حفظ هذا القسم',62),
+  (3,'من سورة العنكبوت إلى سورة يس','حفظ هذا القسم',62),
+  (4,'من سورة القصص إلى سورة الفرقان','حفظ هذا القسم',62),
+  (5,'من سورة النور إلى سورة الأنبياء','حفظ هذا القسم',62),
+  (6,'من سورة الكهف إلى سورة طه','حفظ هذا القسم',62),
+  (7,'مراجعة ربع القرآن (من يس إلى الناس)','مراجعة شاملة لهذا الربع',31),
+  (8,'مراجعة من سورة الكهف إلى سورة فاطر','مراجعة شاملة لهذا القسم',31),
+  (9,'مراجعة نصف القرآن كاملاً','مراجعة شاملة نهائية لنصف القرآن',43)
+) as v(order_index,name,description,duration_days)
+where qs.path_key='half' and not exists (select 1 from quran_stations x where x.system_id=qs.id);
+
+-- ٥) الزهراوان — إجمالي ~٤.٥ أشهر
+insert into quran_stations (system_id, order_index, name, description, expected_duration_days, min_completion_pct, min_mastery_pct)
+select qs.id, v.order_index, v.name, v.description, v.duration_days, 80, 70
+from quran_systems qs, (values
+  (1,'بداية البقرة (١–١٤١)','حفظ الجزء الأول من سورة البقرة',30),
+  (2,'إتمام البقرة (١٤٢–٢٨٦)','إتمام حفظ سورة البقرة',30),
+  (3,'مراجعة سورة البقرة كاملة','مراجعة شاملة لسورة البقرة',12),
+  (4,'بداية آل عمران (١–٩٢)','حفظ الجزء الأول من سورة آل عمران',21),
+  (5,'إتمام آل عمران (٩٣–٢٠٠)','إتمام حفظ سورة آل عمران',21),
+  (6,'مراجعة سورة آل عمران كاملة','مراجعة شاملة لسورة آل عمران',9),
+  (7,'مراجعة الزهراوين كاملتين','مراجعة شاملة نهائية للسورتين معاً',12)
+) as v(order_index,name,description,duration_days)
+where qs.path_key='zahrawan' and not exists (select 1 from quran_stations x where x.system_id=qs.id);
+
+-- ٦) القرآن كامل (يشترط إتمام نصف القرآن على الأقل) — إجمالي ~٣٦ شهراً
+insert into quran_stations (system_id, order_index, name, description, expected_duration_days, min_completion_pct, min_mastery_pct)
+select qs.id, v.order_index, v.name, v.description, v.duration_days, 80, 70
+from quran_systems qs, (values
+  (1,'المفصّل','حفظ المفصّل كاملاً',123),
+  (2,'الزهراوان','حفظ سورتي البقرة وآل عمران',164),
+  (3,'من سورة يس إلى سورة الحجرات','حفظ هذا القسم',82),
+  (4,'من سورة الفرقان إلى سورة فاطر','حفظ هذا القسم',82),
+  (5,'من سورة الكهف إلى سورة النور','حفظ هذا القسم',82),
+  (6,'من سورة يونس إلى سورة الإسراء','حفظ هذا القسم',82),
+  (7,'من سورة الأنعام إلى سورة التوبة','حفظ هذا القسم',82),
+  (8,'من سورة الفاتحة إلى سورة المائدة','حفظ هذا القسم',107),
+  (9,'مراجعة ربع القرآن','مراجعة شاملة لربع القرآن',41),
+  (10,'مراجعة من سورة فاطر إلى سورة الكهف','مراجعة شاملة لهذا القسم',41),
+  (11,'مراجعة من سورة الأنفال إلى سورة الإسراء','مراجعة شاملة لهذا القسم',41),
+  (12,'مراجعة من سورة البقرة إلى سورة الأنعام','مراجعة شاملة لهذا القسم',66),
+  (13,'مراجعة القرآن الكريم كاملاً','مراجعة شاملة نهائية للقرآن كله',99)
+) as v(order_index,name,description,duration_days)
+where qs.path_key='full' and not exists (select 1 from quran_stations x where x.system_id=qs.id);
+
+-- تفعيل تلقائي لإعدادات الحصون الافتراضية لكل محطة جديدة اتزرعت هنا،
+-- بنفس منطق qSaveStation في الكود (نسخ من QURAN_DEFAULT_FORTRESSES حسب
+-- حصون كل نظام الفعلية بدل قيم ثابتة، فلو النظام معطّل فيه حصن معيّن
+-- (المرن) الإعداد بياخد نفس حالة التفعيل الموجودة على مستوى النظام).
+insert into quran_station_fortress_config (station_id, fortress_id, daily_amount, unit, is_enabled)
+select st.id, f.id,
+  case f.code when 'new_hifz' then 5 when 'review_near' then 10 when 'review_far' then 10 when 'reading' then 2 when 'listening' then 2 else 5 end,
+  f.default_unit, f.is_enabled
+from quran_stations st
+join quran_fortresses f on f.system_id = st.system_id
+where not exists (select 1 from quran_station_fortress_config c where c.station_id=st.id and c.fortress_id=f.id);
