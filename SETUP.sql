@@ -792,3 +792,16 @@ create policy "staff manage subscriptions" on subscriptions for all to authentic
 -- ------------------------------------------------------------
 alter table notifications add column if not exists related_type text;
 alter table notifications add column if not exists related_id bigint;
+
+-- ============================================================
+-- موعد الحلقة كبيانات منظّمة بدل النص الحر (meet_time)
+-- ------------------------------------------------------------
+-- meet_time كان نص حر ("السبت والثلاثاء ٥م")، فمفيش طريقة نولّد بيها
+-- حصص الأسبوع تلقائياً أو نبني جدول حصص حقيقي للمعلم. الأعمدة الجديدة
+-- دي بتحفظ نفس المعنى بشكل منظّم، وبنفضل نملأ meet_time كنص عرض
+-- تلقائي من نفس البيانات عشان أي مكان قديم بيعرض meet_time يفضل شغّال
+-- من غير أي تعديل إضافي.
+-- ------------------------------------------------------------
+alter table groups add column if not exists schedule_days int[];
+alter table groups add column if not exists schedule_time text;
+alter table groups add column if not exists schedule_duration_min int default 30;
