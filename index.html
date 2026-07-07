@@ -5765,10 +5765,10 @@ async function renderSystemsList(){
     </div>` + cards;
 }
 
-function qNewSystem(){ QSTATE = { view:'editor', systemId:null, tab:'basic' }; navigate(SESSION.page); }
-function qOpenSystem(id){ QSTATE = { view:'editor', systemId:id, tab:'basic' }; navigate(SESSION.page); }
-function qBackToList(){ QSTATE = { view:'list', systemId:null, tab:'basic' }; navigate(SESSION.page); }
-function qSwitchTab(t){ QSTATE.tab=t; navigate(SESSION.page); }
+function qNewSystem(){ try{ QSTATE = { view:'editor', systemId:null, tab:'basic' }; navigate('qsystems'); }catch(e){ alert('خطأ: '+e.message); console.error(e); } }
+function qOpenSystem(id){ try{ QSTATE = { view:'editor', systemId:id, tab:'basic' }; navigate('qsystems'); }catch(e){ alert('خطأ: '+e.message); console.error(e); } }
+function qBackToList(){ try{ QSTATE = { view:'list', systemId:null, tab:'basic' }; navigate('qsystems'); }catch(e){ alert('خطأ: '+e.message); console.error(e); } }
+function qSwitchTab(t){ try{ QSTATE.tab=t; navigate('qsystems'); }catch(e){ alert('خطأ: '+e.message); console.error(e); } }
 
 function qSeedFortresses(){
   const rows = QURAN_DEFAULT_FORTRESSES.map((f,i)=>`<div class="qfort on" style="cursor:default">
