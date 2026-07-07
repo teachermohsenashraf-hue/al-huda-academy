@@ -5691,7 +5691,7 @@ function qStatusBadge(s){
   return '<span>'+esc(s||'')+'</span>';
 }
 function qTrackLabel(t){ return t==='general'?'مسار عام':'حصون خمسة'; }
-function qPlanTypeLabel(pt){ return pt==='flexible' ? 'الطالب يختار خطته (٣ حصون)' : 'رسوخ (٥ حصون)'; }
+function qPlanTypeLabel(pt){ return pt==='flexible' ? 'النظام المرن (٣ حصون)' : 'رسوخ (٥ حصون)'; }
 function qPathLabel(pk){ const p=QURAN_PATHS.find(x=>x.id===pk); return p?p.name:'—'; }
 function qDaysToInts(arr){ return (arr||[]).map(x=>parseInt(x)).filter(n=>n>=1&&n<=7); }
 function qIntsToDayNames(ints){ return (ints||[]).map(i=>QURAN_DAY_NAMES[i-1]).filter(Boolean).join(' • '); }
@@ -7865,7 +7865,7 @@ function cbInit(){
   if(!host || host.dataset.ready) return;
   host.dataset.ready='1';
   host.innerHTML = `
-    <button class="cb-fab" id="cbFab" onclick="cbToggle()" aria-label="تواصل مع الشات"><span class="cb-avatar"><img src="assets/logo.webp" alt="المساعد الذكي"><span class="cb-dot">💬</span></span><span class="cb-label">تواصل مع الشات</span></button>
+    <button class="cb-fab" id="cbFab" onclick="cbToggle()" aria-label="تواصل مع الشات"><span class="cb-avatar"><img src="assets/logo-icon.png" alt="المساعد الذكي"><span class="cb-dot">💬</span></span><span class="cb-label">تواصل مع الشات</span></button>
     <div class="cb-panel" id="cbPanel">
       <div class="cb-head">
         <div><b>🤖 المساعد الذكي</b><span>هنا لأي سؤال عن المنصة</span></div>
