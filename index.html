@@ -8163,49 +8163,65 @@ async function qGatherPlanExportData(planId){
   return { plan, stu, teacher, sys, wards:wards||[], progMap };
 }
 const QFNAMES={new_hifz:'الحفظ الجديد',review_near:'المراجعة القريبة',review_far:'المراجعة البعيدة',reading:'ورد القراءة',listening:'ورد السماع'};
+const QFORDER=['new_hifz','review_near','review_far','reading','listening'];
 function qWardStatusLabel(p){ return p ? (p.status==='done'?'مكتمل ✓':'—') : 'لم يبدأ'; }
+// يحوّل قائمة الأوراد المسطّحة (يوم×حصن لكل صف) لجدول محوري: صف واحد لكل يوم،
+// وعمود لكل حصن — عشان الطالب يقدر يتابع نفسه بمربع تعليم أمام كل حصن كل يوم
+function qBuildPivotDays(wards, progMap){
+  const byDate={};
+  wards.forEach(w=>{
+    if(!byDate[w.planned_date]) byDate[w.planned_date]={};
+    byDate[w.planned_date][w.fortress_code]=w;
+  });
+  return Object.keys(byDate).sort().map(date=>({ date, forts:byDate[date] }));
+}
+function qCellText(w, progMap){
+  if(!w) return '—';
+  const p=progMap[w.id];
+  const mark = p&&p.status==='done' ? '✓' : '☐';
+  return `${w.amount_label||'—'} ${mark}`;
+}
 
-/* ─── التصدير إلى Excel — هوية بصرية كاملة (شعار مدمج، ألوان الأكاديمية، أعمدة منسّقة) ─── */
+/* ─── التصدير إلى Excel — جدول محوري (يوم واحد = صف واحد) يتابع فيه الطالب نفسه، بألوان متبادلة لكل يوم ─── */
 async function qExportPlanExcel(planId){
   toast('⏳ جارٍ تجهيز ملف Excel...');
   const { plan, stu, teacher, sys, wards, progMap } = await qGatherPlanExportData(planId);
   if(!window.XLSX){ toast('مكتبة Excel غير متاحة'); return; }
-  const rows = wards.map((w,i)=>{
-    const p = progMap[w.id];
-    return [
-      i+1, w.planned_date, QFNAMES[w.fortress_code]||w.fortress_code, w.amount_label||'',
-      qWardStatusLabel(p), p?.actual_date||'—', p?.is_early?'نعم':'—', p?.is_late?'نعم':'—',
-      p?.student_mastery||'—', p?.teacher_mastery||'—', p?.teacher_note||'—'
-    ];
-  });
+  const days = qBuildPivotDays(wards, progMap);
+  const rows = days.map((d,i)=>[
+    i+1, d.date,
+    ...QFORDER.map(code=>qCellText(d.forts[code], progMap))
+  ]);
   const title=`📖 خطة ${stu?.full_name||'الطالب'} — ${sys?.name||''} — أكاديمية الهدى`;
-  const headers=['#','التاريخ','الحصن','الورد','الحالة','تاريخ الإنجاز','مبكر','متأخر','إتقان الطالب','إتقان المعلم','ملاحظة المعلم'];
+  const headers=['#','التاريخ', ...QFORDER.map(c=>QFNAMES[c])];
+  const doneCount = wards.filter(w=>progMap[w.id]?.status==='done').length;
   const sheets=[
     { name:'الخطة', title, headers, rows },
     { name:'ملخص', title:'📊 ملخص الخطة', headers:['البيان','القيمة'], rows:[
       ['اسم الطالب', stu?.full_name||'—'], ['المعلم', teacher?.full_name||'—'], ['النظام', sys?.name||'—'],
       ['تاريخ البداية', plan.start_date||'—'], ['حالة الخطة', plan.status==='active'?'نشطة':plan.status==='paused'?'متوقفة':'مكتملة'],
-      ['إجمالي الأوراد', wards.length], ['المُنجَز', wards.filter(w=>progMap[w.id]?.status==='done').length]
+      ['إجمالي الأوراد', wards.length], ['المُنجَز', doneCount]
     ]}
   ];
   exportExcelMulti(sheets, `خطة_${stu?.full_name||'الطالب'}`);
 }
 
-/* ─── التصدير إلى PDF — عرض طباعة مخصّص بهوية الأكاديمية بدل تصوير الشاشة كاملة ─── */
+/* ─── التصدير إلى PDF — جدول محوري مطابق لتصدير الإكسيل: يوم واحد بصف واحد، ومربع تعليم أمام كل حصن ─── */
 async function qExportPlanPDF(planId){
   toast('⏳ جارٍ تجهيز التقرير...');
   const { plan, stu, teacher, sys, wards, progMap } = await qGatherPlanExportData(planId);
   const doneCount = wards.filter(w=>progMap[w.id]?.status==='done').length;
-  const rowsHtml = wards.map((w,i)=>{
-    const p=progMap[w.id];
-    return `<tr><td>${i+1}</td><td>${esc(w.planned_date)}</td><td>${esc(QFNAMES[w.fortress_code]||w.fortress_code)}</td><td>${esc(w.amount_label||'—')}</td><td>${esc(qWardStatusLabel(p))}</td><td>${esc(p?.teacher_note||'—')}</td></tr>`;
+  const days = qBuildPivotDays(wards, progMap);
+  const rowsHtml = days.map((d,i)=>{
+    const cells = QFORDER.map(code=>`<td>${esc(qCellText(d.forts[code], progMap))}</td>`).join('');
+    return `<tr><td>${i+1}</td><td>${esc(d.date)}</td>${cells}</tr>`;
   }).join('');
   let host=document.getElementById('printPlanArea');
   if(!host){ host=document.createElement('div'); host.id='printPlanArea'; document.body.appendChild(host); }
   host.innerHTML=`
     <div class="pp-head">
       <img src="assets/logo-icon.png" alt="أكاديمية الهدى">
-      <div><h1>أكاديمية الهدى</h1><p>منصة القرآن وبناء الإنسان</p></div>
+      <div><h1>أكاديمية الهدى</h1><p>نعلم بإتقان ونربي بإحسان</p></div>
     </div>
     <div class="pp-info">
       <div><b>الطالب:</b> ${esc(stu?.full_name||'—')}</div>
@@ -8216,10 +8232,10 @@ async function qExportPlanPDF(planId){
       <div><b>تاريخ التقرير:</b> ${new Date().toLocaleDateString('ar-EG')}</div>
     </div>
     <table class="pp-table">
-      <thead><tr><th>#</th><th>التاريخ</th><th>الحصن</th><th>الورد</th><th>الحالة</th><th>ملاحظة المعلم</th></tr></thead>
+      <thead><tr><th>#</th><th>التاريخ</th>${QFORDER.map(c=>`<th>${esc(QFNAMES[c])}</th>`).join('')}</tr></thead>
       <tbody>${rowsHtml}</tbody>
     </table>
-    <div class="pp-foot">أكاديمية الهدى — منصة القرآن وبناء الإنسان</div>`;
+    <div class="pp-foot">أكاديمية الهدى — نعلم بإتقان ونربي بإحسان</div>`;
   setTimeout(()=>{ window.print(); }, 150);
 }
 
