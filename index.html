@@ -6730,6 +6730,7 @@ async function generatePlanSchedule(planId){
   let curLisn  = (assess && assess.current_listen_page) || 1;
   const farPool = (assess && assess.far_review_pool) || [];
   let farIdx = 0;
+  let farDaySchedule = null; // يُبنى مرة واحدة عند أول استخدام لنمط "مرونة حسب طول السورة"
 
   // 3) Determine date range
   const startDate = new Date(plan.start_date);
@@ -6792,22 +6793,37 @@ async function generatePlanSchedule(planId){
         } else if(f.code==='review_far'){
           const reviewMode = plan.far_review_mode || 'daily_rotation';
           if(farPool.length){
-            let target;
-            if(reviewMode==='weekly_focus'){
-              // change surah every 5 study days
-              const poolIdx = Math.floor(studyDayCount / 5) % farPool.length;
-              target = farPool[poolIdx];
-            } else {
-              // daily_rotation: new surah every day
-              target = farPool[farIdx % farPool.length];
+            if(reviewMode==='custom_days'){
+              // نمط مرن: كل سورة تأخذ عدد الأيام المحدد لها، والسور القصيرة جداً تتجمّع في نفس اليوم
+              if(!farDaySchedule) farDaySchedule = buildFarReviewDaySchedule(farPool);
+              const dayEntry = farDaySchedule.length ? farDaySchedule[farIdx % farDaySchedule.length] : null;
               farIdx++;
-            }
-            const sn = typeof target==='object' ? target.surah_no : target;
-            const s = surahByNo(sn);
-            if(s){
-              w.surah_no=s.no; w.surah_name=s.name;
-              w.whole_surah=true;
-              w.amount_label = `${s.name} (كاملة)`;
+              if(dayEntry && dayEntry.surahs.length){
+                const names = dayEntry.surahs.map(no=>surahByNo(no)).filter(Boolean);
+                if(names.length){
+                  w.surah_no = names[0].no; w.surah_name = names.map(x=>x.name).join('، ');
+                  w.whole_surah = true;
+                  w.amount_label = names.length>1 ? `${names.map(x=>x.name).join('، ')} (كاملة)` : `${names[0].name} (كاملة)`;
+                }
+              }
+            } else {
+              let target;
+              if(reviewMode==='weekly_focus'){
+                // change surah every 5 study days
+                const poolIdx = Math.floor(studyDayCount / 5) % farPool.length;
+                target = farPool[poolIdx];
+              } else {
+                // daily_rotation: new surah every day
+                target = farPool[farIdx % farPool.length];
+                farIdx++;
+              }
+              const sn = typeof target==='object' ? target.surah_no : target;
+              const s = surahByNo(sn);
+              if(s){
+                w.surah_no=s.no; w.surah_name=s.name;
+                w.whole_surah=true;
+                w.amount_label = `${s.name} (كاملة)`;
+              }
             }
           } else {
             w.amount_label = 'لا مراجعة بعيدة';
@@ -7153,6 +7169,7 @@ function renderStep4(){
   const modeBtns = [
     {v:'daily_rotation',l:'دوران يومي',d:'كل يوم سورة مختلفة بالتسلسل'},
     {v:'weekly_focus',l:'تثبيت أسبوعي',d:'سورة واحدة طوال الأسبوع'},
+    {v:'custom_days',l:'مرونة حسب طول السورة',d:'أنت تحدد كم يوماً تحتاجه كل سورة، والقصيرة جداً تتجمّع في نفس اليوم'},
   ].map(m=>`<label style="flex:1;min-width:200px;cursor:pointer;background:${mode===m.v?'linear-gradient(135deg,var(--emerald),var(--emerald-deep))':'#fff'};color:${mode===m.v?'#fff':'var(--ink)'};border:1.5px solid ${mode===m.v?'var(--emerald-deep)':'var(--line)'};border-radius:14px;padding:14px;transition:.2s">
     <input type="radio" name="qwMode" value="${m.v}" ${mode===m.v?'checked':''} onclick="qSetMode('${m.v}')" style="margin-inline-end:8px" />
     <b style="font-family:Amiri">${m.l}</b><br><small style="opacity:0.85">${m.d}</small>
@@ -7167,16 +7184,67 @@ function renderStep4(){
     </div>`;
   }).join('');
 
+  const customDaysHtml = mode==='custom_days' ? `<div style="margin-top:14px">
+    <label style="display:block;margin-bottom:8px;font-weight:700;color:var(--navy-deep)">كم يوماً تحتاجه كل سورة؟ <small style="font-weight:400;color:var(--muted)">(القصيرة جداً — أقل من ٤ أيام مقترحة — تتجمّع تلقائياً مع غيرها في نفس اليوم)</small></label>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      ${pool.map(p=>{
+        const sn=typeof p==='object'?p.surah_no:p; const s=surahByNo(sn);
+        const suggested=qAutoSuggestDays(sn);
+        const val=(typeof p==='object'&&p.days_needed)?p.days_needed:suggested;
+        return `<div style="display:flex;align-items:center;gap:10px;background:var(--cream);border-radius:10px;padding:8px 12px">
+          <span style="flex:1;font-weight:700">${esc(s?s.name:'')}</span>
+          <small style="color:var(--muted)">${ar(s?s.ayat:0)} آية</small>
+          <input type="number" min="1" max="14" value="${val}" class="qw-days-input" data-surah="${sn}" onchange="qSetPoolDays(${sn},this.value)" style="width:60px;padding:6px;border:1px solid var(--line);border-radius:8px;text-align:center">
+          <small style="color:var(--muted)">يوم</small>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>` : '';
+
   return `<p style="color:var(--muted);font-size:13.5px;line-height:1.9;margin-bottom:14px">اختر نمط المراجعة البعيدة، ثم حدّد السور التي تدخل دورة المراجعة.</p>
   <label style="display:block;margin-bottom:8px;font-weight:700;color:var(--navy-deep)">نمط المراجعة</label>
   <div style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap">${modeBtns}</div>
   <label style="display:block;margin-bottom:8px;font-weight:700;color:var(--navy-deep)">سور المراجعة البعيدة (من السور المحفوظة)</label>
   <div class="qsurahgrid" id="qPoolGrid">${poolHtml}</div>
   <div style="margin-top:12px;font-size:13px;color:var(--emerald-deep);font-weight:700">مختار: <span id="qPoolCount">${ar(pool.length)}</span></div>
+  ${customDaysHtml}
   <div class="qsticky">
     <button class="btn ghost" onclick="qWizPrev(4)">→ السابق</button>
     <button class="btn" onclick="qWizNext(4)">التالي ←</button>
   </div>`;
+}
+// يبني جدول أيام المراجعة البعيدة من مجموعة السور: كل سورة تأخذ عدد الأيام
+// المحدد لها (أو المقترح تلقائياً)، والسور القصيرة جداً (≤١ يوم ومجموع آياتها صغير)
+// تتجمّع في نفس اليوم بدل ما تاخد يوماً كاملاً كل واحدة لوحدها
+function buildFarReviewDaySchedule(farPool){
+  const days=[]; let bucket=[]; let bucketAyat=0;
+  const BUNDLE_AYAT_CAP=15;
+  farPool.forEach(item=>{
+    const sn = typeof item==='object' ? item.surah_no : item;
+    const daysNeeded = (typeof item==='object' && item.days_needed) ? item.days_needed : qAutoSuggestDays(sn);
+    const s = surahByNo(sn); const ayat = s?s.ayat:0;
+    if(daysNeeded<=1 && ayat<=BUNDLE_AYAT_CAP){
+      bucket.push(sn); bucketAyat+=ayat;
+      if(bucketAyat>=BUNDLE_AYAT_CAP || bucket.length>=4){ days.push({surahs:bucket}); bucket=[]; bucketAyat=0; }
+    } else {
+      if(bucket.length){ days.push({surahs:bucket}); bucket=[]; bucketAyat=0; }
+      for(let i=0;i<Math.max(1,daysNeeded);i++) days.push({surahs:[sn]});
+    }
+  });
+  if(bucket.length) days.push({surahs:bucket});
+  return days;
+}
+// اقتراح تلقائي لعدد أيام المراجعة حسب طول السورة (سور طويلة تحتاج أياماً أكثر)
+function qAutoSuggestDays(surahNo){
+  const s=surahByNo(surahNo); if(!s) return 1;
+  if(s.ayat>150) return 3;
+  if(s.ayat>60) return 2;
+  return 1;
+}
+function qSetPoolDays(surahNo, days){
+  const d=QPLAN_STATE.data;
+  const item=(d.far_review_pool||[]).find(p=>(typeof p==='object'?p.surah_no:p)===surahNo);
+  if(item && typeof item==='object') item.days_needed=Math.max(1,+days||1);
 }
 
 function qSetMode(m){ QPLAN_STATE.data.far_review_mode=m; renderWizardInline(); }
@@ -7247,7 +7315,7 @@ async function renderStep5(stu){
     <div class="qpvrow"><span>السماع من</span><b>صفحة ${ar(d.current_listen_page||1)}</b></div>
     <div class="qpvrow"><span>السور المحفوظة</span><b>${ar((d.prior_memorized||[]).length)}</b></div>
     <div class="qpvrow"><span>سور المراجعة البعيدة</span><b>${ar((d.far_review_pool||[]).length)}</b></div>
-    <div class="qpvrow"><span>نمط المراجعة البعيدة</span><b>${d.far_review_mode==='weekly_focus'?'تثبيت أسبوعي':'دوران يومي'}</b></div>
+    <div class="qpvrow"><span>نمط المراجعة البعيدة</span><b>${d.far_review_mode==='weekly_focus'?'تثبيت أسبوعي':d.far_review_mode==='custom_days'?'مرونة حسب طول السورة':'دوران يومي'}</b></div>
   </div>
   <div style="text-align:center;padding:18px;background:var(--cream-2);border-radius:14px;margin-top:14px">
     <p style="color:var(--navy-deep);font-family:Amiri;font-size:16px;margin-bottom:10px">جاهز لإنشاء الخطة؟</p>
