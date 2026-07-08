@@ -991,3 +991,8 @@ begin
     execute format('create policy "staff read %I" on %I for select to authenticated using (true)', tbl, tbl);
   end loop;
 end $$;
+
+-- ============================================================
+-- عرض دور المرسل (طالب/ولي أمر/معلم/مشرف/مدير...) بجانب اسمه في الرسائل
+-- ------------------------------------------------------------
+alter table messages add column if not exists sender_role text;
