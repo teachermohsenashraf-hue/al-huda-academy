@@ -3708,10 +3708,29 @@ async function groupCards(gs){ let h=''; for(const g of gs){ const { data:sts }=
 } return h; }
 function openGroup(id){ SESSION.activeGroup=id; navigate('record'); }
 PAGES.teacher_groups=async function(){ setTop('حلقاتي','');
-  const cards=await groupCards(await myGroups());
-  return pageHead('حلقاتي','كل حلقاتك، حلقة تحت التانية')+
+  const gs=await myGroups();
+  // نجيب جنسية/إقامة كل طالب في حلقة خاصة عشان نقسّم الحلقات لـ٣ أقسام
+  const studentIds=gs.filter(g=>g.is_private&&g.student_id).map(g=>g.student_id);
+  let geoByStudentId={};
+  if(studentIds.length){
+    const { data:studs }=await sb.from('students').select('id,login_id,parent_id').in('id',studentIds);
+    const gmap=await residenceMap(studs||[]);
+    (studs||[]).forEach(s=>{ geoByStudentId[s.id]=gmap[s.id]; });
+  }
+  const buckets={EG:[],SA:[],other:[]};
+  gs.forEach(g=>{
+    if(g.is_private&&g.student_id) buckets[countryBucket(geoByStudentId[g.student_id])].push(g);
+    else buckets.other.push(g);
+  });
+  let cardsHtml='';
+  for(const sec of COUNTRY_SECTIONS){
+    const list=buckets[sec.key];
+    if(!list.length) continue;
+    cardsHtml+=`<div class="section-label"><span class="sl-t">${sec.label} (${ar(list.length)})</span><span class="sl-line"></span></div><div class="list1col">${await groupCards(list)}</div>`;
+  }
+  return pageHead('حلقاتي','كل حلقاتك، مقسّمة حسب دولة الطالب')+
   `<div class="field" style="max-width:360px;margin-bottom:16px"><input id="teacherHalqaSearch" placeholder="🔍 دوّر على حلقة طالب..." oninput="filterTeacherHalqat(this.value)"></div>
-  <div id="teacherHalqatList" class="list1col">${cards||'<p style="color:var(--muted)">لا حلقات مُسندة إليك بعد. يسندها المدير.</p>'}</div>`;
+  <div id="teacherHalqatList">${cardsHtml||'<p style="color:var(--muted)">لا حلقات مُسندة إليك بعد. يسندها المدير.</p>'}</div>`;
 };
 function filterTeacherHalqat(q){
   const nq=(q||'').trim();
