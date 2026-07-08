@@ -3526,10 +3526,17 @@ async function alreadyChosenMsg(s){
 }
 // نقل طالب لمعلم آخر (صلاحية المعلم الحالي أو المشرف/الإدارة فقط)
 async function transferStudentModal(studentId, studentName){
-  const s=await (async()=>{ const{data}=await sb.from('students').select('gender,chosen_teacher_id,login_id,quran_path').eq('id',studentId).single(); return data; })();
+  const s=await (async()=>{ const{data}=await sb.from('students').select('gender,chosen_teacher_id,login_id,parent_id,quran_path').eq('id',studentId).single(); return data; })();
+  // جنس الطالب — لو مش محفوظ على سجل الطالب نفسه، ناخده من حساب الطالب المرتبط أو وليّ أمره
+  // (نفس المنطق المستخدم في صفحة اختيار المعلم) بدل ما نفشل نفلتر ونعرض الجنسين مع بعض
+  let studentGender=s?.gender;
+  if(!studentGender){
+    const uid=s?.login_id||s?.parent_id;
+    if(uid){ const { data:p }=await sb.from('profiles').select('gender').eq('id',uid).maybeSingle(); studentGender=p?.gender; }
+  }
   // المعلمون من نفس جنس الطالب (عدا الحالي)
   let q=sb.from('profiles').select('id,full_name,gender,paths').eq('role','teacher').eq('is_available',true);
-  if(s&&s.gender) q=q.eq('gender',s.gender);
+  if(studentGender) q=q.eq('gender',studentGender);
   const { data:teachers }=await q;
   let list=(teachers||[]).filter(t=>t.id!==s?.chosen_teacher_id);
   // فلترة بمسار الطالب: المعلم الذي يدرّس نفس المسار (إن كان للمعلم مسارات محددة)
@@ -3884,9 +3891,17 @@ PAGES.teacher_content=async function(){ return contentPage(); };
    المشرف
    ============================================================ */
 PAGES.supervisor_dash=async function(){ setTop('أهلاً '+ME.full_name+' 👋','نظرة إشرافية شاملة.');
-  const { data:studs }=await sb.from('students').select('*');
-  const { count:tc }=await sb.from('profiles').select('*',{count:'exact',head:true}).eq('role','teacher');
-  const { count:gc }=await sb.from('groups').select('*',{count:'exact',head:true});
+  // المشرف يرى بيانات نفس جنسه فقط (خلافاً للمدير/التنفيذي اللذين يريان الكل) — سياسة الفصل بين الجنسين
+  const seesAll=seesAllGenders();
+  const myG=seesAll?null:await myGender();
+  let studQ=sb.from('students').select('*');
+  if(!seesAll&&myG) studQ=studQ.eq('gender',myG);
+  const { data:studs }=await studQ;
+  let teacherQ=sb.from('profiles').select('*',{count:'exact',head:true}).eq('role','teacher');
+  if(!seesAll&&myG) teacherQ=teacherQ.eq('gender',myG);
+  const { count:tc }=await teacherQ;
+  const { data:allGroups }=await sb.from('groups').select('id, teacher:profiles!groups_teacher_id_fkey(gender)');
+  const gc=(!seesAll&&myG) ? (allGroups||[]).filter(g=>!g.teacher||g.teacher.gender===myG).length : (allGroups||[]).length;
   const s=studs||[]; const tot=s.length||1;
   const avgMastery=Math.round(s.reduce((a,x)=>a+(x.mastery||0),0)/tot);
   const lowAtt=s.filter(x=>(x.attendance||100)<70).length;
@@ -3903,7 +3918,8 @@ function casesBlock(s){
   if(!cases.length) return '<p style="color:var(--muted)">لا حالات متعثّرة حالياً 👍 الكل بخير.</p>';
   return `<div style="overflow-x:auto"><table class="dtable"><thead><tr><th>الطالب</th><th>المشكلة</th></tr></thead><tbody>${cases.map(c=>`<tr><td><span class="miniava">${c.initials||'؟'}</span>${c.name}</td><td><span class="chip ${c.c}">${c.p}</span></td></tr>`).join('')}</tbody></table></div>`;
 }
-async function groupsTable(){ const { data:gs }=await sb.from('groups').select('*, teacher:profiles!groups_teacher_id_fkey(full_name,initials)');
+async function groupsTable(){ let { data:gs }=await sb.from('groups').select('*, teacher:profiles!groups_teacher_id_fkey(full_name,initials,gender)');
+  if(!seesAllGenders()){ const myG=await myGender(); if(myG&&gs) gs=gs.filter(g=>!g.teacher||g.teacher.gender===myG); }
   if(!gs||!gs.length) return '<p style="color:var(--muted)">لا حلقات بعد.</p>';
   return `<div style="overflow-x:auto"><table class="dtable"><thead><tr><th>الحلقة</th><th>المعلم</th><th>الموعد</th><th>الإتقان</th></tr></thead><tbody>${gs.map(g=>`<tr><td>${g.name}</td><td><span class="miniava">${g.teacher?g.teacher.initials:'؟'}</span>${g.teacher?g.teacher.full_name:'—'}</td><td>${g.meet_time||'—'}</td><td><span class="chip ${(g.avg_mastery||0)>=85?'g':(g.avg_mastery||0)>=70?'gold':'r'}">${pct(g.avg_mastery||0)}</span></td></tr>`).join('')}</tbody></table></div>`;
 }
@@ -4117,7 +4133,7 @@ async function rejectSubsidy(reqId){
 PAGES.supervisor_cases=async function(){ setTop('الحالات المتعثّرة','طلاب يحتاجون متابعة');
   // نعتمد على بيانات خطة القرآن الفعلية (quran_plan_wards/quran_ward_progress) بدل حقول قديمة
   // بقيت غير مُحدَّثة منذ التحوّل لنظام الأنظمة والمحطات
-  let { data:studs }=await sb.from('students').select('id,full_name,initials,gender,g:groups!students_group_id_fkey(name)').eq('enrollment_status','active');
+  let { data:studs }=await sb.from('students').select('id,full_name,initials,gender,login_id,parent_id,g:groups!students_group_id_fkey(name)').eq('enrollment_status','active');
   if(!seesAllGenders()){ const _g=await myGender(); if(_g&&studs) studs=studs.filter(x=>!x.gender||x.gender===_g); }
   const s=studs||[];
   if(!s.length) return pageHead('الحالات المتعثّرة','٠ حالة تحتاج انتباه')+'<div class="card"><p style="color:var(--muted);text-align:center;padding:20px">لا طلاب نشطون بعد.</p></div>';
@@ -4147,7 +4163,7 @@ PAGES.supervisor_cases=async function(){ setTop('الحالات المتعثّر
     if(p<70 || overdue>=3) cases.push({x, pct:p, overdue, reason: overdue>=3?'أوراد متأخرة كتير':'إنجاز منخفض في آخر أسبوعين'});
   });
   return pageHead('الحالات المتعثّرة',ar(cases.length)+' حالة تحتاج انتباه')+
-  `<div class="card">${cases.length?`<div style="overflow-x:auto"><table class="dtable"><thead><tr><th>الطالب</th><th>الحلقة</th><th>الإنجاز (١٤ يوم)</th><th>أوراد متأخرة</th><th>المشكلة</th></tr></thead><tbody>${cases.map(c=>{ const x=c.x; const cls=c.overdue>=3?'r':'gold'; return `<tr><td><span class="miniava">${x.initials||'؟'}</span>${esc(x.full_name)}</td><td>${x.g?esc(x.g.name):'—'}</td><td>${pct(c.pct)}</td><td>${ar(c.overdue)}</td><td><span class="chip ${cls}">${c.reason}</span></td></tr>`; }).join('')}</tbody></table></div>`:'<p style="color:var(--muted);text-align:center;padding:20px">لا حالات متعثّرة 👍 كل الطلاب بخير.</p>'}</div>`;
+  `<div class="card">${cases.length?`<div style="overflow-x:auto"><table class="dtable"><thead><tr><th>الطالب</th><th>الحلقة</th><th>الإنجاز (١٤ يوم)</th><th>أوراد متأخرة</th><th>المشكلة</th><th>تواصل</th></tr></thead><tbody>${cases.map(c=>{ const x=c.x; const cls=c.overdue>=3?'r':'gold'; const contactId=x.login_id||x.parent_id; return `<tr><td><span class="miniava">${x.initials||'؟'}</span>${esc(x.full_name)}</td><td>${x.g?esc(x.g.name):'—'}</td><td>${pct(c.pct)}</td><td>${ar(c.overdue)}</td><td><span class="chip ${cls}">${c.reason}</span></td><td>${contactId?`<button class="icon-act" title="تواصل مع الطالب/وليّ الأمر" onclick="startChatWith('${contactId}','${escJs(x.full_name)}')">${mi('chat')}</button>`:'<span style="color:var(--muted);font-size:12px">لا يوجد حساب مرتبط</span>'}</td></tr>`; }).join('')}</tbody></table></div>`:'<p style="color:var(--muted);text-align:center;padding:20px">لا حالات متعثّرة 👍 كل الطلاب بخير.</p>'}</div>`;
 };
 PAGES.supervisor_students=async function(){ setTop('كل الطلاب','نظرة شاملة');
   let { data:studs }=await sb.from('students').select('*, g:groups!students_group_id_fkey(name)').order('points',{ascending:false});
@@ -4155,7 +4171,7 @@ PAGES.supervisor_students=async function(){ setTop('كل الطلاب','نظرة
   const s=studs||[];
   const geoMap=await residenceMap(s);
   return pageHead('كل الطلاب',ar(s.length)+' طالباً')+
-  `<div class="card">${s.length?`<div style="overflow-x:auto"><table class="dtable"><thead><tr><th>الطالب</th><th>الحلقة</th><th>المسار</th><th>النظام/الباقة</th><th>بلد الإقامة</th><th>الإتقان</th><th>الحضور</th><th>النقاط</th><th>إجراء</th></tr></thead><tbody>${s.map(x=>`<tr><td><span class="miniava">${x.initials||'؟'}</span>${esc(x.full_name)}</td><td>${x.g?x.g.name:'—'}</td><td>${trackAr(x.track)}</td><td>${planChips(x)}</td><td>${esc(geoMap[x.id]?.residence||'—')}</td><td><span class="prog-mini"><i style="width:${x.mastery||0}%"></i></span></td><td>${pct(x.attendance||0)}</td><td><b style="font-family:Amiri;color:var(--emerald)">${ar(x.points||0)}</b></td><td><button class="btn-sm" onclick="studentDetailModal(${x.id})">تفاصيل</button></td></tr>`).join('')}</tbody></table></div>`:'<p style="color:var(--muted)">لا طلاب بعد.</p>'}</div>`;
+  `<div class="card">${s.length?`<div style="overflow-x:auto"><table class="dtable"><thead><tr><th>الطالب</th><th>الحلقة</th><th>المسار</th><th>النظام/الباقة</th><th>بلد الإقامة</th><th>الإتقان</th><th>الحضور</th><th>النقاط</th><th>إجراء</th></tr></thead><tbody>${s.map(x=>{ const contactId=x.login_id||x.parent_id; return `<tr><td><span class="miniava">${x.initials||'؟'}</span>${esc(x.full_name)}</td><td>${x.g?x.g.name:'—'}</td><td>${pathName(x.quran_path)}</td><td>${planChips(x)}</td><td>${esc(geoMap[x.id]?.residence||'—')}</td><td><span class="prog-mini"><i style="width:${x.mastery||0}%"></i></span></td><td>${pct(x.attendance||0)}</td><td><b style="font-family:Amiri;color:var(--emerald)">${ar(x.points||0)}</b></td><td><div class="row-actions"><button class="icon-act" title="تفاصيل" onclick="studentDetailModal(${x.id})">${mi('eye')}</button>${contactId?`<button class="icon-act" title="تواصل" onclick="startChatWith('${contactId}','${escJs(x.full_name)}')">${mi('chat')}</button>`:''}</div></td></tr>`; }).join('')}</tbody></table></div>`:'<p style="color:var(--muted)">لا طلاب بعد.</p>'}</div>`;
 };
 // جلب بلد الإقامة لمجموعة طلاب دفعة واحدة (من حساب الطالب نفسه، أو حساب وليّ أمره لو الطالب صغير بلا حساب)
 async function residenceMap(students){

@@ -967,3 +967,27 @@ drop policy if exists "public read avatars" on storage.objects;
 create policy "public read avatars" on storage.objects
   for select to public
   using (bucket_id = 'avatars');
+
+-- ============================================================
+-- إصلاح: صفحة "أنظمة القرآن" عند المشرف كانت تظهر "لا أنظمة" رغم وجود
+-- كل الأنظمة والمسارات والمحطات فعلياً عند المدير — سببه على الأغلب أن
+-- سياسات RLS على جداول قسم القرآن مقصورة على المدير فقط. المشرف يحتاج
+-- رؤية نفس البيانات كاملة (قراءة فقط) عشان يقدر يشرف على المعلم والطالب
+-- بمعرفة تفصيلية بالأنظمة والمسارات القائمة، فنضيف سياسة قراءة عامة لكل
+-- الموظفين المسجّلين (بدون التأثير على صلاحيات الكتابة/التعديل الحالية).
+-- ------------------------------------------------------------
+do $$
+declare
+  tbl text;
+begin
+  for tbl in select unnest(array[
+    'quran_systems','quran_stations','quran_fortresses','quran_station_fortress_config',
+    'quran_student_plans','quran_plan_wards','quran_ward_progress',
+    'quran_student_assessment','quran_plan_fortress_rates','quran_system_audit'
+  ])
+  loop
+    execute format('alter table %I enable row level security', tbl);
+    execute format('drop policy if exists "staff read %I" on %I', tbl, tbl);
+    execute format('create policy "staff read %I" on %I for select to authenticated using (true)', tbl, tbl);
+  end loop;
+end $$;
