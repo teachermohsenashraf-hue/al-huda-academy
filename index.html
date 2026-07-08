@@ -2871,6 +2871,26 @@ function fireBrowserNotif(title, body){
     n.onclick=()=>{ window.focus(); n.close(); };
   }catch(e){}
 }
+// نغمة تنبيه قصيرة (Web Audio API — بدون ملف صوتي خارجي) عند وصول أي إشعار جديد
+let _notifAudioCtx=null;
+function playNotifSound(){
+  try{
+    if(!_notifAudioCtx) _notifAudioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    const ctx=_notifAudioCtx;
+    if(ctx.state==='suspended') ctx.resume();
+    const now=ctx.currentTime;
+    [880,1100].forEach((freq,i)=>{
+      const osc=ctx.createOscillator(); const gain=ctx.createGain();
+      osc.type='sine'; osc.frequency.value=freq;
+      const start=now+i*0.14;
+      gain.gain.setValueAtTime(0,start);
+      gain.gain.linearRampToValueAtTime(0.18,start+0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001,start+0.13);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(start); osc.stop(start+0.14);
+    });
+  }catch(e){}
+}
 function urlBase64ToUint8Array(base64String){
   const padding='='.repeat((4-base64String.length%4)%4);
   const base64=(base64String+padding).replace(/-/g,'+').replace(/_/g,'/');
@@ -2900,6 +2920,8 @@ function subscribeToNotifs(){
     .on('postgres_changes', { event:'INSERT', schema:'public', table:'notifications', filter:'user_id=eq.'+ME.id }, (payload)=>{
       const row=payload.new;
       NOTIF_COUNT++; updateNotifBadge();
+      refreshMenuDots(); // نقطة حمراء فورية على الصفحة المعنية في القائمة الجانبية، مش بس عند التنقّل
+      playNotifSound();
       fireBrowserNotif(row.title, row.body);
       toast((row.title||'').slice(0,60));
     })
