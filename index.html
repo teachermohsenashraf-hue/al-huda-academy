@@ -2423,7 +2423,7 @@ const MENUS = {
   ]},
   executive:{ skin:'s-navy', title:'لوحة المدير التنفيذي', sections:[
     {label:'القيادة', items:[['dash',mi('building'),'نظرة تنفيذية'],['analytics',mi('chart'),'التحليلات']]},
-    {label:'الإشراف', items:[['team',mi('team'),'فريق الإشراف'],['staff',mi('teacher'),'المعلمون والحلقات'],['students',mi('child'),'الطلاب'],['leads',mi('clipboard'),'تسجيلات معلّقة']]},
+    {label:'الإشراف', items:[['team',mi('team'),'فريق الإشراف'],['staff',mi('teacher'),'المعلمون والحلقات'],['students',mi('child'),'الطلاب'],['unassigned',mi('warning'),'طلاب بدون حلقة'],['leads',mi('clipboard'),'تسجيلات معلّقة']]},
     {label:'قسم القرآن', items:[['qsystems',mi('kaaba'),'أنظمة القرآن']]},
     {label:'المالية', items:[['finance',mi('card'),'المدفوعات']]},
   ]},
@@ -2431,7 +2431,7 @@ const MENUS = {
     {label:'الالتحاق', items:[['confirm',mi('money'),'تأكيد المدفوعات'],['subsidy',mi('handshake'),'طلبات التخفيض']]},
     {label:'الإشراف', items:[['dash',mi('home'),'نظرة عامة'],['groups',mi('users'),'الحلقات'],['groupreport',mi('clipboard'),'تقارير الحلقات']]},
     {label:'قسم القرآن', items:[['qoverview',mi('chart'),'أنظمة القرآن']]},
-    {label:'الطلاب', items:[['students',mi('child'),'كل الطلاب'],['transfer',mi('refresh'),'نقل طالب'],['cases',mi('warning'),'الحالات المتعثّرة'],['leads',mi('clipboard'),'تسجيلات معلّقة']]},
+    {label:'الطلاب', items:[['students',mi('child'),'كل الطلاب'],['transfer',mi('refresh'),'نقل طالب'],['cases',mi('warning'),'الحالات المتعثّرة'],['unassigned',mi('warning'),'طلاب بدون حلقة'],['leads',mi('clipboard'),'تسجيلات معلّقة']]},
     {label:'التواصل', items:[['chat',mi('chat'),'الرسائل']]},
   ]},
   teacher:{ skin:'s-emerald', title:'لوحة المعلم', sections:[
@@ -3536,23 +3536,40 @@ PAGES.teacher_quickrecord=async function(){ setTop('الرصد السريع','س
   <div style="margin-top:16px;padding:12px;background:var(--cream);border-radius:10px;font-size:12.5px;color:var(--muted)">⚡ الرصد السريع — كل ضغطة تُحفظ فوراً ولا حاجة لزر حفظ.</div>`;
 };
 // ===== التقرير الأسبوعي (معلم يرسله لأولياء الأمور) =====
-// ===== طلاب بدون حلقة (مدير) =====
-PAGES.admin_unassigned=async function(){ setTop('طلاب بدون حلقة','دفعوا ولم يُوزَّعوا بعد');
+// ===== طلاب بدون حلقة (مدير/مشرف) =====
+async function renderUnassignedPage(viewerRole){
   const { data:sts }=await sb.from('students').select('*, teacher:profiles!students_chosen_teacher_id_fkey(full_name)').eq('enrollment_status','active').is('group_id',null).order('full_name');
   const s=sts||[];
   const { data:gs }=await sb.from('groups').select('id,name,teacher:profiles!groups_teacher_id_fkey(full_name)').order('name');
+  let sups=[];
+  if(viewerRole==='admin'){ const { data:sd }=await sb.from('profiles').select('id,full_name,gender').eq('role','supervisor'); sups=sd||[]; }
   return pageHead('طلاب بدون حلقة','هؤلاء دفعوا وتم تفعيل اشتراكهم ولكنهم لم يُضافوا لحلقة بعد')+
   (s.length?`<div class="card" style="margin-bottom:16px"><div class="ch"><h3>${mi('warning')} ${ar(s.length)} طالب بانتظار التوزيع</h3></div>
-    <div class="staff-list">${s.map(x=>`<div class="staff-item">
+    <div class="staff-list">${s.map(x=>{
+      const teacherBadge=x.chosen_teacher_id
+        ?`<span class="chip g" style="font-size:11px">${mi('check')} اختار المعلم: ${esc(x.teacher?.full_name||'—')}</span>`
+        :`<span class="chip gold" style="font-size:11px">${mi('warning')} لم يختر معلماً بعد</span>`;
+      let contactBtn='';
+      if(viewerRole==='admin'){
+        const sup=sups.find(sp=>!x.gender||!sp.gender||sp.gender===x.gender)||sups[0];
+        contactBtn=sup?`<button class="icon-act" title="تواصل مع المشرف ${esc(sup.full_name)}" onclick="startChatWith(${sup.id},'${esc(sup.full_name).replace(/'/g,'')}')">${mi('chat')}</button>`:'';
+      } else if(viewerRole==='supervisor'){
+        contactBtn=x.login_id?`<button class="icon-act" title="تواصل مع الطالب" onclick="startChatWith('${x.login_id}','${esc(x.full_name).replace(/'/g,'')}')">${mi('chat')}</button>`:'';
+      }
+      return `<div class="staff-item">
       <div class="si-av teacher">${x.initials||x.full_name.slice(0,2)}</div>
-      <div class="si-info"><b>${x.full_name}</b><span>${pathName(x.quran_path)} ${x.teacher?'• اختار: '+x.teacher.full_name:''}</span></div>
-      <div class="si-actions">
+      <div class="si-info"><b>${esc(x.full_name)}</b><span>${pathName(x.quran_path)}</span><div style="margin-top:4px">${teacherBadge}</div></div>
+      <div class="si-actions" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
         <select id="asGroup_${x.id}" style="font-size:13px;padding:6px;border-radius:8px;border:1px solid var(--line)"><option value="">اختر حلقة</option>${(gs||[]).map(g=>`<option value="${g.id}">${g.name}${g.teacher?' — '+g.teacher.full_name:''}</option>`).join('')}</select>
         <button class="btn-sm" onclick="assignToGroup(${x.id})">تعيين</button>
+        <button class="icon-act" title="تفاصيل الطالب" onclick="studentDetailModal(${x.id})">${mi('eye')}</button>
+        ${contactBtn}
       </div>
-    </div>`).join('')}</div></div>`
+    </div>`;}).join('')}</div></div>`
   :`<div class="card" style="text-align:center;padding:36px"><div class="empty-ic">${mi('check')}</div><h3 style="color:var(--navy-deep)">كل الطلاب النشطون في حلقات</h3></div>`);
-};
+}
+PAGES.admin_unassigned=async function(){ setTop('طلاب بدون حلقة','دفعوا ولم يُوزَّعوا بعد'); return renderUnassignedPage('admin'); };
+PAGES.supervisor_unassigned=async function(){ setTop('طلاب بدون حلقة','دفعوا ولم يُوزَّعوا بعد'); return renderUnassignedPage('supervisor'); };
 async function assignToGroup(studentId){
   const sel=$('#asGroup_'+studentId); if(!sel||!sel.value){toast('اختر حلقة أولاً');return;}
   const { error }=await sb.from('students').update({ group_id:+sel.value }).eq('id',studentId);
@@ -3598,6 +3615,7 @@ PAGES.admin_leads=async function(){ setTop('تسجيلات معلّقة','حسا
 };
 PAGES.executive_leads = PAGES.admin_leads;
 PAGES.supervisor_leads = PAGES.admin_leads;
+PAGES.executive_unassigned = PAGES.admin_unassigned;
 
 PAGES.teacher_record=async function(){
   const gs=await myGroups(); if(!SESSION.activeGroup&&gs[0])SESSION.activeGroup=gs[0].id;
