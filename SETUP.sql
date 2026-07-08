@@ -941,3 +941,29 @@ alter table join_requests add column if not exists memorization_status text;
 alter table join_requests add column if not exists review_status text;
 alter table join_requests add column if not exists reading_level text;
 alter table join_requests add column if not exists listening_level text;
+
+-- ============================================================
+-- صورة شخصية للمعلم — تُرفع من "إتاحتي وسيرتي" وتظهر للطلاب/أولياء
+-- الأمور في صفحة اختيار المعلم بدل الأفاتار الحرفي فقط
+-- ------------------------------------------------------------
+alter table profiles add column if not exists avatar_url text;
+
+insert into storage.buckets (id, name, public)
+values ('avatars', 'avatars', true)
+on conflict (id) do update set public = true;
+
+drop policy if exists "authenticated upload avatars" on storage.objects;
+create policy "authenticated upload avatars" on storage.objects
+  for insert to authenticated
+  with check (bucket_id = 'avatars');
+
+drop policy if exists "authenticated update own avatars" on storage.objects;
+create policy "authenticated update own avatars" on storage.objects
+  for update to authenticated
+  using (bucket_id = 'avatars')
+  with check (bucket_id = 'avatars');
+
+drop policy if exists "public read avatars" on storage.objects;
+create policy "public read avatars" on storage.objects
+  for select to public
+  using (bucket_id = 'avatars');

@@ -632,7 +632,7 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 /* اختيار المعلم */
 .teacher-card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:22px;text-align:center;box-shadow:0 4px 14px var(--shadow);transition:.2s}
 .teacher-card:hover{transform:translateY(-4px);border-color:var(--emerald)}
-.tc-av{width:64px;height:64px;border-radius:18px;background:linear-gradient(135deg,var(--emerald),var(--emerald-deep));color:#fff;display:grid;place-items:center;font-weight:700;font-family:'Amiri';font-size:24px;margin:0 auto 12px}
+.tc-av{width:64px;height:64px;border-radius:18px;background:linear-gradient(135deg,var(--emerald),var(--emerald-deep));color:#fff;display:grid;place-items:center;font-weight:700;font-family:'Amiri';font-size:24px;margin:0 auto 12px;overflow:hidden}
 .teacher-card h3{color:var(--navy-deep);font-size:18px;margin-bottom:6px}
 .tc-spec{font-size:13px;color:var(--emerald-deep);font-weight:600;margin-bottom:8px}
 .tc-meta{display:flex;gap:10px;justify-content:center;font-size:12px;color:var(--muted);margin-bottom:10px;flex-wrap:wrap}
@@ -3143,6 +3143,17 @@ PAGES.teacher_availability=async function(){ setTop('إتاحتي وسيرتي',
     </div>
     <div class="avail-status ${avail?'on':'off'}" id="availStatus">${avail?'🟢 متاح حالياً لاستقبال الطلاب':'⚫ غير متاح حالياً'}</div>
   </div>
+  <div class="card" style="margin-bottom:18px">
+    <div class="ch"><h3>صورتي الشخصية</h3></div>
+    <div style="display:flex;align-items:center;gap:16px">
+      <div id="teacherAvatarPreview" style="width:84px;height:84px;border-radius:50%;overflow:hidden;background:var(--cream);flex-shrink:0;display:flex;align-items:center;justify-content:center;border:2px solid var(--line)">${me?.avatar_url?`<img src="${esc(me.avatar_url)}" style="width:100%;height:100%;object-fit:cover">`:`<span style="font-size:26px;color:var(--muted)">${esc((me?.full_name||'؟').slice(0,2))}</span>`}</div>
+      <div>
+        <input type="file" id="teacherAvatarFile" accept="image/*" style="display:none" onchange="uploadTeacherAvatar(this.files[0])">
+        <button class="btn-sm" onclick="document.getElementById('teacherAvatarFile').click()">${mi('pencil')} ${me?.avatar_url?'تغيير الصورة':'رفع صورة'}</button>
+        <p style="color:var(--muted);font-size:12px;margin-top:6px">تظهر هذه الصورة للطلاب وأولياء الأمور عند اختيار معلمهم.</p>
+      </div>
+    </div>
+  </div>
   <div class="card">
     <div class="ch"><h3>سيرتي الذاتية</h3></div>
     <div class="field"><label>التخصّص</label><input id="bioSpec" value="${me?.specialty||''}" placeholder="مثال: إجازة في حفص عن عاصم"></div>
@@ -3151,6 +3162,26 @@ PAGES.teacher_availability=async function(){ setTop('إتاحتي وسيرتي',
     <button class="btn" id="bioBtn" onclick="saveBio()">حفظ السيرة</button>
   </div>`;
 };
+async function uploadTeacherAvatar(file){
+  if(!file) return;
+  const preview=$('#teacherAvatarPreview');
+  const prevHtml=preview.innerHTML;
+  preview.innerHTML=`<span style="font-size:12px;color:var(--muted)">جارٍ الرفع...</span>`;
+  try{
+    const blob = await compressImage(file, 400, 0.82);
+    const fileName = `${ME.id}_${Date.now()}.jpg`;
+    const { error:upErr } = await sb.storage.from('avatars').upload(fileName, blob, { contentType:'image/jpeg', upsert:true });
+    if(upErr) throw upErr;
+    const { data:pub } = sb.storage.from('avatars').getPublicUrl(fileName);
+    const { error:dbErr } = await sb.from('profiles').update({ avatar_url: pub.publicUrl }).eq('id',ME.id);
+    if(dbErr) throw dbErr;
+    preview.innerHTML = `<img src="${pub.publicUrl}" style="width:100%;height:100%;object-fit:cover">`;
+    toast('✅ تم تحديث صورتك');
+  }catch(e){
+    preview.innerHTML=prevHtml;
+    alert('تعذّر رفع الصورة: '+(e.message||'خطأ غير متوقع')+'\n\nتأكّد من وجود bucket باسم "avatars" في Supabase Storage.');
+  }
+}
 async function toggleAvail(on){
   await sb.from('profiles').update({ is_available:on }).eq('id',ME.id);
   const st=$('#availStatus'); if(st){ st.className='avail-status '+(on?'on':'off'); st.textContent=on?'🟢 متاح حالياً لاستقبال الطلاب':'⚫ غير متاح حالياً'; }
@@ -3338,7 +3369,7 @@ async function chooseTeacherPage(studentId){
   const minLoad=Math.min(...tlist.map(t=>load[t.id]));
   const eligible=tlist.filter(t=>load[t.id]-minLoad<=5).sort((a,b)=>load[a.id]-load[b.id]);
   return `<div class="choose-grid">${eligible.map(t=>`<div class="teacher-card">
-    <div class="tc-av">${t.initials||t.full_name.slice(0,2)}</div>
+    <div class="tc-av">${t.avatar_url?`<img src="${esc(t.avatar_url)}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">`:esc(t.initials||t.full_name.slice(0,2))}</div>
     <h3>${esc(t.full_name)}</h3>
     ${t.specialty?`<div class="tc-spec">${t.specialty}</div>`:''}
     <div class="tc-meta">${t.experience_years?`<span>📚 ${ar(t.experience_years)} سنوات خبرة</span>`:''}<span>👥 ${ar(load[t.id])} طالب</span></div>
