@@ -3808,6 +3808,7 @@ PAGES.supervisor_confirm=async function(){ setTop('تأكيد المدفوعات
     </div>
     ${(geo.phone||x.s?.phone||geo.email)?`<div style="font-size:12px;color:var(--muted);margin-bottom:6px">${(geo.phone||x.s?.phone)?'📞 '+esc(geo.phone||x.s.phone):''} ${geo.email?' • ✉️ '+esc(geo.email):''}</div>`:''}
     <div class="cc-amount">💰 ${fmtPayAmount(x.amount, x.currency_code)} • ${methodBadge(x.payment_method)}</div>
+    <div style="font-size:11.5px;color:var(--muted);margin:2px 0">${mi('calendar')} وقت الإرسال: ${fmtExactMoment(x.paid_at||x.created_at)}</div>
     ${x.reference_number?`<div class="cc-ref">مرجع: ${esc(x.reference_number)}</div>`:''}
     ${x.receipt_url?`<div class="cc-receipt"><img src="${x.receipt_url}" onclick="viewReceipt('${x.receipt_url}')" alt="إيصال"></div>`:''}
     <div class="cc-actions"><button class="btn" onclick="confirmPay(${x.id},${x.s?.id},'${x.s?.quran_path}')">${mi('check')} تأكيد وتفعيل</button><button class="btn ghost" style="color:#E74C3C" onclick="rejectPay(${x.id})">رفض</button></div>
