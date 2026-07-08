@@ -344,7 +344,7 @@ section{ position:relative; }
 /* ═══════════ Modal مقارنة الباقات ═══════════ */
 .compare-modal{ position:fixed; inset:0; z-index:500; background:rgba(20,30,26,0.55); display:none; align-items:center; justify-content:center; padding:20px; }
 .compare-modal.open{ display:flex; }
-.compare-box{ background:#fff; border-radius:20px; max-width:820px; width:100%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 30px 70px rgba(0,0,0,0.35); }
+.compare-box{ background:var(--white); border-radius:20px; max-width:820px; width:100%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 30px 70px rgba(0,0,0,0.35); }
 .compare-head{ display:flex; align-items:center; justify-content:space-between; padding:20px 24px; background:linear-gradient(135deg,var(--emerald),var(--emerald-deep)); color:#fff; }
 .compare-head h3{ font-family:'Tajawal',sans-serif; font-weight:700; font-size:19px; color:#fff; margin:0; }
 .compare-head button{ background:rgba(255,255,255,0.15); border:none; color:#fff; width:30px; height:30px; border-radius:50%; cursor:pointer; font-size:16px; }

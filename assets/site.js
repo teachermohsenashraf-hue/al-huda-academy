@@ -777,8 +777,8 @@ function ensureQuizModal(){
   m.id = 'levelQuizModal'; m.className = 'compare-modal';
   m.innerHTML = `<div class="compare-box" style="max-width:640px;padding:0">
     <div class="compare-head" style="display:flex;justify-content:space-between;align-items:center;padding:20px 24px;border-bottom:1px solid var(--line)">
-      <b style="font-family:Amiri;font-size:19px;color:var(--ink)">اختبار تحديد المستوى</b>
-      <button onclick="closeLevelQuiz()" aria-label="إغلاق" style="border:none;background:none;font-size:22px;cursor:pointer;color:var(--ink-soft)">×</button>
+      <b style="font-family:Amiri;font-size:19px;color:#fff">اختبار تحديد المستوى</b>
+      <button onclick="closeLevelQuiz()" aria-label="إغلاق" style="border:none;background:rgba(255,255,255,0.15);border-radius:50%;width:30px;height:30px;font-size:20px;cursor:pointer;color:#fff;line-height:1">×</button>
     </div>
     <div id="lqBody" style="padding:24px;overflow-y:auto;max-height:70vh"></div>
   </div>`;
