@@ -7629,13 +7629,15 @@ async function qRenderFullPlan(planId, role='student'){
       const isDone = p&&p.status==='done';
       const statusBg = isDone?'rgba(27,77,62,0.1)':'var(--cream)';
       const btn = (!isDone && (isToday||isFuture)) ? `<button onclick="qMarkWardFromPlan('${esc(c.id)}','${esc(dt)}')" style="border:none;background:${color};color:#fff;border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;font-weight:700">${mi('check')} أتممت</button>` : '';
-      const teacherActs = (role==='teacher'&&!isDone) ? `<button onclick="qTeacherApprove('${esc(c.id)}')" style="border:none;background:var(--emerald);color:#fff;border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer;font-weight:700">${mi('check')} اعتماد</button>
-        <button onclick="qTeacherNote('${esc(c.id)}')" style="border:none;background:var(--cream-2);color:var(--navy-deep);border:1px solid var(--line);border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer">${mi('pencil')} </button>` : '';
+      const approveBtn = (role==='teacher'&&!isDone) ? `<button onclick="qTeacherApprove('${esc(c.id)}')" style="border:none;background:var(--emerald);color:#fff;border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer;font-weight:700">${mi('check')} اعتماد</button>` : '';
+      const noteBtn = role==='teacher' ? `<button onclick="qTeacherNote('${esc(c.id)}')" title="${c.teacher_note?'تعديل الملاحظة':'إضافة ملاحظة'}" style="border:none;background:${c.teacher_note?'var(--gold)':'var(--cream-2)'};color:${c.teacher_note?'#fff':'var(--navy-deep)'};border:1px solid var(--line);border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer">${mi('pencil')}</button>` : '';
       const masteryBadge = p&&p.teacher_mastery ? `<span style="font-size:11px;color:var(--gold)">${'⭐'.repeat(parseInt(p.teacher_mastery)||0)}</span>` : '';
-      return `<div class="qplan-mini" style="background:${statusBg}">
+      const noteRow = c.teacher_note ? `<div class="qcwnote" style="width:100%;margin-top:6px;font-size:12px;background:var(--cream-2);border-radius:8px;padding:6px 10px;color:var(--navy-deep)">📝 ${esc(c.teacher_note)}</div>` : '';
+      return `<div class="qplan-mini" style="background:${statusBg};flex-wrap:wrap">
         <div class="qpmic" style="background:${color}">${icon}</div>
         <div style="flex:1;min-width:0"><b>${esc(f.name||c.fortress_code)}</b><small>${esc(c.amount_label||'—')}</small>${masteryBadge}</div>
-        ${btn}${teacherActs}
+        ${btn}${approveBtn}${noteBtn}
+        ${noteRow}
       </div>`;
     }).join('');
     return `<div class="qplan-day" id="qpd_${esc(dt)}">
@@ -7680,15 +7682,27 @@ async function qTeacherApprove(wardId){
   navigate(SESSION.page);
 }
 async function qTeacherNote(wardId){
-  const note = prompt('ملاحظة المعلم:');
-  if(note===null) return;
-  // save to ward itself (teacher_note)
+  const { data:w } = await sb.from('quran_plan_wards').select('teacher_note').eq('id',wardId).maybeSingle();
+  $('#modalHost').innerHTML=`<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <h3>${mi('pencil')} ملاحظة على الورد</h3>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:12px;line-height:1.7">تظهر هذه الملاحظة للطالب ولولي أمره بجانب هذا الورد.</p>
+    <div class="field"><textarea id="qwNoteTxt" rows="4" style="width:100%;padding:11px;border:1px solid var(--line);border-radius:11px;font-family:inherit;background:var(--cream)" placeholder="اكتب ملاحظتك...">${esc(w?.teacher_note||'')}</textarea></div>
+    <div class="modal-actions">
+      ${w?.teacher_note?`<button class="btn ghost" style="color:#E74C3C" onclick="qSaveTeacherNote('${esc(wardId)}',true)">حذف الملاحظة</button>`:''}
+      <button class="btn ghost" onclick="closeModal()">إلغاء</button>
+      <button class="btn" id="qwNoteBtn" onclick="qSaveTeacherNote('${esc(wardId)}',false)">${mi('check')} حفظ الملاحظة</button>
+    </div>
+  </div></div>`;
+}
+async function qSaveTeacherNote(wardId, clear){
+  const note = clear ? null : ($('#qwNoteTxt')?.value.trim()||null);
+  const btn=$('#qwNoteBtn'); if(btn){ btn.disabled=true; btn.textContent='جارٍ الحفظ...'; }
   await sb.from('quran_plan_wards').update({ teacher_note:note }).eq('id',wardId);
-  // also save to progress
   const { data: ex } = await sb.from('quran_ward_progress').select('id').eq('ward_id',wardId).maybeSingle();
   if(ex) await sb.from('quran_ward_progress').update({ teacher_note:note, teacher_id:ME.id }).eq('id',ex.id);
-  else await sb.from('quran_ward_progress').insert({ ward_id:wardId, teacher_id:ME.id, teacher_note:note, status:'not_started', planned_for_date:qTodayStr(), actual_date:null });
-  toast('تم حفظ الملاحظة');
+  else if(note) await sb.from('quran_ward_progress').insert({ ward_id:wardId, teacher_id:ME.id, teacher_note:note, status:'not_started', planned_for_date:qTodayStr(), actual_date:null });
+  closeModal();
+  toast(clear?'🗑️ حُذفت الملاحظة':'✅ تم حفظ الملاحظة');
   navigate(SESSION.page);
 }
 
