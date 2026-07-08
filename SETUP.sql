@@ -996,3 +996,30 @@ end $$;
 -- عرض دور المرسل (طالب/ولي أمر/معلم/مشرف/مدير...) بجانب اسمه في الرسائل
 -- ------------------------------------------------------------
 alter table messages add column if not exists sender_role text;
+
+-- ============================================================
+-- إصلاح جذري: إشعارات الرسائل (وأي إشعار عموماً) كانت بتتبعت من غير ما توصل
+-- فعلياً — الرسالة نفسها كانت بتتبعت (جدول messages مسموح)، لكن إدراج صف
+-- الإشعار للطرف الآخر في جدول notifications كان يفشل بصمت لأن سياسة RLS
+-- (لو مفعّلة من قبل عبر لوحة Supabase) بتفترض إن المستخدم بيكتب لنفسه بس
+-- (user_id = auth.uid())، بينما الإشعار أصلاً المفروض يتبعت لمستخدم *تاني*
+-- (المُرسَل إليه). ده بيحصل بغض النظر عن دور المرسل أو المستقبل، فكانت
+-- المشكلة عامة على كل الأدوار والصفحات مش خاصة بدور معيّن.
+-- ------------------------------------------------------------
+alter table notifications enable row level security;
+
+drop policy if exists "any authenticated can insert notifications" on notifications;
+create policy "any authenticated can insert notifications" on notifications
+  for insert to authenticated
+  with check (true);
+
+drop policy if exists "user reads own notifications" on notifications;
+create policy "user reads own notifications" on notifications
+  for select to authenticated
+  using (user_id = auth.uid());
+
+drop policy if exists "user updates own notifications" on notifications;
+create policy "user updates own notifications" on notifications
+  for update to authenticated
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());

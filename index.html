@@ -2859,7 +2859,8 @@ async function showNotifications(){
 }
 async function markAllRead(){ await sb.from('notifications').update({is_read:true}).eq('user_id',ME.id); NOTIF_COUNT=0; updateNotifBadge(); closeModal(); }
 async function pushNotif(userId,title,body,type,refId){
-  await sb.from('notifications').insert({ user_id:userId, title, body, type, ref_id:String(refId||'') });
+  const { error }=await sb.from('notifications').insert({ user_id:userId, title, body, type, ref_id:String(refId||'') });
+  if(error) console.error('pushNotif failed (تحقّق من سياسة RLS على جدول notifications):', error);
 }
 /* ════════ إشعارات المتصفح/الجهاز (تظهر في ستارة الإشعارات) ════════
    طبقتان معاً:
