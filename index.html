@@ -7600,7 +7600,7 @@ async function qRenderFullPlan(planId, role='student'){
         </div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn-sm" onclick="qUpdatePlanStatus('${esc(planId)}')">${mi('save')} حفظ الحالة</button>
+        <button class="btn-sm" onclick="qUpdatePlanStatus('${esc(planId)}',this)">${mi('save')} حفظ الحالة</button>
         <button class="btn-sm ghost" onclick="qRescheduleRemaining('${esc(planId)}')">${mi('refresh')} إعادة جدولة المتبقي</button>
         ${role==='teacher'?`<button class="btn-sm gold" onclick="qCheckTransition('${esc(planId)}')">${mi('cap')} فحص الانتقال للمحطة التالية</button>`:''}
       </div>
@@ -7694,16 +7694,24 @@ async function qTeacherNote(wardId){
 
 /* ─── تعديل الخطة ─── */
 function qShowEditPanel(planId){ const el=document.getElementById('qEditPanel_'+planId); if(el) el.classList.toggle('open'); }
-async function qUpdatePlanStatus(planId){
-  const status = document.getElementById('qEPStatus_'+planId).value;
-  const note   = document.getElementById('qEPNote_'+planId).value.trim();
-  const { data: before } = await sb.from('quran_student_plans').select('status').eq('id',planId).maybeSingle();
-  const { error } = await sb.from('quran_student_plans').update({ status, updated_at:new Date().toISOString() }).eq('id',planId);
-  if(error){ toast('تعذّر: '+error.message); return; }
-  // audit
-  await sb.from('quran_system_audit').insert({ system_id:null, actor_id:ME.id, action:'plan_status_changed', before_data:{status:before?.status}, after_data:{status, note}, created_at:new Date().toISOString() }).catch(()=>{});
-  toast('✅ تم تحديث الحالة');
-  navigate(SESSION.page);
+async function qUpdatePlanStatus(planId, btn){
+  if(btn){ btn.disabled=true; btn.textContent='جارٍ الحفظ...'; }
+  try{
+    const status = document.getElementById('qEPStatus_'+planId).value;
+    const note   = document.getElementById('qEPNote_'+planId).value.trim();
+    const { data: before } = await sb.from('quran_student_plans').select('status').eq('id',planId).maybeSingle();
+    // .select() بعد الـupdate عشان نتأكد إن صف اتغيّر فعلاً، لأن الـRLS ممكن يمنع
+    // التحديث بصمت (بدون error) لو المعلم مش صاحب صلاحية على هذه الخطة
+    const { data:updated, error } = await sb.from('quran_student_plans').update({ status, updated_at:new Date().toISOString() }).eq('id',planId).select();
+    if(error){ toast('تعذّر الحفظ: '+error.message); return; }
+    if(!updated||!updated.length){ toast('⚠️ لم يُحفَظ أي تغيير — تأكد أنك المعلم المسؤول عن هذه الخطة'); return; }
+    // audit
+    await sb.from('quran_system_audit').insert({ system_id:null, actor_id:ME.id, action:'plan_status_changed', before_data:{status:before?.status}, after_data:{status, note}, created_at:new Date().toISOString() }).catch(()=>{});
+    toast('✅ تم تحديث الحالة');
+    navigate(SESSION.page);
+  } finally {
+    if(btn){ btn.disabled=false; btn.textContent='💾 حفظ الحالة'; }
+  }
 }
 async function qRescheduleRemaining(planId){
   if(!confirm('سيتم إعادة توزيع الأوراد المتبقية بدءاً من اليوم. هل توافق؟')) return;
