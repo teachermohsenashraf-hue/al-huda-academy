@@ -95,6 +95,22 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 .bell{width:42px;height:42px;border-radius:12px;background:#fff;border:1px solid var(--line);display:grid;place-items:center;font-size:18px;cursor:pointer;position:relative}
 .bell.has::after{content:"";position:absolute;top:11px;left:12px;width:8px;height:8px;background:var(--gold);border-radius:50%;border:2px solid #fff}
 .menu .menu-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#E74C3C;margin-inline-start:6px;vertical-align:middle}
+#printPlanArea{display:none}
+@media print{
+  body *{visibility:hidden}
+  #printPlanArea, #printPlanArea *{visibility:visible}
+  #printPlanArea{display:block;position:absolute;top:0;right:0;width:100%;padding:24px;font-family:'Tajawal',sans-serif;color:#2C3E50}
+  .pp-head{display:flex;align-items:center;gap:14px;border-bottom:3px solid #1B4D3E;padding-bottom:14px;margin-bottom:16px}
+  .pp-head img{width:56px;height:56px;object-fit:contain}
+  .pp-head h1{font-family:'Amiri',serif;color:#1B4D3E;font-size:22px;margin:0}
+  .pp-head p{color:#5A6B7A;font-size:12px;margin:2px 0 0}
+  .pp-info{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px 20px;background:#F5EFDD;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:12.5px}
+  .pp-table{width:100%;border-collapse:collapse;font-size:11.5px}
+  .pp-table th{background:#1B4D3E;color:#fff;padding:8px 6px;text-align:center}
+  .pp-table td{padding:6px;border:1px solid #ddd;text-align:center}
+  .pp-table tr:nth-child(even) td{background:#F5F0E8}
+  .pp-foot{margin-top:16px;text-align:center;color:#C9A227;font-size:11px;border-top:1px solid #ddd;padding-top:8px}
+}
 .uava{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;color:#fff;font-family:'Amiri';font-weight:700}
 .content{padding:26px 30px 70px;max-width:1280px}
 .page{display:none}
@@ -8022,10 +8038,12 @@ async function qRenderReport(planId){
   return pageHead('التقرير القرآني', esc(sys?sys.name:'')+' · '+esc(plan.start_date)+' → '+esc(plan.end_date_target||'—')) + statsHtml + fortBars + weekChart + exportBtns;
 }
 
-/* ─── التصدير إلى Excel ─── */
-async function qExportPlanExcel(planId){
+/* ─── جلب بيانات الخطة الكاملة (مشتركة بين تصدير PDF وExcel) ─── */
+async function qGatherPlanExportData(planId){
   const { data: plan } = await sb.from('quran_student_plans').select('*').eq('id',planId).maybeSingle();
   const { data: stu } = await sb.from('students').select('full_name').eq('id',plan.student_id).maybeSingle();
+  const { data: teacher } = await sb.from('profiles').select('full_name').eq('id',plan.teacher_id).maybeSingle();
+  const { data: sys } = await sb.from('quran_systems').select('name').eq('id',plan.system_id).maybeSingle();
   const { data: wards } = await sb.from('quran_plan_wards').select('*').eq('plan_id',planId).order('planned_date').order('fortress_code');
   const wardIds = (wards||[]).map(w=>w.id);
   let progMap = {};
@@ -8033,31 +8051,68 @@ async function qExportPlanExcel(planId){
     const { data: progs } = await sb.from('quran_ward_progress').select('*').in('ward_id',wardIds);
     (progs||[]).forEach(p=>{ progMap[p.ward_id]=p; });
   }
-  const FNAMES={new_hifz:'الحفظ الجديد',review_near:'المراجعة القريبة',review_far:'المراجعة البعيدة',reading:'ورد القراءة',listening:'ورد السماع'};
-  const rows = (wards||[]).map(w=>{
-    const p = progMap[w.id];
-    return {
-      'التاريخ المخطط': w.planned_date,
-      'الحصن': FNAMES[w.fortress_code]||w.fortress_code,
-      'الورد': w.amount_label||'',
-      'الحالة': p ? (p.status==='done'?'مكتمل':'متأخر') : 'لم يبدأ',
-      'تاريخ الإنجاز': p?.actual_date||'',
-      'مبكر': p?.is_early?'نعم':'',
-      'متأخر': p?.is_late?'نعم':'',
-      'إتقان الطالب': p?.student_mastery||'',
-      'إتقان المعلم': p?.teacher_mastery||'',
-      'ملاحظة المعلم': p?.teacher_note||'',
-      'ملاحظة الطالب': p?.student_note||''
-    };
-  });
-  if(!window.XLSX){ toast('مكتبة Excel غير متاحة'); return; }
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.json_to_sheet(rows);
-  XLSX.utils.book_append_sheet(wb, ws, 'الخطة');
-  XLSX.writeFile(wb, `خطة_${stu?.full_name||'الطالب'}_${plan.start_date}.xlsx`);
-  toast('✅ تم التصدير');
+  return { plan, stu, teacher, sys, wards:wards||[], progMap };
 }
-function qExportPlanPDF(planId){ window.print(); }
+const QFNAMES={new_hifz:'الحفظ الجديد',review_near:'المراجعة القريبة',review_far:'المراجعة البعيدة',reading:'ورد القراءة',listening:'ورد السماع'};
+function qWardStatusLabel(p){ return p ? (p.status==='done'?'مكتمل ✓':'—') : 'لم يبدأ'; }
+
+/* ─── التصدير إلى Excel — هوية بصرية كاملة (شعار مدمج، ألوان الأكاديمية، أعمدة منسّقة) ─── */
+async function qExportPlanExcel(planId){
+  toast('⏳ جارٍ تجهيز ملف Excel...');
+  const { plan, stu, teacher, sys, wards, progMap } = await qGatherPlanExportData(planId);
+  if(!window.XLSX){ toast('مكتبة Excel غير متاحة'); return; }
+  const rows = wards.map((w,i)=>{
+    const p = progMap[w.id];
+    return [
+      i+1, w.planned_date, QFNAMES[w.fortress_code]||w.fortress_code, w.amount_label||'',
+      qWardStatusLabel(p), p?.actual_date||'—', p?.is_early?'نعم':'—', p?.is_late?'نعم':'—',
+      p?.student_mastery||'—', p?.teacher_mastery||'—', p?.teacher_note||'—'
+    ];
+  });
+  const title=`📖 خطة ${stu?.full_name||'الطالب'} — ${sys?.name||''} — أكاديمية الهدى`;
+  const headers=['#','التاريخ','الحصن','الورد','الحالة','تاريخ الإنجاز','مبكر','متأخر','إتقان الطالب','إتقان المعلم','ملاحظة المعلم'];
+  const sheets=[
+    { name:'الخطة', title, headers, rows },
+    { name:'ملخص', title:'📊 ملخص الخطة', headers:['البيان','القيمة'], rows:[
+      ['اسم الطالب', stu?.full_name||'—'], ['المعلم', teacher?.full_name||'—'], ['النظام', sys?.name||'—'],
+      ['تاريخ البداية', plan.start_date||'—'], ['حالة الخطة', plan.status==='active'?'نشطة':plan.status==='paused'?'متوقفة':'مكتملة'],
+      ['إجمالي الأوراد', wards.length], ['المُنجَز', wards.filter(w=>progMap[w.id]?.status==='done').length]
+    ]}
+  ];
+  exportExcelMulti(sheets, `خطة_${stu?.full_name||'الطالب'}`);
+}
+
+/* ─── التصدير إلى PDF — عرض طباعة مخصّص بهوية الأكاديمية بدل تصوير الشاشة كاملة ─── */
+async function qExportPlanPDF(planId){
+  toast('⏳ جارٍ تجهيز التقرير...');
+  const { plan, stu, teacher, sys, wards, progMap } = await qGatherPlanExportData(planId);
+  const doneCount = wards.filter(w=>progMap[w.id]?.status==='done').length;
+  const rowsHtml = wards.map((w,i)=>{
+    const p=progMap[w.id];
+    return `<tr><td>${i+1}</td><td>${esc(w.planned_date)}</td><td>${esc(QFNAMES[w.fortress_code]||w.fortress_code)}</td><td>${esc(w.amount_label||'—')}</td><td>${esc(qWardStatusLabel(p))}</td><td>${esc(p?.teacher_note||'—')}</td></tr>`;
+  }).join('');
+  let host=document.getElementById('printPlanArea');
+  if(!host){ host=document.createElement('div'); host.id='printPlanArea'; document.body.appendChild(host); }
+  host.innerHTML=`
+    <div class="pp-head">
+      <img src="assets/logo-icon.png" alt="أكاديمية الهدى">
+      <div><h1>أكاديمية الهدى</h1><p>منصة القرآن وبناء الإنسان</p></div>
+    </div>
+    <div class="pp-info">
+      <div><b>الطالب:</b> ${esc(stu?.full_name||'—')}</div>
+      <div><b>المعلم:</b> ${esc(teacher?.full_name||'—')}</div>
+      <div><b>النظام:</b> ${esc(sys?.name||'—')}</div>
+      <div><b>تاريخ البداية:</b> ${esc(plan.start_date||'—')}</div>
+      <div><b>الإنجاز:</b> ${ar(doneCount)} من ${ar(wards.length)}</div>
+      <div><b>تاريخ التقرير:</b> ${new Date().toLocaleDateString('ar-EG')}</div>
+    </div>
+    <table class="pp-table">
+      <thead><tr><th>#</th><th>التاريخ</th><th>الحصن</th><th>الورد</th><th>الحالة</th><th>ملاحظة المعلم</th></tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+    <div class="pp-foot">أكاديمية الهدى — منصة القرآن وبناء الإنسان</div>`;
+  setTimeout(()=>{ window.print(); }, 150);
+}
 
 /* ─── استيراد من Excel ─── */
 PAGES.admin_qimport = async function(){
