@@ -6955,9 +6955,13 @@ async function renderStep1(stu, linkedSystem, allSys){
       ${forts.map(f=>{
         const cfg = cfgMap[f.id] || { daily_amount:5, unit:f.default_unit };
         const val = (d.custom_rates && d.custom_rates[f.id]!=null) ? d.custom_rates[f.id] : (cfg.daily_amount||0);
-        return `<div style="flex:1;min-width:150px">
-          <label style="font-size:12.5px;color:${esc(f.color)}">${esc(f.icon||'🛡️')} ${esc(f.name)} <small style="color:var(--muted)">(${cfg.unit==='page'?'صفحة':'آية'}/يوم)</small></label>
-          <input type="number" min="0" step="0.5" class="qw-rate-input" data-fortress-id="${esc(f.id)}" value="${val}" />
+        const unitVal = (d.custom_units && d.custom_units[f.id]) || cfg.unit || f.default_unit;
+        return `<div style="flex:1;min-width:170px">
+          <label style="font-size:12.5px;color:${esc(f.color)}">${esc(f.icon||'🛡️')} ${esc(f.name)}</label>
+          <div style="display:flex;gap:6px">
+            <input type="number" min="0" step="0.5" class="qw-rate-input" data-fortress-id="${esc(f.id)}" value="${val}" style="flex:1" />
+            <select class="qw-unit-input" data-fortress-id="${esc(f.id)}" style="flex:1"><option value="verse" ${unitVal==='verse'?'selected':''}>آية</option><option value="page" ${unitVal==='page'?'selected':''}>صفحة</option></select>
+          </div>
         </div>`;
       }).join('')}
     </div>
@@ -7224,6 +7228,10 @@ function qWizNext(currentStep){
     document.querySelectorAll('.qw-rate-input').forEach(inp=>{
       d.custom_rates[inp.dataset.fortressId] = parseFloat(inp.value)||0;
     });
+    d.custom_units = {};
+    document.querySelectorAll('.qw-unit-input').forEach(sel=>{
+      d.custom_units[sel.dataset.fortressId] = sel.value;
+    });
     d.start_date = $('#qwStart').value;
     d.allow_early_progress = $('#qwEarly').value==='true';
     d.notes = $('#qwNotes').value.trim();
@@ -7279,7 +7287,7 @@ async function qSaveAndGenerate(studentId){
       const unitMap = {}; (forts||[]).forEach(f=>{ unitMap[f.id]=f.default_unit; });
       const rateRows = Object.entries(d.custom_rates)
         .filter(([, amount])=>amount>0)
-        .map(([fortress_id, amount])=>({ plan_id:plan.id, fortress_id, daily_amount:amount, unit:unitMap[fortress_id]||'verse' }));
+        .map(([fortress_id, amount])=>({ plan_id:plan.id, fortress_id, daily_amount:amount, unit:(d.custom_units&&d.custom_units[fortress_id])||unitMap[fortress_id]||'verse' }));
       if(rateRows.length) await sb.from('quran_plan_fortress_rates').insert(rateRows);
     }
 
