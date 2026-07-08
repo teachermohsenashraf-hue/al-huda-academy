@@ -2482,7 +2482,7 @@ const MENUS = {
   ]},
   executive:{ skin:'s-navy', title:'لوحة المدير التنفيذي', sections:[
     {label:'القيادة', items:[['dash',mi('building'),'نظرة تنفيذية'],['analytics',mi('chart'),'التحليلات']]},
-    {label:'الإشراف', items:[['team',mi('team'),'فريق الإشراف'],['staff',mi('teacher'),'المعلمون والحلقات'],['students',mi('child'),'الطلاب'],['unassigned',mi('warning'),'طلاب بدون حلقة'],['leads',mi('clipboard'),'تسجيلات معلّقة']]},
+    {label:'الإشراف', items:[['team',mi('team'),'فريق الإشراف'],['staff',mi('teacher'),'المعلمون والحلقات'],['teachers',mi('star'),'المعلمون والتقييم'],['students',mi('child'),'الطلاب'],['unassigned',mi('warning'),'طلاب بدون حلقة'],['leads',mi('clipboard'),'تسجيلات معلّقة']]},
     {label:'قسم القرآن', items:[['qsystems',mi('kaaba'),'أنظمة القرآن']]},
     {label:'المالية', items:[['finance',mi('card'),'المدفوعات']]},
   ]},
@@ -3170,41 +3170,67 @@ PAGES.teacher_availability=async function(){ setTop('إتاحتي وسيرتي',
   </div>`;
 };
 // حصص الشهر — دورة المعلم الخاصة (مش الشهر الميلادي)، بتاريخ كل حصة اكتملت فعلاً
-// لأي طالب، مدتها، ومسارها، وتقييمها — مع تصفّح الدورات القديمة
-PAGES.teacher_monthsessions = async function(){
-  setTop('حصص الشهر','الحصص التي أعطيتها وانتهت فعلياً');
-  const { data:doneSessions } = await sb.from('sessions').select('session_date').eq('teacher_id',ME.id).eq('status','done').order('session_date',{ascending:true});
+// لأي طالب، مدتها، ومسارها، وتقييمها — مع تصفّح الدورات القديمة.
+// نفس الصفحة مستخدَمة من المعلم لنفسه (تفاصيل مختصرة) ومن المدير/المشرف/التنفيذي
+// لأي معلم (تفاصيل أوسع: تفكيك التقييم بندًا بندًا وملاحظة المعلم) لتقييم أداء المعلمين والعملية كلها
+async function renderTeacherMonthSessions(teacherId, detailed){
+  const { data:doneSessions } = await sb.from('sessions').select('session_date').eq('teacher_id',teacherId).eq('status','done').order('session_date',{ascending:true});
   const doneDates=(doneSessions||[]).map(s=>s.session_date).filter(Boolean);
   const cycles=computeTeacherCycles(doneDates);
-  if(!cycles.length) return pageHead('حصص الشهر','')+`<div class="card" style="text-align:center;padding:36px"><div class="empty-ic">${mi('calendar')}</div><h3 style="color:var(--navy-deep)">لا حصص مكتملة بعد</h3><p style="color:var(--muted);font-size:14px">ستظهر هنا كل حصة أنهيتها فعلياً مع طلابك، مقسّمة بدورتك الشهرية الخاصة بدءاً من أول حصة أعطيتها.</p></div>`;
+  const backBtn = detailed ? `<button class="qback" onclick="navigate('teachers')">← الرجوع للمعلمين</button>` : '';
+  if(!cycles.length) return backBtn+pageHead('حصص الشهر','')+`<div class="card" style="text-align:center;padding:36px"><div class="empty-ic">${mi('calendar')}</div><h3 style="color:var(--navy-deep)">لا حصص مكتملة بعد</h3><p style="color:var(--muted);font-size:14px">ستظهر هنا كل حصة اكتملت فعلياً، مقسّمة بدورة شهرية تبدأ من أول حصة اكتملت.</p></div>`;
   let cIdx=SESSION._monthCycleIdx||0; cIdx=Math.max(0,Math.min(cycles.length-1,cIdx)); SESSION._monthCycleIdx=cIdx;
   const cycle=cycles[cIdx];
-  const { data:sessions } = await sb.from('sessions').select('*, s:students!sessions_student_id_fkey(full_name,quran_path)').eq('teacher_id',ME.id).eq('status','done').gte('session_date',cycle.start).lt('session_date',cycle.end).order('session_date',{ascending:false});
+  const { data:sessions } = await sb.from('sessions').select('*, s:students!sessions_student_id_fkey(full_name,quran_path)').eq('teacher_id',teacherId).eq('status','done').gte('session_date',cycle.start).lt('session_date',cycle.end).order('session_date',{ascending:false});
   const sesList=sessions||[];
   const sesIds=sesList.map(s=>s.id);
   let ratingMap={};
-  if(sesIds.length){ const { data:ratings }=await sb.from('session_ratings').select('session_id,rating_score').in('session_id',sesIds); (ratings||[]).forEach(r=>ratingMap[r.session_id]=r.rating_score); }
-  const rows=sesList.map(s=>`<tr>
-    <td>${s.s?esc(s.s.full_name):'—'}</td>
-    <td>${pathName(s.s?.quran_path)}</td>
-    <td>${new Date(s.session_date).toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long'})}</td>
-    <td>${fmt12h(s.session_time)}</td>
-    <td>${ar(s.duration_min||30)} د</td>
-    <td>${ratingMap[s.id]!=null?pct(ratingMap[s.id]):'<span style="color:var(--muted)">لم يُقيَّم</span>'}</td>
-  </tr>`).join('');
-  return pageHead('حصص الشهر', cycleLabel(cycle))+
+  if(sesIds.length){ const { data:ratings }=await sb.from('session_ratings').select('*').in('session_id',sesIds); (ratings||[]).forEach(r=>ratingMap[r.session_id]=r); }
+  const scoreAr={excellent:'ممتاز',good:'جيد',weak:'ضعيف',done:'تمّت',partial:'جزئية',none:'لم تتم',present:'حاضر',late:'متأخر',absent:'غائب'};
+  const extraCols = detailed ? '<th>الحضور</th><th>الحفظ</th><th>التجويد</th><th>ملاحظة المعلم</th>' : '';
+  const rows=sesList.map(s=>{
+    const r=ratingMap[s.id];
+    const extraCells = detailed ? `<td>${r?.attendance?esc(scoreAr[r.attendance]||r.attendance):'—'}</td><td>${r?.memorization?esc(scoreAr[r.memorization]||r.memorization):'—'}</td><td>${r?.tajweed?esc(scoreAr[r.tajweed]||r.tajweed):'—'}</td><td>${r?.notes?esc(r.notes):'—'}</td>` : '';
+    return `<tr>
+      <td>${s.s?esc(s.s.full_name):'—'}</td>
+      <td>${pathName(s.s?.quran_path)}</td>
+      <td>${new Date(s.session_date).toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long'})}</td>
+      <td>${fmt12h(s.session_time)}</td>
+      <td>${ar(s.duration_min||30)} د</td>
+      <td>${r?.rating_score!=null?pct(r.rating_score):'<span style="color:var(--muted)">لم يُقيَّم</span>'}</td>
+      ${extraCells}
+    </tr>`;
+  }).join('');
+  const totalMinutes = sesList.reduce((a,s)=>a+(s.duration_min||30),0);
+  const summaryHtml = detailed ? `<div class="stats" style="margin-bottom:16px">${statCard(mi('calendar'),'e',ar(cycle.count),'حصة مكتملة')}${statCard(mi('hourglass'),'g',ar(Math.round(totalMinutes/60*10)/10),'ساعة تدريس')}</div>` : '';
+  return backBtn+pageHead('حصص الشهر', cycleLabel(cycle))+summaryHtml+
     `<div class="card" style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
       <button class="btn-sm ghost" onclick="qMonthCycleNav(1,${cycles.length})" ${cIdx>=cycles.length-1?'disabled':''}>→ دورة أقدم</button>
       <b style="text-align:center">${esc(cycleLabel(cycle))}<br><span style="font-weight:400;color:var(--muted);font-size:12.5px">${ar(cycle.count)} حصة مكتملة</span></b>
       <button class="btn-sm ghost" onclick="qMonthCycleNav(-1,${cycles.length})" ${cIdx<=0?'disabled':''}>دورة أحدث ←</button>
     </div>
-    <div class="card"><div style="overflow-x:auto"><table class="dtable"><thead><tr><th>الطالب</th><th>المسار</th><th>اليوم</th><th>الوقت</th><th>المدة</th><th>التقييم</th></tr></thead><tbody>${rows||'<tr><td colspan="6" style="text-align:center;color:var(--muted)">لا حصص مكتملة في هذه الدورة.</td></tr>'}</tbody></table></div></div>`;
+    <div class="card"><div style="overflow-x:auto"><table class="dtable"><thead><tr><th>الطالب</th><th>المسار</th><th>اليوم</th><th>الوقت</th><th>المدة</th><th>التقييم</th>${extraCols}</tr></thead><tbody>${rows||`<tr><td colspan="${detailed?10:6}" style="text-align:center;color:var(--muted)">لا حصص مكتملة في هذه الدورة.</td></tr>`}</tbody></table></div></div>`;
+}
+PAGES.teacher_monthsessions = async function(){
+  setTop('حصص الشهر','الحصص التي أعطيتها وانتهت فعلياً');
+  return renderTeacherMonthSessions(ME.id, false);
 };
+// نفس الصفحة للمدير/المشرف/التنفيذي — لكن لمعلم يختارونه من "المعلمون والتقييم"
+async function openTeacherMonthSessions(teacherId, teacherName, cycleIdx){
+  SESSION._viewingTeacherId=teacherId; SESSION._viewingTeacherName=teacherName; SESSION._monthCycleIdx=cycleIdx||0;
+  await navigate('teachermonth');
+}
+PAGES.admin_teachermonth = async function(){
+  setTop('حصص شهر '+(SESSION._viewingTeacherName||''),'تفاصيل الحصص المكتملة لتقييم أداء المعلم');
+  return renderTeacherMonthSessions(SESSION._viewingTeacherId, true);
+};
+PAGES.executive_teachermonth = PAGES.admin_teachermonth;
+PAGES.supervisor_teachermonth = PAGES.admin_teachermonth;
 function qMonthCycleNav(delta, total){
   let idx=(SESSION._monthCycleIdx||0)+delta;
   idx=Math.max(0,Math.min(total-1,idx));
   SESSION._monthCycleIdx=idx;
-  navigate('monthsessions');
+  navigate(SESSION.page);
 }
 async function uploadTeacherAvatar(file){
   if(!file) return;
@@ -5449,7 +5475,7 @@ async function viewTeacherCycles(teacherId, teacherName){
   const cycles=computeTeacherCycles(dates);
   $('#modalHost').innerHTML=`<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal">
     <h3>${mi('calendar')} كل دورات ${esc(teacherName)}</h3>
-    <div class="priv-sessions-list">${cycles.length?cycles.map(c=>`<div class="priv-session"><div class="ps-icon">${mi('calendar')}</div><div class="ps-info"><b>${esc(cycleLabel(c))}</b><span>${ar(c.count)} حصة مكتملة</span></div></div>`).join(''):'<p style="color:var(--muted);text-align:center;padding:20px">لا حصص مكتملة بعد.</p>'}</div>
+    <div class="priv-sessions-list">${cycles.length?cycles.map((c,i)=>`<div class="priv-session" style="cursor:pointer" onclick="closeModal();openTeacherMonthSessions('${teacherId}','${escJs(teacherName)}',${i})"><div class="ps-icon">${mi('calendar')}</div><div class="ps-info"><b>${esc(cycleLabel(c))}</b><span>${ar(c.count)} حصة مكتملة</span></div><span class="cp-go">←</span></div>`).join(''):'<p style="color:var(--muted);text-align:center;padding:20px">لا حصص مكتملة بعد.</p>'}</div>
     <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إغلاق</button></div>
   </div></div>`;
 }
@@ -5491,7 +5517,7 @@ async function teacherPerfCard(t){
     </div>
     ${monthlyHtml}
     <div class="pc-foot ${inactive?'warn':''}">${lastActive?`آخر حصة: ${new Date(lastActive).toLocaleDateString('ar-EG')} ${inactive?'⚠️':''}`:'⚠️ لم يجدول حصصاً بعد'}</div>
-    <div class="pc-actions"><button class="btn-sm" onclick="startChatWith('${t.id}','${escJs(t.full_name)}')">${mi('chat')} تواصل</button><button class="btn-sm ghost" onclick="viewTeacherHalqat('${t.id}','${t.full_name.replace(/'/g,'')}')">${mi('mosque')} حلقاته</button></div>
+    <div class="pc-actions"><button class="btn-sm" onclick="startChatWith('${t.id}','${escJs(t.full_name)}')">${mi('chat')} تواصل</button><button class="btn-sm ghost" onclick="viewTeacherHalqat('${t.id}','${t.full_name.replace(/'/g,'')}')">${mi('mosque')} حلقاته</button><button class="btn-sm gold" onclick="openTeacherMonthSessions('${t.id}','${escJs(t.full_name)}')">${mi('calendar')} حصص الشهر</button></div>
   </div>`;
 }
 // المشرف: تقارير المعلمين (مفلترة بالجنس)
@@ -5524,6 +5550,7 @@ PAGES.admin_teachers=async function(){ setTop('المعلمون والتقييم
   let cards=''; for(const t of teachers){ cards+=await teacherPerfCard(t); }
   return pageHead('المعلمون والتقييم',ar(teachers.length)+' معلم')+`<div class="perf-grid">${cards}</div>`;
 };
+PAGES.executive_teachers = PAGES.admin_teachers;
 // المدير التنفيذي: تقارير المشرفين
 PAGES.executive_team=async function(){ setTop('فريق الإشراف','المشرفون وأداؤهم');
   const { data:sups }=await sb.from('profiles').select('*').eq('role','supervisor');
