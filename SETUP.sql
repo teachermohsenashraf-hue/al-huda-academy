@@ -805,6 +805,9 @@ alter table notifications add column if not exists related_id bigint;
 alter table groups add column if not exists schedule_days int[];
 alter table groups add column if not exists schedule_time text;
 alter table groups add column if not exists schedule_duration_min int default 30;
+-- وقت مستقل لكل يوم من أيام الحلقة (مرونة كاملة بدل موعد واحد موحّد لكل الأيام)
+-- شكل البيانات: {"1":"16:00","3":"18:30"} — المفتاح رقم اليوم (١=الأحد..٧=السبت)
+alter table groups add column if not exists schedule_times jsonb default '{}'::jsonb;
 
 -- ============================================================
 -- إلغاء "الاختبار الإلزامي" من محطات أنظمة القرآن — القرار انتقال

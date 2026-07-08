@@ -3144,28 +3144,52 @@ async function addToGroupModal(studentId, name){
     <div class="field"><label>اسم الحلقة <span class="req">*</span></label><input id="pgName" value="حلقة ${name.split(' ')[0]} — ${pathName(st?.quran_path)}" placeholder="اسم الحلقة"></div>
     <div class="field"><label>المسار</label><input id="pgPath" value="${pathName(st?.quran_path)}" disabled style="background:var(--cream);color:var(--muted)"></div>
     <div class="field"><label>أيام الحلقة الأسبوعية <span class="req">*</span></label>
-      <div class="qdays">${QURAN_DAY_NAMES.map((d,i)=>`<label><input type="checkbox" class="pgDay" value="${i+1}"> ${d}</label>`).join('')}</div>
+      <div class="qdays">${QURAN_DAY_NAMES.map((d,i)=>`<label><input type="checkbox" class="pgDay" value="${i+1}" onchange="onPgDayToggle(this)"> ${d}</label>`).join('')}</div>
     </div>
-    <div class="field"><label>وقت الحصة <span class="req">*</span></label><input id="pgTime" type="time"></div>
+    <div class="field" id="pgDayTimesWrap" style="display:none"><label>وقت كل يوم <span class="req">*</span></label><div id="pgDayTimesList" style="display:flex;flex-direction:column;gap:8px"></div></div>
+    <div class="field"><label>وقت الحصة الموحّد (اختياري إن اخترت وقتاً مختلفاً لكل يوم أعلاه)</label><input id="pgTime" type="time"></div>
     <div class="field"><label>مدة الحصة</label><select id="pgDur"><option value="30">٣٠ دقيقة</option><option value="45">٤٥ دقيقة</option><option value="90">٩٠ دقيقة (ساعة ونصف)</option></select></div>
     <div class="field"><label>ملاحظات (اختياري)</label><textarea id="pgNotes" rows="2" placeholder="أي تفاصيل عن خطة الحفظ..."></textarea></div>
     <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إلغاء</button><button class="btn" id="pgBtn" onclick="createPrivateGroup(${studentId},'${(st?.quran_path||'').replace(/'/g,'')}')">${mi('check')} إنشاء الحلقة</button></div>
   </div></div>`;
 }
-// يبني نص عرض تلقائي من أيام/وقت الحلقة عشان أي مكان قديم بيعرض meet_time يفضل شغّال
-function buildMeetTimeLabel(days, time, dur){
-  const dayNames=(days||[]).map(d=>QURAN_DAY_NAMES[d-1]).filter(Boolean).join('، ');
+// يبني نص عرض تلقائي من جدول أيام/أوقات الحلقة (لكل يوم وقته الخاص) عشان أي مكان قديم بيعرض meet_time يفضل شغّال
+function fmt12h(time){
   const [h,m]=String(time||'').split(':').map(Number);
+  if(isNaN(h)) return '—';
   const ap = h>=12 ? 'م' : 'ص'; const h12 = ((h%12)||12);
-  return `${dayNames} - ${h12}:${String(m||0).padStart(2,'0')} ${ap} (${dur} د)`;
+  return `${h12}:${String(m||0).padStart(2,'0')} ${ap}`;
 }
-// توليد حصص الأسبوع تلقائياً على مدى ٨ أسابيع قادمة حسب أيام الحلقة الثابتة —
+function buildMeetTimeLabel(scheduleTimes, dur){
+  const parts=Object.keys(scheduleTimes||{}).map(Number).sort((a,b)=>a-b)
+    .map(d=>`${QURAN_DAY_NAMES[d-1]} ${fmt12h(scheduleTimes[d])}`);
+  return `${parts.join('، ')} (${dur} د)`;
+}
+// كل يوم مُختار بيظهر ليه حقل وقت مستقل — مرونة كاملة بدل موعد واحد مفروض على كل الأيام
+function onPgDayToggle(cb){
+  cb.closest('label').classList.toggle('on', cb.checked);
+  const checkedDays=[...document.querySelectorAll('.pgDay:checked')].map(c=>+c.value);
+  const wrap=$('#pgDayTimesWrap'), list=$('#pgDayTimesList');
+  if(!checkedDays.length){ wrap.style.display='none'; list.innerHTML=''; return; }
+  wrap.style.display='';
+  const existing={}; list.querySelectorAll('input[data-day]').forEach(i=>existing[i.dataset.day]=i.value);
+  const globalTime=$('#pgTime')?.value||'';
+  list.innerHTML=checkedDays.map(d=>`<div style="display:flex;align-items:center;gap:10px"><span style="min-width:70px;font-size:13px;font-weight:700">${QURAN_DAY_NAMES[d-1]}</span><input type="time" class="pgDayTime" data-day="${d}" value="${existing[d]||globalTime||''}" style="padding:8px;border:1px solid var(--line);border-radius:8px"></div>`).join('');
+}
+function collectPgSchedule(){
+  const times={};
+  document.querySelectorAll('#pgDayTimesList .pgDayTime').forEach(i=>{ if(i.value) times[+i.dataset.day]=i.value; });
+  return times;
+}
+// توليد حصص الأسابيع القادمة تلقائياً على مدى ٤ أسابيع حسب جدول كل يوم ووقته الخاص —
 // المعلم بعدها بس يضيف رابط الحصة، بدل ما ينشئ كل حصة يدوياً من الصفر
-async function generateWeeklySessions(groupId, studentId, halqaName, days, time, durMin, weeks=8){
-  if(!days||!days.length||!time) return;
+async function generateWeeklySessions(groupId, studentId, halqaName, scheduleTimes, durMin, weeks=4){
+  const days=Object.keys(scheduleTimes||{}).map(Number);
+  if(!days.length) return;
   const rows=[]; const today=new Date();
   for(let w=0; w<weeks; w++){
     for(const d of days){
+      const time=scheduleTimes[d]; if(!time) continue;
       const target=new Date(today);
       const jsDay=d-1; // schedule_days: ١(الأحد)..٧(السبت) ↔ Date.getDay(): ٠(الأحد)..٦(السبت)
       let delta=jsDay-today.getDay(); if(delta<0) delta+=7; // أقرب يوم مطابق قادم
@@ -3179,17 +3203,17 @@ async function generateWeeklySessions(groupId, studentId, halqaName, days, time,
 }
 async function createPrivateGroup(studentId, pathId){
   const name=$('#pgName').value.trim();
-  const days=[...document.querySelectorAll('.pgDay:checked')].map(c=>+c.value);
-  const time=$('#pgTime').value;
+  const scheduleTimes=collectPgSchedule();
+  const days=Object.keys(scheduleTimes).map(Number);
   const dur=+$('#pgDur').value||30;
-  if(!name||!days.length||!time){ toast('أكمل اسم الحلقة، وحدّد يوم ووقت الحصة على الأقل'); return; }
-  const meetTimeLabel=buildMeetTimeLabel(days,time,dur);
+  if(!name||!days.length){ toast('أكمل اسم الحلقة، وحدّد يوم ووقت الحصة على الأقل'); return; }
+  const meetTimeLabel=buildMeetTimeLabel(scheduleTimes,dur);
   $('#pgBtn').disabled=true; $('#pgBtn').textContent='جارٍ الإنشاء...';
   try{
     // 1) إنشاء الحلقة الخاصة
     const { data:g, error:ge }=await sb.from('groups').insert({
       name, teacher_id:ME.id, meet_time:meetTimeLabel, track:'quran',
-      schedule_days:days, schedule_time:time, schedule_duration_min:dur,
+      schedule_days:days, schedule_time:scheduleTimes[days[0]], schedule_times:scheduleTimes, schedule_duration_min:dur,
       is_private:true, student_id:studentId, quran_path:pathId,
       notes:$('#pgNotes').value.trim()||null, avg_mastery:0
     }).select().single();
@@ -3198,7 +3222,7 @@ async function createPrivateGroup(studentId, pathId){
     const { error:se }=await sb.from('students').update({ group_id:g.id }).eq('id',studentId);
     if(se) throw new Error(se.message);
     // 3) توليد حصص الأسابيع القادمة تلقائياً حسب الموعد الثابت
-    await generateWeeklySessions(g.id, studentId, name, days, time, dur);
+    await generateWeeklySessions(g.id, studentId, name, scheduleTimes, dur);
     // 4) إشعار الطالب وولي أمره
     const { data:st }=await sb.from('students').select('full_name,login_id,parent_id').eq('id',studentId).single();
     if(st?.login_id) await pushNotif(st.login_id,'🎉 بدأت حلقتك الخاصة!','أنشأ معلمك حلقتك الخاصة. ادخل «حلقتي» لمتابعة حصصك.','enrollment',g.id);
@@ -4657,7 +4681,7 @@ function privSessionCard(s, isTeacher, rated){
     <div class="ps-icon">${st.live?'🔴':st.t==='انتهت'?'✅':'🎥'}</div>
     <div class="ps-info">
       <b>${esc(s.title)}</b>
-      <span>${dateStr} ${s.session_time?'• '+s.session_time:''} • ${ar(s.duration_min||30)} دقيقة</span>
+      <span>${dateStr} ${s.session_time?'• '+fmt12h(s.session_time):''} • ${ar(s.duration_min||30)} دقيقة</span>
       <div style="margin-top:5px"><span class="chip ${st.c}">${st.t}</span> ${rated?'<span class="chip g">قُيّمت ✓</span>':''}</div>
     </div>
     <div class="ps-actions">
@@ -4694,14 +4718,14 @@ function privNoHalqa(){
 // عرض صفحة الحلقة المشتركة
 async function renderHalqaPage(g, student, isTeacher){
   // الحصص
-  const { data:ses }=await sb.from('sessions').select('*').eq('group_id',g.id).order('session_date',{ascending:false});
+  const { data:ses }=await sb.from('sessions').select('*').eq('group_id',g.id).order('session_date',{ascending:true});
   const sessions=ses||[];
   // التقييمات (لمعرفة المُقيَّمة)
   const sesIds=sessions.map(x=>x.id);
   let ratedIds=new Set();
   if(sesIds.length){ const { data:rs }=await sb.from('session_ratings').select('session_id').in('session_id',sesIds); (rs||[]).forEach(r=>ratedIds.add(r.session_id)); }
-  const upcoming=sessions.filter(s=>{ const st=privSessionStatus(s); return st.upcoming||st.live; });
-  const past=sessions.filter(s=>privSessionStatus(s).t==='انتهت');
+  const upcoming=sessions.filter(s=>{ const st=privSessionStatus(s); return st.upcoming||st.live; }); // تصاعدي: الأقرب أولاً
+  const past=sessions.filter(s=>privSessionStatus(s).t==='انتهت').reverse(); // الأحدث أولاً
   return pageHead(g.name, isTeacher?('طالب: '+student.full_name):('معلمك: '+(g.teacher?g.teacher.full_name:'—')))+
   `<div class="card" style="margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
     <div style="display:flex;align-items:center;gap:8px;font-size:13.5px"><span style="font-size:18px">${mi('calendar')}</span><b>موعد الحلقة الثابت:</b> ${esc(g.meet_time||'لم يُحدَّد بعد')}</div>
@@ -4929,13 +4953,14 @@ async function editHalqaSchedule(gid){
   const { data:g }=await sb.from('groups').select('*').eq('id',gid).single();
   if(!g){ toast('تعذّر جلب بيانات الحلقة'); return; }
   const curDays=g.schedule_days||[];
+  const curTimes=g.schedule_times||{};
   $('#modalHost').innerHTML=`<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal">
     <h3>${mi('calendar')} تعديل موعد الحلقة</h3>
     <p style="color:var(--muted);font-size:12.5px;margin-bottom:12px;line-height:1.7">تغيير الموعد هيولّد حصص الأسابيع القادمة على الموعد الجديد (الحصص اللي فاتت أو اتحددلها رابط بالفعل مش هتتأثر).</p>
     <div class="field"><label>أيام الحلقة الأسبوعية <span class="req">*</span></label>
-      <div class="qdays">${QURAN_DAY_NAMES.map((d,i)=>`<label><input type="checkbox" class="ehDay" value="${i+1}" ${curDays.includes(i+1)?'checked':''}> ${d}</label>`).join('')}</div>
+      <div class="qdays">${QURAN_DAY_NAMES.map((d,i)=>`<label class="${curDays.includes(i+1)?'on':''}"><input type="checkbox" class="ehDay" value="${i+1}" ${curDays.includes(i+1)?'checked':''} onchange="onEhDayToggle(this)"> ${d}</label>`).join('')}</div>
     </div>
-    <div class="field"><label>وقت الحصة <span class="req">*</span></label><input id="ehTime" type="time" value="${g.schedule_time||''}"></div>
+    <div class="field" id="ehDayTimesWrap" style="display:${curDays.length?'':'none'}"><label>وقت كل يوم <span class="req">*</span></label><div id="ehDayTimesList" style="display:flex;flex-direction:column;gap:8px">${curDays.map(d=>`<div style="display:flex;align-items:center;gap:10px"><span style="min-width:70px;font-size:13px;font-weight:700">${QURAN_DAY_NAMES[d-1]}</span><input type="time" class="ehDayTime" data-day="${d}" value="${curTimes[d]||g.schedule_time||''}" style="padding:8px;border:1px solid var(--line);border-radius:8px"></div>`).join('')}</div></div>
     <div class="field"><label>مدة الحصة</label><select id="ehDur">
       <option value="30" ${g.schedule_duration_min===30?'selected':''}>٣٠ دقيقة</option>
       <option value="45" ${g.schedule_duration_min===45?'selected':''}>٤٥ دقيقة</option>
@@ -4944,19 +4969,30 @@ async function editHalqaSchedule(gid){
     <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إلغاء</button><button class="btn" id="ehBtn" onclick="saveHalqaSchedule(${gid},${g.student_id})">${mi('check')} حفظ الموعد الجديد</button></div>
   </div></div>`;
 }
+function onEhDayToggle(cb){
+  cb.closest('label').classList.toggle('on', cb.checked);
+  const checkedDays=[...document.querySelectorAll('.ehDay:checked')].map(c=>+c.value);
+  const wrap=$('#ehDayTimesWrap'), list=$('#ehDayTimesList');
+  if(!checkedDays.length){ wrap.style.display='none'; list.innerHTML=''; return; }
+  wrap.style.display='';
+  const existing={}; list.querySelectorAll('input[data-day]').forEach(i=>existing[i.dataset.day]=i.value);
+  list.innerHTML=checkedDays.map(d=>`<div style="display:flex;align-items:center;gap:10px"><span style="min-width:70px;font-size:13px;font-weight:700">${QURAN_DAY_NAMES[d-1]}</span><input type="time" class="ehDayTime" data-day="${d}" value="${existing[d]||''}" style="padding:8px;border:1px solid var(--line);border-radius:8px"></div>`).join('');
+}
 async function saveHalqaSchedule(gid, studentId){
-  const days=[...document.querySelectorAll('.ehDay:checked')].map(c=>+c.value);
-  const time=$('#ehTime').value; const dur=+$('#ehDur').value||30;
-  if(!days.length||!time){ toast('حدّد يوم ووقت الحصة على الأقل'); return; }
+  const scheduleTimes={};
+  document.querySelectorAll('#ehDayTimesList .ehDayTime').forEach(i=>{ if(i.value) scheduleTimes[+i.dataset.day]=i.value; });
+  const days=Object.keys(scheduleTimes).map(Number);
+  const dur=+$('#ehDur').value||30;
+  if(!days.length){ toast('حدّد يوم ووقت الحصة على الأقل'); return; }
   const { data:g }=await sb.from('groups').select('name').eq('id',gid).single();
-  const meetTimeLabel=buildMeetTimeLabel(days,time,dur);
+  const meetTimeLabel=buildMeetTimeLabel(scheduleTimes,dur);
   $('#ehBtn').disabled=true; $('#ehBtn').textContent='جارٍ الحفظ...';
-  const { error }=await sb.from('groups').update({ schedule_days:days, schedule_time:time, schedule_duration_min:dur, meet_time:meetTimeLabel }).eq('id',gid);
+  const { error }=await sb.from('groups').update({ schedule_days:days, schedule_time:scheduleTimes[days[0]], schedule_times:scheduleTimes, schedule_duration_min:dur, meet_time:meetTimeLabel }).eq('id',gid);
   if(error){ $('#ehBtn').disabled=false; alert('تعذّر: '+error.message); return; }
   // نحذف الحصص المستقبلية اللي لسه معملها رابط، ونولّد بدلها على الموعد الجديد
   const todayStr=new Date().toISOString().slice(0,10);
   await sb.from('sessions').delete().eq('group_id',gid).gte('session_date',todayStr).is('zoom_link',null);
-  await generateWeeklySessions(gid, studentId, g?.name||'الحلقة', days, time, dur);
+  await generateWeeklySessions(gid, studentId, g?.name||'الحلقة', scheduleTimes, dur);
   closeModal(); toast('✅ تم تحديث الموعد وحصص الأسابيع القادمة');
   await navigate('myhalqa');
 }
@@ -5234,12 +5270,15 @@ async function teacherPerfCard(t){
   const groups=gs||[];
   const privCount=groups.filter(g=>g.is_private).length;
   const gids=groups.map(g=>g.id);
-  let studCount=0, sesCount=0, ratedCount=0;
+  let studCount=0, sesCount=0, ratedCount=0, sesMonthCount=0;
   if(gids.length){
     const { count:sc }=await sb.from('students').select('*',{count:'exact',head:true}).in('group_id',gids); studCount=sc||0;
     const { count:sesC }=await sb.from('sessions').select('*',{count:'exact',head:true}).eq('teacher_id',t.id); sesCount=sesC||0;
     const { count:rC }=await sb.from('session_ratings').select('*',{count:'exact',head:true}).eq('teacher_id',t.id); ratedCount=rC||0;
   }
+  const now=new Date(); const monthStart=new Date(now.getFullYear(),now.getMonth(),1).toISOString().slice(0,10);
+  const { count:smC }=await sb.from('sessions').select('*',{count:'exact',head:true}).eq('teacher_id',t.id).eq('status','done').gte('session_date',monthStart);
+  sesMonthCount=smC||0;
   // آخر نشاط (آخر حصة)
   const { data:lastSes }=await sb.from('sessions').select('session_date').eq('teacher_id',t.id).order('session_date',{ascending:false}).limit(1);
   const lastActive=lastSes&&lastSes[0]?lastSes[0].session_date:null;
@@ -5254,6 +5293,7 @@ async function teacherPerfCard(t){
       <div class="pcs"><b>${ar(studCount)}</b><span>طلاب</span></div>
       <div class="pcs"><b>${ar(privCount)}</b><span>حلقات خاصة</span></div>
       <div class="pcs"><b>${ar(sesCount)}</b><span>حصص</span></div>
+      <div class="pcs"><b>${ar(sesMonthCount)}</b><span>حصص هذا الشهر</span></div>
       <div class="pcs"><b>${ar(ratedCount)}</b><span>تقييمات</span></div>
     </div>
     <div class="pc-foot ${inactive?'warn':''}">${lastActive?`آخر حصة: ${new Date(lastActive).toLocaleDateString('ar-EG')} ${inactive?'⚠️':''}`:'⚠️ لم يجدول حصصاً بعد'}</div>
@@ -5354,7 +5394,7 @@ PAGES.teacher_schedule=async function(){ setTop('جدول حصصي','نظرة أ
   `<div class="card" style="margin-bottom:18px"><div class="ch"><h3>${mi('calendar')} حصص اليوم (${todaySessions.length?ar(todaySessions.length):'لا حصص'})</h3></div>
     ${todaySessions.length?`<div class="priv-sessions-list">${todaySessions.map(s=>{ const st=privSessionStatus(s); return `<div class="priv-session ${st.live?'live':''}">
       <div class="ps-icon">${st.live?'🔴':'🎥'}</div>
-      <div class="ps-info"><b>${s.s?s.s.full_name:'طالب'}</b><span>${s.title} • ${s.session_time||''}</span><div style="margin-top:5px"><span class="chip ${st.c}">${st.t}</span></div></div>
+      <div class="ps-info"><b>${s.s?s.s.full_name:'طالب'}</b><span>${s.title} • ${fmt12h(s.session_time)}</span><div style="margin-top:5px"><span class="chip ${st.c}">${st.t}</span></div></div>
       <div class="ps-actions">${s.zoom_link?`<a href="${s.zoom_link}" target="_blank" class="btn-sm ${st.live?'':'gold'}" style="text-decoration:none">${st.live?'دخول ▶':'الرابط'}</a>`:`<button class="btn-sm gold" onclick="editPrivSession(${s.id})">${mi('video')} أضف رابط الحصة</button>`}<button class="btn-sm ghost" onclick="openPrivHalqa(${s.group_id})">الحلقة</button></div>
     </div>`; }).join('')}</div>`:'<p style="color:var(--muted);text-align:center;padding:20px">لا حصص اليوم. استمتع بيومك! 🌿</p>'}
   </div>
@@ -5364,7 +5404,7 @@ PAGES.teacher_schedule=async function(){ setTop('جدول حصصي','نظرة أ
   </div>
   <!-- كل حصص الأسبوع بالتفصيل -->
   <div class="card"><div class="ch"><h3>حصص الأسبوع بالتفصيل</h3></div>
-    ${thisWeek.length?days.map((d,i)=>byDay[i].length?`<div class="ws-detail-day"><b>${d}</b>${byDay[i].map(s=>`<div class="ws-detail-item"><span>${s.session_time||'—'}</span> ${s.s?s.s.full_name:'طالب'} — ${s.title} <button class="btn-sm ghost" style="margin-inline-start:auto" onclick="openPrivHalqa(${s.group_id})">↗</button></div>`).join('')}</div>`:'').join(''):'<p style="color:var(--muted);text-align:center;padding:20px">لا حصص مجدولة هذا الأسبوع.</p>'}
+    ${thisWeek.length?days.map((d,i)=>byDay[i].length?`<div class="ws-detail-day"><b>${d}</b>${byDay[i].map(s=>`<div class="ws-detail-item"><span>${s.session_time?fmt12h(s.session_time):'—'}</span> ${s.s?s.s.full_name:'طالب'} — ${s.title} <button class="btn-sm ghost" style="margin-inline-start:auto" onclick="openPrivHalqa(${s.group_id})">↗</button></div>`).join('')}</div>`:'').join(''):'<p style="color:var(--muted);text-align:center;padding:20px">لا حصص مجدولة هذا الأسبوع.</p>'}
   </div>`;
 };
 // ===== الحلقات الخاصة (للإدارة: مشرف/تنفيذي/مدير) =====
