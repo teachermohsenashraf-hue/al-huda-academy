@@ -406,6 +406,7 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 .pcs{flex:1;text-align:center;background:var(--cream);border-radius:10px;padding:10px 6px;min-width:60px}
 .pcs b{display:block;font-size:18px;color:var(--navy-deep);font-family:Amiri}
 .pcs span{font-size:11px;color:var(--muted)}
+.pc-months{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
 .pc-foot{font-size:12.5px;color:var(--muted);padding:8px 12px;background:var(--cream);border-radius:8px;margin-bottom:12px}
 .pc-foot.warn{background:rgba(231,76,60,0.08);color:#E74C3C}
 .pc-actions{display:flex;gap:8px}
@@ -427,6 +428,11 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 .ps-info b{display:block;color:var(--navy-deep);font-size:15px}
 .ps-info span{font-size:12.5px;color:var(--muted)}
 .ps-actions{display:flex;flex-direction:column;gap:6px;flex-shrink:0}
+@media (max-width:480px){
+  .priv-session{flex-direction:column;align-items:stretch}
+  .ps-actions{flex-direction:row;flex-wrap:wrap;width:100%}
+  .ps-actions .btn-sm,.ps-actions a{flex:1;min-width:120px;text-align:center}
+}
 /* محادثة الحلقة */
 .halqa-chat{display:flex;flex-direction:column;height:min(460px,65vh)}
 .halqa-chat-body{flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:10px;background:var(--cream)}
@@ -3634,7 +3640,6 @@ PAGES.teacher_quickrecord=async function(){ setTop('الرصد السريع','س
 async function renderUnassignedPage(viewerRole){
   const { data:sts }=await sb.from('students').select('*, teacher:profiles!students_chosen_teacher_id_fkey(full_name)').eq('enrollment_status','active').is('group_id',null).order('full_name');
   const s=sts||[];
-  const { data:gs }=await sb.from('groups').select('id,name,teacher:profiles!groups_teacher_id_fkey(full_name)').order('name');
   let sups=[];
   if(viewerRole==='admin'){ const { data:sd }=await sb.from('profiles').select('id,full_name,gender').eq('role','supervisor'); sups=sd||[]; }
   return pageHead('طلاب بدون حلقة','هؤلاء دفعوا وتم تفعيل اشتراكهم ولكنهم لم يُضافوا لحلقة بعد')+
@@ -3646,7 +3651,7 @@ async function renderUnassignedPage(viewerRole){
       let contactBtn='';
       if(viewerRole==='admin'){
         const sup=sups.find(sp=>!x.gender||!sp.gender||sp.gender===x.gender)||sups[0];
-        contactBtn=sup?`<button class="icon-act" title="تواصل مع المشرف ${esc(sup.full_name)}" onclick="startChatWith(${sup.id},'${esc(sup.full_name).replace(/'/g,'')}')">${mi('chat')}</button>`:'';
+        contactBtn=sup?`<button class="icon-act" title="تواصل مع المشرف ${esc(sup.full_name)}" onclick="startChatWith('${sup.id}','${esc(sup.full_name).replace(/'/g,'')}')">${mi('chat')}</button>`:'';
       } else if(viewerRole==='supervisor'){
         contactBtn=x.login_id?`<button class="icon-act" title="تواصل مع الطالب" onclick="startChatWith('${x.login_id}','${esc(x.full_name).replace(/'/g,'')}')">${mi('chat')}</button>`:'';
       }
@@ -3654,8 +3659,6 @@ async function renderUnassignedPage(viewerRole){
       <div class="si-av teacher">${x.initials||x.full_name.slice(0,2)}</div>
       <div class="si-info"><b>${esc(x.full_name)}</b><span>${pathName(x.quran_path)}</span><div style="margin-top:4px">${teacherBadge}</div></div>
       <div class="si-actions" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
-        <select id="asGroup_${x.id}" style="font-size:13px;padding:6px;border-radius:8px;border:1px solid var(--line)"><option value="">اختر حلقة</option>${(gs||[]).map(g=>`<option value="${g.id}">${g.name}${g.teacher?' — '+g.teacher.full_name:''}</option>`).join('')}</select>
-        <button class="btn-sm" onclick="assignToGroup(${x.id})">تعيين</button>
         <button class="icon-act" title="تفاصيل الطالب" onclick="studentDetailModal(${x.id})">${mi('eye')}</button>
         ${contactBtn}
       </div>
@@ -3664,12 +3667,6 @@ async function renderUnassignedPage(viewerRole){
 }
 PAGES.admin_unassigned=async function(){ setTop('طلاب بدون حلقة','دفعوا ولم يُوزَّعوا بعد'); return renderUnassignedPage('admin'); };
 PAGES.supervisor_unassigned=async function(){ setTop('طلاب بدون حلقة','دفعوا ولم يُوزَّعوا بعد'); return renderUnassignedPage('supervisor'); };
-async function assignToGroup(studentId){
-  const sel=$('#asGroup_'+studentId); if(!sel||!sel.value){toast('اختر حلقة أولاً');return;}
-  const { error }=await sb.from('students').update({ group_id:+sel.value }).eq('id',studentId);
-  if(error){ alert('تعذّر: '+error.message); return; }
-  toast('✅ تم التعيين'); await navigate('unassigned');
-}
 /* ===== تسجيلات معلّقة: حسابات أُنشئت ولم تُكمل الالتحاق بمسار ===== */
 PAGES.admin_leads=async function(){ setTop('تسجيلات معلّقة','حسابات أُنشئت ولم تكمل الالتحاق بمسار');
   const { data:profs } = await sb.from('profiles').select('*').in('role',['student','parent']);
@@ -5356,15 +5353,19 @@ async function teacherPerfCard(t){
   const groups=gs||[];
   const privCount=groups.filter(g=>g.is_private).length;
   const gids=groups.map(g=>g.id);
-  let studCount=0, sesCount=0, ratedCount=0, sesMonthCount=0;
+  let studCount=0, ratedCount=0;
   if(gids.length){
     const { count:sc }=await sb.from('students').select('*',{count:'exact',head:true}).in('group_id',gids); studCount=sc||0;
-    const { count:sesC }=await sb.from('sessions').select('*',{count:'exact',head:true}).eq('teacher_id',t.id); sesCount=sesC||0;
     const { count:rC }=await sb.from('session_ratings').select('*',{count:'exact',head:true}).eq('teacher_id',t.id); ratedCount=rC||0;
   }
-  const now=new Date(); const monthStart=new Date(now.getFullYear(),now.getMonth(),1).toISOString().slice(0,10);
-  const { count:smC }=await sb.from('sessions').select('*',{count:'exact',head:true}).eq('teacher_id',t.id).eq('status','done').gte('session_date',monthStart);
-  sesMonthCount=smC||0;
+  // الحصص المكتملة فعلاً (مش المجدولة اللي لسه ما جتش)، مقسّمة بالشهر
+  const { data:doneSessions } = await sb.from('sessions').select('session_date').eq('teacher_id',t.id).eq('status','done').order('session_date',{ascending:false});
+  const monthCounts={};
+  (doneSessions||[]).forEach(s=>{ const mk=(s.session_date||'').slice(0,7); if(!mk) return; monthCounts[mk]=(monthCounts[mk]||0)+1; });
+  const monthKeys=Object.keys(monthCounts).sort().reverse().slice(0,6);
+  const monthLabel=(mk)=>{ const [y,m]=mk.split('-'); return new Date(+y,+m-1,1).toLocaleDateString('ar-EG',{month:'long',year:'numeric'}); };
+  const sesCount=(doneSessions||[]).length;
+  const monthlyHtml = monthKeys.length ? `<div class="pc-months">${monthKeys.map(mk=>`<span class="chip n" style="font-size:11px">${esc(monthLabel(mk))}: ${ar(monthCounts[mk])}</span>`).join(' ')}</div>` : `<div class="pc-months"><span class="chip" style="font-size:11px;color:var(--muted)">لا حصص مكتملة بعد</span></div>`;
   // آخر نشاط (آخر حصة)
   const { data:lastSes }=await sb.from('sessions').select('session_date').eq('teacher_id',t.id).order('session_date',{ascending:false}).limit(1);
   const lastActive=lastSes&&lastSes[0]?lastSes[0].session_date:null;
@@ -5378,10 +5379,10 @@ async function teacherPerfCard(t){
     <div class="pc-stats">
       <div class="pcs"><b>${ar(studCount)}</b><span>طلاب</span></div>
       <div class="pcs"><b>${ar(privCount)}</b><span>حلقات خاصة</span></div>
-      <div class="pcs"><b>${ar(sesCount)}</b><span>حصص</span></div>
-      <div class="pcs"><b>${ar(sesMonthCount)}</b><span>حصص هذا الشهر</span></div>
+      <div class="pcs"><b>${ar(sesCount)}</b><span>حصص مكتملة</span></div>
       <div class="pcs"><b>${ar(ratedCount)}</b><span>تقييمات</span></div>
     </div>
+    ${monthlyHtml}
     <div class="pc-foot ${inactive?'warn':''}">${lastActive?`آخر حصة: ${new Date(lastActive).toLocaleDateString('ar-EG')} ${inactive?'⚠️':''}`:'⚠️ لم يجدول حصصاً بعد'}</div>
     <div class="pc-actions"><button class="btn-sm" onclick="startChatWith('${t.id}','${escJs(t.full_name)}')">${mi('chat')} تواصل</button><button class="btn-sm ghost" onclick="viewTeacherHalqat('${t.id}','${t.full_name.replace(/'/g,'')}')">${mi('mosque')} حلقاته</button></div>
   </div>`;
