@@ -1780,6 +1780,31 @@ async function enrollSurvey(pathId, type, p, childId){
       <div class="field" id="enPassWrap" style="display:none"><label>كلمة سر دخول الابن</label><input id="enPass" placeholder="كلمة سر يدخل بها الابن"><small style="color:var(--muted);font-size:11.5px">يدخل الابن ببريده وهذه الكلمة على صفحته الخاصة.</small></div>`:''}
       `:`<input type="hidden" id="enName" value="${nameVal}"><input type="hidden" id="enAge" value="${childData?childData.age||9:9}">`}
       <div class="field"><label>هل لديه خبرة سابقة في الحفظ؟ <span class="req">*</span></label><textarea id="enExp" rows="2" placeholder="مثال: حفظ جزء عمّ، أو لا توجد خبرة"></textarea></div>
+      <div class="arow">
+        <div class="field"><label>حالة الحفظ الحالية <span class="req">*</span></label><select id="enMemStatus">
+          <option value="none">لا يحفظ شيئاً بعد</option>
+          <option value="scattered">يحفظ أجزاءً متفرقة</option>
+          <option value="completed_juz">أتمّ حفظ جزء أو أكثر</option>
+          <option value="completed_full">أتمّ حفظ القرآن كاملاً</option>
+        </select></div>
+        <div class="field"><label>حالة المراجعة الحالية <span class="req">*</span></label><select id="enRevStatus">
+          <option value="none">لا يراجع إطلاقاً</option>
+          <option value="occasional">يراجع أحياناً</option>
+          <option value="regular">يراجع بانتظام</option>
+        </select></div>
+      </div>
+      ${SELECTED_PLAN.type==='rasokh'?`<div class="arow">
+        <div class="field"><label>مستوى التلاوة (ورد التلاوة)</label><select id="enReadLevel">
+          <option value="weak">ضعيف — يحتاج متابعة دقيقة</option>
+          <option value="medium" selected>متوسط</option>
+          <option value="good">جيد — تلاوة سليمة</option>
+        </select></div>
+        <div class="field"><label>مستوى السماع (ورد السماع)</label><select id="enListenLevel">
+          <option value="weak">ضعيف — يحتاج متابعة دقيقة</option>
+          <option value="medium" selected>متوسط</option>
+          <option value="good">جيد — سماع منتظم</option>
+        </select></div>
+      </div>`:''}
       <div class="field"><label>ما الصعوبات التي يواجهها؟</label><textarea id="enDiff" rows="2" placeholder="مثال: ضعف المراجعة، قلة الوقت"></textarea></div>
       <div class="field"><label>ما الذي يحفّزه على الحفظ؟</label><textarea id="enMot" rows="2" placeholder="مثال: حبّ القرآن، رضا الوالدين"></textarea></div>
       ${type==='subsidy'?`
@@ -1874,6 +1899,10 @@ async function submitEnrollment(pathId, type, childId){
       student_id:studentId, parent_id:parentId, applicant_id:ME.id,
       full_name:name, age, quran_path:pathId, ...planFields,
       prev_experience:exp,
+      memorization_status:$('#enMemStatus')?.value||null,
+      review_status:$('#enRevStatus')?.value||null,
+      reading_level:$('#enReadLevel')?.value||null,
+      listening_level:$('#enListenLevel')?.value||null,
       difficulties:$('#enDiff')?.value.trim()||null,
       motivation:$('#enMot')?.value.trim()||null,
       request_type:type
@@ -4197,6 +4226,10 @@ async function studentDetailModal(id){
     ${row('البريد',geo.email)}
     ${jr?`<div style="margin:14px 0 6px;font-weight:700;color:var(--navy-deep);font-size:13.5px">${mi('clipboard')} بيانات استبيان التسجيل</div>
     ${row('نوع الطلب',jr.request_type==='subsidy'?'طلب تخفيض':'التحاق عادي')}
+    ${row('حالة الحفظ',{none:'لا يحفظ شيئاً بعد',scattered:'يحفظ أجزاءً متفرقة',completed_juz:'أتمّ حفظ جزء أو أكثر',completed_full:'أتمّ حفظ القرآن كاملاً'}[jr.memorization_status])}
+    ${row('حالة المراجعة',{none:'لا يراجع إطلاقاً',occasional:'يراجع أحياناً',regular:'يراجع بانتظام'}[jr.review_status])}
+    ${row('مستوى التلاوة',{weak:'ضعيف',medium:'متوسط',good:'جيد'}[jr.reading_level])}
+    ${row('مستوى السماع',{weak:'ضعيف',medium:'متوسط',good:'جيد'}[jr.listening_level])}
     ${longRow('الخبرة السابقة في الحفظ',jr.prev_experience)}
     ${longRow('الصعوبات التي واجهته',jr.difficulties)}
     ${longRow('الدافع للالتحاق',jr.motivation)}

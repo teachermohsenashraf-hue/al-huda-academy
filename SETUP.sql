@@ -931,3 +931,13 @@ where not exists (select 1 from quran_station_fortress_config c where c.station_
 -- واحدة فقط في اليوم لكل خطة (بدل ما يتزحزح نفس اليوم أكتر من مرة)
 -- ------------------------------------------------------------
 alter table quran_student_plans add column if not exists last_absence_check date;
+
+-- ============================================================
+-- حقول إضافية في استبيان الالتحاق: حالة الحفظ/المراجعة الحالية،
+-- ومستوى التلاوة/السماع لطلاب نظام رسوخ تحديداً (لمساعدة المعلم
+-- على وضع خطة مناسبة من أول يوم بدل التخمين)
+-- ------------------------------------------------------------
+alter table join_requests add column if not exists memorization_status text;
+alter table join_requests add column if not exists review_status text;
+alter table join_requests add column if not exists reading_level text;
+alter table join_requests add column if not exists listening_level text;
