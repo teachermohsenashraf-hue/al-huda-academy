@@ -4396,14 +4396,18 @@ PAGES.admin_content=async function(){ return contentPage(true); };
 PAGES.admin_finance=async function(){ setTop('المدفوعات','الإدارة المالية الموحّدة');
   const { data:pays }=await sb.from('payments').select('*, s:students(id,full_name,quran_path,enrollment_status,plan_type,package_sessions,package_fee)').order('id',{ascending:false});
   const p=pays||[];
-  const paidAmt=p.filter(x=>x.status==='paid').reduce((a,x)=>a+(+(x.amount||0)),0);
-  const paidCount=p.filter(x=>x.status==='paid').length;
+  const paidRows=p.filter(x=>x.status==='paid');
+  // إجمالي منفصل لكل عملة — جمع كل العملات في رقم واحد بلا فائدة لأن
+  // ١٠٥ ريال + ٣٠ دولار + ٤٥٠ جنيه أرقام من عملات مختلفة تماماً
+  const paidByCcy={EGP:0,SAR:0,USD:0};
+  paidRows.forEach(x=>{ const cc=x.currency_code||'EGP'; if(paidByCcy[cc]!==undefined) paidByCcy[cc]+=(+x.amount||0); });
+  const paidCount=paidRows.length;
   const pendingPays=p.filter(x=>x.status==='pending'&&x.receipt_url);
   const collectRate=p.length?Math.round(paidCount*100/p.length):0;
   const methods={vodafone:0,instapay:0,fawry:0};
-  p.filter(x=>x.status==='paid').forEach(x=>{ const m=x.payment_method; if(methods[m]!==undefined)methods[m]++; });
+  paidRows.forEach(x=>{ const m=x.payment_method; if(methods[m]!==undefined)methods[m]++; });
   return pageHead('المدفوعات','نظام موحّد: الطالب يرفع الإيصال، والإدارة تؤكّده')+`<div style="margin-bottom:14px;text-align:left"><button class="btn" style="background:#1D6F42" onclick="exportAcademyExcel()">${mi('chart')} تصدير تقرير Excel شامل</button></div>`+
-  `<div class="stats">${statCard(mi('check'),'g',ar(paidAmt)+' ج','المحصّل')}${statCard(mi('mail'),'n',ar(pendingPays.length),'إيصال بانتظار التأكيد')}${statCard(mi('card'),'g',pct(collectRate),'نسبة التحصيل')}</div>
+  `<div class="stats">${statCard(mi('check'),'g',ar(paidByCcy.EGP)+' ج.م','المحصّل من مصر')}${statCard(mi('check'),'g',ar(paidByCcy.SAR)+' ر.س','المحصّل من السعودية')}${statCard(mi('check'),'g','$'+paidByCcy.USD,'المحصّل من خارج الدولتين')}${statCard(mi('mail'),'n',ar(pendingPays.length),'إيصال بانتظار التأكيد')}${statCard(mi('card'),'g',pct(collectRate),'نسبة التحصيل')}</div>
 
   ${pendingPays.length?`<div class="card" style="margin-bottom:18px;border:2px solid var(--gold)"><div class="ch"><h3>${mi('mail')} إيصالات بانتظار التأكيد (${ar(pendingPays.length)})</h3></div>
     <div class="confirm-grid">${pendingPays.map(x=>`<div class="confirm-card">
@@ -5927,11 +5931,14 @@ function qBackToList(){ try{ QSTATE = { view:'list', systemId:null, tab:'basic' 
 function qSwitchTab(t){ try{ QSTATE.tab=t; navigate('qsystems'); }catch(e){ alert('خطأ: '+e.message); console.error(e); } }
 
 function qSeedFortresses(){
+ try{
+  const host = $('#qmodalHost');
+  if(!host){ alert('خطأ: عنصر النافذة المنبثقة غير موجود في الصفحة (qmodalHost).'); return; }
   const rows = QURAN_DEFAULT_FORTRESSES.map((f,i)=>`<div class="qfort on" style="cursor:default">
     <div class="qfic" style="background:${f.color}">${f.icon}</div>
     <div class="qfbody"><b>${esc(f.name)}</b><small>الوحدة الافتراضية: ${f.default_unit==='verse'?'آيات':'صفحات'} · المقدار اليومي: ${ar(f.daily)}</small></div>
   </div>`).join('');
-  $('#qmodalHost').innerHTML = `<div class="qmodal" onclick="if(event.target===this)qCloseModal()">
+  host.innerHTML = `<div class="qmodal" onclick="if(event.target===this)qCloseModal()">
     <div class="qmbox">
       <h2>${mi('shield')} الحصون الخمسة الافتراضية</h2>
       <p class="qmdesc">يتم نسخ هذه الحصون تلقائياً لكل نظام جديد. تستطيع تعديل أسمائها وألوانها ومقاديرها بعد الإنشاء.</p>
@@ -5939,6 +5946,7 @@ function qSeedFortresses(){
       <div style="margin-top:18px;text-align:end"><button class="btn" onclick="qCloseModal()">حسناً</button></div>
     </div>
   </div>`;
+ }catch(e){ alert('خطأ: '+e.message); console.error(e); }
 }
 function qCloseModal(){ const h=$('#qmodalHost'); if(h) h.innerHTML=''; }
 
@@ -6140,9 +6148,21 @@ async function qSaveSystem(id){
 }
 
 async function qDeleteSystem(id){
+  // لو في طلاب عندهم خطط مرتبطة بهذا النظام فعلياً، الحذف يفشل ويكسر بياناتهم
+  // (قيد foreign key في قاعدة البيانات)، فنمنعه من الأول برسالة واضحة بدل
+  // ما يظهر خطأ تقني، ونقترح الأرشفة كبديل آمن (تخفي النظام عن المعلمين
+  // من غير ما تكسر خطط الطلاب الحاليين المرتبطة بيه).
+  const { count, error: cntErr } = await sb.from('quran_student_plans').select('id',{count:'exact',head:true}).eq('system_id',id);
+  if(!cntErr && count>0){
+    alert('لا يمكن حذف هذا النظام لأن '+count+' من خطط الطلاب مرتبطة به بالفعل.\n\nبدل الحذف، غيّر حالة النظام إلى "مؤرشف" من تبويب التفاصيل الأساسية — كده يختفي عن المعلمين عند إنشاء خطط جديدة، مع الحفاظ على خطط الطلاب الحاليين سليمة.');
+    return;
+  }
   if(!confirm('هل أنت متأكد من حذف هذا النظام؟ سيتم حذف كل محطاته وحصونه وإعداداته نهائياً.')) return;
   const { error } = await sb.from('quran_systems').delete().eq('id',id);
-  if(error){ toast('تعذّر الحذف: '+error.message); return; }
+  if(error){
+    if(String(error.message||'').includes('foreign key')){ alert('لا يمكن حذف هذا النظام لأنه مرتبط ببيانات أخرى (خطط طلاب أو حلقات). غيّر حالته إلى "مؤرشف" بدلاً من حذفه.'); return; }
+    toast('تعذّر الحذف: '+error.message); return;
+  }
   toast('تم الحذف');
   qBackToList();
 }
