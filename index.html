@@ -141,6 +141,10 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 .btn-sm{border:none;font-family:'Cairo',sans-serif;font-weight:600;font-size:12.5px;padding:7px 16px;border-radius:8px;cursor:pointer;background:var(--emerald);color:#fff}
 .btn-sm.gold{background:var(--gold);color:var(--emerald-deep)}
 .btn-sm.ghost{background:var(--cream);color:var(--emerald-deep);border:1px solid var(--line)}
+.row-actions{display:flex;flex-wrap:nowrap;gap:6px;align-items:center;justify-content:center}
+.icon-act{border:none;background:var(--cream);color:var(--emerald-deep);width:30px;height:30px;min-width:30px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:filter .15s ease,transform .15s ease}
+.icon-act:hover{filter:brightness(0.95);transform:translateY(-1px)}
+.icon-act svg{width:15px;height:15px}
 
 /* جداول */
 .dtable{width:100%;border-collapse:collapse;font-size:13.5px}
@@ -4027,15 +4031,16 @@ PAGES.admin_dash=async function(){ setTop('لوحة القيادة 🛡️','ن�
   const { count:studC }=await sb.from('students').select('*',{count:'exact',head:true});
   const { count:tC }=await sb.from('profiles').select('*',{count:'exact',head:true}).eq('role','teacher');
   const { count:gC }=await sb.from('groups').select('*',{count:'exact',head:true});
-  const { data:studs }=await sb.from('students').select('track');
-  const dist={quran:0,tarbiya:0,both:0}; (studs||[]).forEach(s=>{ if(dist[s.track]!=null)dist[s.track]++; });
+  const { data:studs }=await sb.from('students').select('quran_path');
+  const dist={}; QURAN_PATHS.forEach(p=>dist[p.id]=0);
+  (studs||[]).forEach(s=>{ if(s.quran_path&&dist[s.quran_path]!=null)dist[s.quran_path]++; });
+  const withPathCnt=(studs||[]).filter(s=>s.quran_path).length;
   const { data:pays }=await sb.from('payments').select('status');
   const paid=(pays||[]).filter(p=>p.status==='paid').length; const totalPay=(pays||[]).length;
   const collectRate=totalPay?Math.round(paid*100/totalPay):0;
   return pageHead('لوحة القيادة','الأرقام الرئيسية')+`<div class="stats">${statCard(mi('child'),'e',ar(studC||0),'الطلاب')}${statCard(mi('teacher'),'g',ar(tC||0),'المعلمون')}${statCard(mi('users'),'n',ar(gC||0),'الحلقات')}${statCard(mi('card'),'g',pct(collectRate),'نسبة التحصيل')}</div>
   <div class="grid2"><div class="card"><div class="ch"><h3>توزيع المسارات</h3></div><div class="rbars">
-    <div class="rbar"><div class="l"><span>${mi('book')} الحفظ فقط</span><b>${ar(dist.quran)}</b></div><div class="rtrack"><div class="rfill e" style="width:${dist.quran*100/(studC||1)}%"></div></div></div>
-    <div class="rbar"><div class="l"><span>${mi('leaf')} التربية فقط</span><b>${ar(dist.tarbiya)}</b></div><div class="rtrack"><div class="rfill g" style="width:${dist.tarbiya*100/(studC||1)}%"></div></div></div>
+    ${QURAN_PATHS.map(p=>`<div class="rbar"><div class="l"><span>${p.icon} ${p.name}</span><b>${ar(dist[p.id]||0)}</b></div><div class="rtrack"><div class="rfill e" style="width:${(dist[p.id]||0)*100/(withPathCnt||1)}%"></div></div></div>`).join('')}
   </div></div>
   <div class="card"><div class="ch"><h3>إجراءات سريعة</h3></div><div style="display:flex;flex-direction:column;gap:10px"><button class="btn" onclick="navigate('users')">${mi('users')} إدارة الطلاب</button><button class="btn ghost" onclick="navigate('tracks')">${mi('cap')} البرامج</button><button class="btn ghost" onclick="navigate('finance')">${mi('card')} المالية</button><button class="btn" style="background:#1D6F42" onclick="exportAcademyExcel()">${mi('chart')} تصدير تقرير Excel شامل</button></div></div></div>`;
 };
@@ -4044,7 +4049,8 @@ PAGES.admin_analytics=async function(){ setTop('التحليلات','مؤشرا�
   const { data:groups }=await sb.from('groups').select('*');
   const { count:tC }=await sb.from('profiles').select('*',{count:'exact',head:true}).eq('role','teacher');
   const s=studs||[]; const g=groups||[];
-  const dist={quran:0,tarbiya:0,both:0}; s.forEach(x=>dist[x.track]=(dist[x.track]||0)+1);
+  const dist={}; QURAN_PATHS.forEach(p=>dist[p.id]=0); s.forEach(x=>{ if(x.quran_path&&dist[x.quran_path]!=null)dist[x.quran_path]++; });
+  const withPathCnt=s.filter(x=>x.quran_path).length||1;
   const tot=s.length||1;
   const avgMastery=Math.round(s.reduce((a,x)=>a+(x.mastery||0),0)/tot);
   const avgAtt=Math.round(s.reduce((a,x)=>a+(x.attendance||0),0)/tot);
@@ -4086,8 +4092,7 @@ PAGES.admin_analytics=async function(){ setTop('التحليلات','مؤشرا�
   <div class="stats">${statCard(mi('child'),'e',ar(s.length),'إجمالي الطلاب')}${statCard(mi('check'),'e',pct(avgMastery),'متوسط الإتقان')}${statCard(mi('calendar'),'g',pct(avgAtt),'متوسط الحضور')}${statCard(mi('book'),'n',ar(totalPages),'إجمالي الصفحات المحفوظة')}</div>
   <div class="grid2">
     <div class="card"><div class="ch"><h3>توزيع الطلاب على المسارات</h3></div><div class="rbars">
-      <div class="rbar"><div class="l"><span>${mi('book')} الحفظ فقط</span><b>${ar(dist.quran)} (${Math.round(dist.quran*100/tot)}٪)</b></div><div class="rtrack"><div class="rfill e" style="width:${dist.quran*100/tot}%"></div></div></div>
-      <div class="rbar"><div class="l"><span>${mi('leaf')} التربية فقط</span><b>${ar(dist.tarbiya)} (${Math.round(dist.tarbiya*100/tot)}٪)</b></div><div class="rtrack"><div class="rfill g" style="width:${dist.tarbiya*100/tot}%"></div></div></div>
+      ${QURAN_PATHS.map(p=>`<div class="rbar"><div class="l"><span>${p.icon} ${p.name}</span><b>${ar(dist[p.id]||0)} (${Math.round((dist[p.id]||0)*100/withPathCnt)}٪)</b></div><div class="rtrack"><div class="rfill e" style="width:${(dist[p.id]||0)*100/withPathCnt}%"></div></div></div>`).join('')}
     </div></div>
     <div class="card"><div class="ch"><h3>متوسطات الأداء</h3></div><div class="rbars">
       <div class="rbar"><div class="l"><span>الإتقان</span><b>${pct(avgMastery)}</b></div><div class="rtrack"><div class="rfill e" style="width:${avgMastery}%"></div></div></div>
@@ -4119,7 +4124,7 @@ function planChips(s){
 }
 function renderUsersRows(rows){
   if(!rows.length) return '<tr><td colspan="8" style="text-align:center;color:var(--muted)">لا نتائج.</td></tr>';
-  return rows.map(s=>`<tr><td><span class="miniava">${s.initials||'؟'}</span>${esc(s.full_name)}</td><td>${s.g?s.g.name:'—'}</td><td>${trackAr(s.track)}</td><td>${planChips(s)}</td><td>${esc(_usersGeoMap[s.id]?.residence||'—')}</td><td><span class="chip ${s.enrollment_status==='active'?'g':s.enrollment_status==='awaiting_confirm'?'n':'gold'}" style="font-size:11px">${{pending:'جديد',awaiting_payment:'ينتظر الدفع',awaiting_confirm:'ينتظر التأكيد',active:'نشط'}[s.enrollment_status]||s.enrollment_status}</span></td><td>${ar(s.age||0)}</td><td><button class="btn-sm" onclick="studentDetailModal(${s.id})">تفاصيل</button> <button class="btn-sm ghost" onclick="studentModal(${s.id})">تعديل</button> <button class="btn-sm" style="background:var(--gold-deep,#8a6d1a)" onclick="resetPwdModal('${(s.full_name||'').replace(/'/g,'')}')">${mi('key')} كلمة سر</button> <button class="btn-sm" style="background:#E74C3C" onclick="delStudent(${s.id},'${(s.full_name||'').replace(/'/g,'')}')">حذف</button></td></tr>`).join('');
+  return rows.map(s=>`<tr><td><span class="miniava">${s.initials||'؟'}</span>${esc(s.full_name)}</td><td>${s.g?s.g.name:'—'}</td><td>${pathName(s.quran_path)}</td><td>${planChips(s)}</td><td>${esc(_usersGeoMap[s.id]?.residence||'—')}</td><td><span class="chip ${s.enrollment_status==='active'?'g':s.enrollment_status==='awaiting_confirm'?'n':'gold'}" style="font-size:11px">${{pending:'جديد',awaiting_payment:'ينتظر الدفع',awaiting_confirm:'ينتظر التأكيد',active:'نشط'}[s.enrollment_status]||s.enrollment_status}</span></td><td>${ar(s.age||0)}</td><td><div class="row-actions"><button class="icon-act" title="تفاصيل" onclick="studentDetailModal(${s.id})">${mi('eye')}</button><button class="icon-act" title="تعديل" onclick="studentModal(${s.id})">${mi('pencil')}</button><button class="icon-act" style="color:var(--gold-deep,#8a6d1a)" title="كلمة سر" onclick="resetPwdModal('${(s.full_name||'').replace(/'/g,'')}')">${mi('key')}</button><button class="icon-act" style="color:#E74C3C" title="حذف" onclick="delStudent(${s.id},'${(s.full_name||'').replace(/'/g,'')}')">${mi('trash')}</button></div></td></tr>`).join('');
 }
 async function studentDetailModal(id){
   const { data:s }=await sb.from('students').select('*, g:groups!students_group_id_fkey(name)').eq('id',id).maybeSingle();
