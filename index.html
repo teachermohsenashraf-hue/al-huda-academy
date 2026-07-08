@@ -1858,6 +1858,15 @@ async function enrollSurvey(pathId, type, p, childId){
 const PLAN_COLS = ['plan_type','package_sessions','package_fee'];
 // إدراج/تحديث آمن: لو أعمدة النظام والباقة لسّه ما اتضافوش على قاعدة البيانات (قبل تشغيل الـSQL المطلوب)، يعيد المحاولة بدونها بدل ما يكسر التسجيل بالكامل
 function isMissingColumnErr(err,cols){ return err && err.message && cols.some(c=>err.message.includes(c)); }
+// إرسال رسالة مرن: لو عمود sender_role لسّه ما اتضافش (قبل تشغيل SETUP.sql)، يعيد المحاولة بدونه بدل ما يفشل الإرسال بالكامل
+async function insertMessageResilient(payload){
+  let { error }=await sb.from('messages').insert(payload);
+  if(isMissingColumnErr(error,['sender_role'])){
+    const trimmed={...payload}; delete trimmed.sender_role;
+    ({ error }=await sb.from('messages').insert(trimmed));
+  }
+  return { error };
+}
 async function sbInsertWithFallback(table, payload){
   let { data, error } = await sb.from(table).insert(payload).select().single();
   if(isMissingColumnErr(error,PLAN_COLS)){
@@ -4797,7 +4806,7 @@ function renderMainBubble(m){
 }
 function openChat(id){ SESSION.activeChat=id; navigate(SESSION.page); }
 async function sendMsg(){ const inp=$('#chatInput'); const t=inp.value.trim(); if(!t)return;
-  const { error }=await sb.from('messages').insert({chat_id:SESSION.activeChat,sender_id:ME.id,sender_role:ME.role,body:t});
+  const { error }=await insertMessageResilient({chat_id:SESSION.activeChat,sender_id:ME.id,sender_role:ME.role,body:t});
   if(error){ alert('تعذّر الإرسال: '+error.message); return; }
   inp.value='';
   const { data:msgs }=await sb.from('messages').select('*').eq('chat_id',SESSION.activeChat).order('created_at');
@@ -4905,7 +4914,7 @@ async function startChat(){
     if(error){ $('#ncBtn').disabled=false; alert('تعذّر: '+error.message); return; }
     chat=nc;
   }
-  await sb.from('messages').insert({ chat_id:chat.id, sender_id:ME.id, sender_role:ME.role, body:first });
+  await insertMessageResilient({ chat_id:chat.id, sender_id:ME.id, sender_role:ME.role, body:first });
   SESSION.activeChat=chat.id;
   notifyOtherChatParties(chat.id, first);
   closeModal(); await navigate(SESSION.page); toast('✅ تم إرسال الرسالة');
@@ -5106,7 +5115,7 @@ async function sendHalqaMsg(){
     if(error){ alert('تعذّر: '+error.message); return; }
     chatId=nc.id; SESSION._halqaChat.chatId=chatId;
   }
-  const { error:me }=await sb.from('messages').insert({ chat_id:chatId, sender_id:ME.id, sender_name:ME.full_name, sender_role:ME.role, body:t });
+  const { error:me }=await insertMessageResilient({ chat_id:chatId, sender_id:ME.id, sender_name:ME.full_name, sender_role:ME.role, body:t });
   if(me){ alert('تعذّر الإرسال: '+me.message); return; }
   inp.value='';
   const { data:msgs }=await sb.from('messages').select('*').eq('chat_id',chatId).order('created_at');
