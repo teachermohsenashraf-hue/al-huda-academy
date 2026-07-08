@@ -2495,7 +2495,7 @@ const MENUS = {
   ]},
   teacher:{ skin:'s-emerald', title:'لوحة المعلم', sections:[
     {label:'الرئيسية', items:[['dash',mi('home'),'لوحتي'],['groups',mi('users'),'حلقاتي'],['newstudents',mi('inbox'),'طلاب جدد']]},
-    {label:'المتابعة', items:[['availability',mi('dot'),'إتاحتي وسيرتي']]},
+    {label:'المتابعة', items:[['monthsessions',mi('calendar'),'حصص الشهر'],['availability',mi('dot'),'إتاحتي وسيرتي']]},
     {label:'قسم القرآن', items:[['qplans',mi('clipboard'),'خطط طلابي'],['qmonitor',mi('eye'),'متابعة يومية']]},
     {label:'عام', items:[['chat',mi('chat'),'الرسائل'],['content',mi('books'),'المحتوى']]},
   ]},
@@ -3169,6 +3169,43 @@ PAGES.teacher_availability=async function(){ setTop('إتاحتي وسيرتي',
     <button class="btn" id="bioBtn" onclick="saveBio()">حفظ السيرة</button>
   </div>`;
 };
+// حصص الشهر — دورة المعلم الخاصة (مش الشهر الميلادي)، بتاريخ كل حصة اكتملت فعلاً
+// لأي طالب، مدتها، ومسارها، وتقييمها — مع تصفّح الدورات القديمة
+PAGES.teacher_monthsessions = async function(){
+  setTop('حصص الشهر','الحصص التي أعطيتها وانتهت فعلياً');
+  const { data:doneSessions } = await sb.from('sessions').select('session_date').eq('teacher_id',ME.id).eq('status','done').order('session_date',{ascending:true});
+  const doneDates=(doneSessions||[]).map(s=>s.session_date).filter(Boolean);
+  const cycles=computeTeacherCycles(doneDates);
+  if(!cycles.length) return pageHead('حصص الشهر','')+`<div class="card" style="text-align:center;padding:36px"><div class="empty-ic">${mi('calendar')}</div><h3 style="color:var(--navy-deep)">لا حصص مكتملة بعد</h3><p style="color:var(--muted);font-size:14px">ستظهر هنا كل حصة أنهيتها فعلياً مع طلابك، مقسّمة بدورتك الشهرية الخاصة بدءاً من أول حصة أعطيتها.</p></div>`;
+  let cIdx=SESSION._monthCycleIdx||0; cIdx=Math.max(0,Math.min(cycles.length-1,cIdx)); SESSION._monthCycleIdx=cIdx;
+  const cycle=cycles[cIdx];
+  const { data:sessions } = await sb.from('sessions').select('*, s:students!sessions_student_id_fkey(full_name,quran_path)').eq('teacher_id',ME.id).eq('status','done').gte('session_date',cycle.start).lt('session_date',cycle.end).order('session_date',{ascending:false});
+  const sesList=sessions||[];
+  const sesIds=sesList.map(s=>s.id);
+  let ratingMap={};
+  if(sesIds.length){ const { data:ratings }=await sb.from('session_ratings').select('session_id,rating_score').in('session_id',sesIds); (ratings||[]).forEach(r=>ratingMap[r.session_id]=r.rating_score); }
+  const rows=sesList.map(s=>`<tr>
+    <td>${s.s?esc(s.s.full_name):'—'}</td>
+    <td>${pathName(s.s?.quran_path)}</td>
+    <td>${new Date(s.session_date).toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long'})}</td>
+    <td>${fmt12h(s.session_time)}</td>
+    <td>${ar(s.duration_min||30)} د</td>
+    <td>${ratingMap[s.id]!=null?pct(ratingMap[s.id]):'<span style="color:var(--muted)">لم يُقيَّم</span>'}</td>
+  </tr>`).join('');
+  return pageHead('حصص الشهر', cycleLabel(cycle))+
+    `<div class="card" style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+      <button class="btn-sm ghost" onclick="qMonthCycleNav(1,${cycles.length})" ${cIdx>=cycles.length-1?'disabled':''}>→ دورة أقدم</button>
+      <b style="text-align:center">${esc(cycleLabel(cycle))}<br><span style="font-weight:400;color:var(--muted);font-size:12.5px">${ar(cycle.count)} حصة مكتملة</span></b>
+      <button class="btn-sm ghost" onclick="qMonthCycleNav(-1,${cycles.length})" ${cIdx<=0?'disabled':''}>دورة أحدث ←</button>
+    </div>
+    <div class="card"><div style="overflow-x:auto"><table class="dtable"><thead><tr><th>الطالب</th><th>المسار</th><th>اليوم</th><th>الوقت</th><th>المدة</th><th>التقييم</th></tr></thead><tbody>${rows||'<tr><td colspan="6" style="text-align:center;color:var(--muted)">لا حصص مكتملة في هذه الدورة.</td></tr>'}</tbody></table></div></div>`;
+};
+function qMonthCycleNav(delta, total){
+  let idx=(SESSION._monthCycleIdx||0)+delta;
+  idx=Math.max(0,Math.min(total-1,idx));
+  SESSION._monthCycleIdx=idx;
+  navigate('monthsessions');
+}
 async function uploadTeacherAvatar(file){
   if(!file) return;
   const preview=$('#teacherAvatarPreview');
@@ -5385,6 +5422,37 @@ function renderBriefRoadmap(rm){
 /* ============================================================
     تسلسل القيادة — تقارير وتحكّم هرمي
    ============================================================ */
+// ═══ دورات المعلم الشهرية — كل معلم له "شهره" الخاص بدل الشهر الميلادي ═══
+// الدورة الأولى تبدأ من أول يوم أعطى فيه المعلم حصة واكتملت فعلاً، وتتكرر
+// شهرياً من نفس اليوم (مثلاً بدأ ١٣-٧ فتكون دوراته ١٣-٧←١٣-٨، ١٣-٨←١٣-٩...)
+function addMonthsStr(dateStr, n){
+  const d=new Date(dateStr+'T00:00:00'); d.setMonth(d.getMonth()+n); return d.toISOString().slice(0,10);
+}
+function fmtCycleDate(dateStr){ return new Date(dateStr+'T00:00:00').toLocaleDateString('ar-EG',{day:'numeric',month:'long',year:'numeric'}); }
+function computeTeacherCycles(doneDatesAscending){
+  if(!doneDatesAscending.length) return [];
+  const anchor=doneDatesAscending[0];
+  const today=qTodayStr();
+  const cycles=[]; let start=anchor;
+  while(start<=today){
+    const end=addMonthsStr(start,1);
+    cycles.push({ start, end, count:0 });
+    start=end;
+  }
+  doneDatesAscending.forEach(d=>{ const c=cycles.find(c=>d>=c.start&&d<c.end); if(c) c.count++; });
+  return cycles.reverse(); // الأحدث أولاً
+}
+function cycleLabel(c){ return `${fmtCycleDate(c.start)} ← ${fmtCycleDate(c.end)}`; }
+async function viewTeacherCycles(teacherId, teacherName){
+  const { data:doneSessions } = await sb.from('sessions').select('session_date').eq('teacher_id',teacherId).eq('status','done').order('session_date',{ascending:true});
+  const dates=(doneSessions||[]).map(s=>s.session_date).filter(Boolean);
+  const cycles=computeTeacherCycles(dates);
+  $('#modalHost').innerHTML=`<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <h3>${mi('calendar')} كل دورات ${esc(teacherName)}</h3>
+    <div class="priv-sessions-list">${cycles.length?cycles.map(c=>`<div class="priv-session"><div class="ps-icon">${mi('calendar')}</div><div class="ps-info"><b>${esc(cycleLabel(c))}</b><span>${ar(c.count)} حصة مكتملة</span></div></div>`).join(''):'<p style="color:var(--muted);text-align:center;padding:20px">لا حصص مكتملة بعد.</p>'}</div>
+    <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إغلاق</button></div>
+  </div></div>`;
+}
 // تقرير أداء معلم واحد (يُستخدم من المشرف والمدير)
 async function teacherPerfCard(t){
   const { data:gs }=await sb.from('groups').select('id,is_private,student_id').eq('teacher_id',t.id);
@@ -5396,17 +5464,18 @@ async function teacherPerfCard(t){
     const { count:sc }=await sb.from('students').select('*',{count:'exact',head:true}).in('group_id',gids); studCount=sc||0;
     const { count:rC }=await sb.from('session_ratings').select('*',{count:'exact',head:true}).eq('teacher_id',t.id); ratedCount=rC||0;
   }
-  // الحصص المكتملة فعلاً (مش المجدولة اللي لسه ما جتش)، مقسّمة بالشهر
-  const { data:doneSessions } = await sb.from('sessions').select('session_date').eq('teacher_id',t.id).eq('status','done').order('session_date',{ascending:false});
-  const monthCounts={};
-  (doneSessions||[]).forEach(s=>{ const mk=(s.session_date||'').slice(0,7); if(!mk) return; monthCounts[mk]=(monthCounts[mk]||0)+1; });
-  const monthKeys=Object.keys(monthCounts).sort().reverse().slice(0,6);
-  const monthLabel=(mk)=>{ const [y,m]=mk.split('-'); return new Date(+y,+m-1,1).toLocaleDateString('ar-EG',{month:'long',year:'numeric'}); };
-  const sesCount=(doneSessions||[]).length;
-  const monthlyHtml = monthKeys.length ? `<div class="pc-months">${monthKeys.map(mk=>`<span class="chip n" style="font-size:11px">${esc(monthLabel(mk))}: ${ar(monthCounts[mk])}</span>`).join(' ')}</div>` : `<div class="pc-months"><span class="chip" style="font-size:11px;color:var(--muted)">لا حصص مكتملة بعد</span></div>`;
-  // آخر نشاط (آخر حصة)
-  const { data:lastSes }=await sb.from('sessions').select('session_date').eq('teacher_id',t.id).order('session_date',{ascending:false}).limit(1);
-  const lastActive=lastSes&&lastSes[0]?lastSes[0].session_date:null;
+  // الحصص المكتملة فعلاً (مش المجدولة اللي لسه ما جتش)، مقسّمة بدورة المعلم الشهرية
+  // الخاصة به (من أول يوم أعطى فيه حصة، مش الشهر الميلادي)
+  const { data:doneSessions } = await sb.from('sessions').select('session_date').eq('teacher_id',t.id).eq('status','done').order('session_date',{ascending:true});
+  const doneDates=(doneSessions||[]).map(s=>s.session_date).filter(Boolean);
+  const cycles=computeTeacherCycles(doneDates);
+  const sesCount=doneDates.length;
+  const shownCycles=cycles.slice(0,4);
+  const monthlyHtml = cycles.length
+    ? `<div class="pc-months">${shownCycles.map(c=>`<span class="chip n" style="font-size:11px">${esc(cycleLabel(c))}: ${ar(c.count)}</span>`).join(' ')}${cycles.length>4?`<button class="chip" style="font-size:11px;cursor:pointer;border:1px solid var(--line);background:none" onclick="viewTeacherCycles('${t.id}','${escJs(t.full_name)}')">عرض كل الدورات (${ar(cycles.length)})</button>`:''}</div>`
+    : `<div class="pc-months"><span class="chip" style="font-size:11px;color:var(--muted)">لا حصص مكتملة بعد</span></div>`;
+  // آخر نشاط (آخر حصة مكتملة فعلاً — مش أي حصة مجدولة مستقبلية)
+  const lastActive=doneDates.length?doneDates[doneDates.length-1]:null;
   const daysSince=lastActive?Math.floor((Date.now()-new Date(lastActive))/86400000):null;
   const inactive=daysSince===null||daysSince>7;
   return `<div class="perf-card">
