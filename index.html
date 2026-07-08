@@ -7631,12 +7631,13 @@ async function qRenderFullPlan(planId, role='student'){
       const btn = (!isDone && (isToday||isFuture)) ? `<button onclick="qMarkWardFromPlan('${esc(c.id)}','${esc(dt)}')" style="border:none;background:${color};color:#fff;border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;font-weight:700">${mi('check')} أتممت</button>` : '';
       const approveBtn = (role==='teacher'&&!isDone) ? `<button onclick="qTeacherApprove('${esc(c.id)}')" style="border:none;background:var(--emerald);color:#fff;border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer;font-weight:700">${mi('check')} اعتماد</button>` : '';
       const noteBtn = role==='teacher' ? `<button onclick="qTeacherNote('${esc(c.id)}')" title="${c.teacher_note?'تعديل الملاحظة':'إضافة ملاحظة'}" style="border:none;background:${c.teacher_note?'var(--gold)':'var(--cream-2)'};color:${c.teacher_note?'#fff':'var(--navy-deep)'};border:1px solid var(--line);border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer">${mi('pencil')}</button>` : '';
+      const editWardBtn = role==='teacher' ? `<button onclick="qEditWard('${esc(c.id)}')" title="تعديل هذا الورد بالذات (بدون التأثير على باقي الأيام)" style="border:none;background:var(--cream-2);color:var(--navy-deep);border:1px solid var(--line);border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer">${mi('calendar')}</button>` : '';
       const masteryBadge = p&&p.teacher_mastery ? `<span style="font-size:11px;color:var(--gold)">${'⭐'.repeat(parseInt(p.teacher_mastery)||0)}</span>` : '';
       const noteRow = c.teacher_note ? `<div class="qcwnote" style="width:100%;margin-top:6px;font-size:12px;background:var(--cream-2);border-radius:8px;padding:6px 10px;color:var(--navy-deep)">📝 ${esc(c.teacher_note)}</div>` : '';
       return `<div class="qplan-mini" style="background:${statusBg};flex-wrap:wrap">
         <div class="qpmic" style="background:${color}">${icon}</div>
         <div style="flex:1;min-width:0"><b>${esc(f.name||c.fortress_code)}</b><small>${esc(c.amount_label||'—')}</small>${masteryBadge}</div>
-        ${btn}${approveBtn}${noteBtn}
+        ${btn}${approveBtn}${noteBtn}${editWardBtn}
         ${noteRow}
       </div>`;
     }).join('');
@@ -7693,6 +7694,42 @@ async function qTeacherNote(wardId){
       <button class="btn" id="qwNoteBtn" onclick="qSaveTeacherNote('${esc(wardId)}',false)">${mi('check')} حفظ الملاحظة</button>
     </div>
   </div></div>`;
+}
+/* ─── تعديل ورد يوم بعينه (كمية/نطاق آيات) بدون التأثير على أي يوم آخر — بديل لإعادة الجدولة الكاملة ─── */
+async function qEditWard(wardId){
+  const { data:w } = await sb.from('quran_plan_wards').select('*').eq('id',wardId).maybeSingle();
+  if(!w){ toast('تعذّر جلب بيانات الورد'); return; }
+  const isSurahBased = w.surah_no!=null;
+  $('#modalHost').innerHTML=`<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <h3>${mi('calendar')} تعديل ورد يوم ${esc(w.planned_date)}</h3>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:12px;line-height:1.7">هذا التعديل خاص بهذا اليوم فقط، ولن يغيّر أي يوم آخر في الخطة.</p>
+    ${isSurahBased?`
+    <div class="field"><label>السورة</label><input id="qwEditSurah" value="${esc(w.surah_name||'')}" disabled style="background:var(--cream);color:var(--muted)"></div>
+    <div class="arow">
+      <div class="field"><label>من آية</label><input id="qwEditFrom" type="number" min="1" value="${w.ayah_from||1}"></div>
+      <div class="field"><label>إلى آية</label><input id="qwEditTo" type="number" min="1" value="${w.ayah_to||1}"></div>
+    </div>`:''}
+    <div class="field"><label>وصف الورد (كما يظهر للطالب)</label><input id="qwEditLabel" value="${esc(w.amount_label||'')}"></div>
+    <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إلغاء</button><button class="btn" id="qwEditBtn" onclick="qSaveWardEdit('${esc(wardId)}',${isSurahBased})">${mi('check')} حفظ تعديل هذا اليوم</button></div>
+  </div></div>`;
+}
+async function qSaveWardEdit(wardId, isSurahBased){
+  const btn=$('#qwEditBtn'); if(btn){ btn.disabled=true; btn.textContent='جارٍ الحفظ...'; }
+  const payload={};
+  if(isSurahBased){
+    const from=+$('#qwEditFrom').value||1, to=+$('#qwEditTo').value||1;
+    payload.ayah_from=from; payload.ayah_to=to;
+    const surahName=$('#qwEditSurah').value;
+    payload.amount_label = $('#qwEditLabel').value.trim() || `${surahName} • ${from} → ${to}`;
+  } else {
+    payload.amount_label = $('#qwEditLabel').value.trim();
+  }
+  const { error } = await sb.from('quran_plan_wards').update(payload).eq('id',wardId);
+  if(btn){ btn.disabled=false; btn.textContent='حفظ تعديل هذا اليوم'; }
+  if(error){ toast('تعذّر الحفظ: '+error.message); return; }
+  closeModal();
+  toast('✅ تم تعديل ورد هذا اليوم');
+  navigate(SESSION.page);
 }
 async function qSaveTeacherNote(wardId, clear){
   const note = clear ? null : ($('#qwNoteTxt')?.value.trim()||null);
