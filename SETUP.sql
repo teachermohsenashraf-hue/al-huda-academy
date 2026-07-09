@@ -1145,3 +1145,47 @@ drop trigger if exists guard_payment_amount on payments;
 create trigger guard_payment_amount
 before insert on payments
 for each row execute function validate_payment_amount();
+
+-- ============================================================
+-- ثغرة #4 (اكتُشفت من فحص سياسات RLS الفعلية على جدول students) —
+-- أخطر من ثغرة مبلغ الدفع نفسها: سياسة "students write" كانت تسمح
+-- لصاحب الحساب (parent_id/login_id/chosen_teacher_id/معلم الحلقة) بتعديل
+-- *أي عمود* في صف الطالب بما فيها enrollment_status و is_subsidized —
+-- يعني أي طالب/ولي أمر يقدر يفتح الكونسول وينفّذ:
+--   sb.from('students').update({enrollment_status:'active'})...
+-- ويُفعِّل اشتراكه مجاناً بالكامل، متخطياً نظام الدفع كله من الأساس —
+-- حتى بدون الحاجة لاستغلال ثغرة مبلغ الدفع (#2)، لأنه ببساطة مش محتاج
+-- يمرّ على جدول payments إطلاقاً. نفس الأمر لتفعيل التخفيض (is_subsidized).
+-- الحل: يسمح بهذين التحوّلين (إلى 'active' أو is_subsidized=true) فقط لو
+-- المُنفّذ إداري/تنفيذي/مشرف، مع ترك كل تحوّلات الحالة الأخرى (تقديم طلب
+-- التحاق، رفع إيصال) شغّالة كالمعتاد لأصحاب الحساب.
+-- ------------------------------------------------------------
+create or replace function guard_student_enrollment_fields()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  is_staff boolean;
+begin
+  is_staff := exists (
+    select 1 from profiles
+    where id = auth.uid() and role in ('admin','executive','supervisor')
+  );
+  if not is_staff then
+    if NEW.enrollment_status = 'active' and OLD.enrollment_status is distinct from 'active' then
+      raise exception 'تفعيل الاشتراك يتطلّب تأكيد المشرف/الإدارة، لا يمكن تفعيله ذاتياً';
+    end if;
+    if NEW.is_subsidized = true and coalesce(OLD.is_subsidized, false) = false then
+      raise exception 'تفعيل التخفيض يتطلّب موافقة المشرف، لا يمكن تفعيله ذاتياً';
+    end if;
+  end if;
+  return NEW;
+end;
+$$;
+
+drop trigger if exists guard_student_enrollment on students;
+create trigger guard_student_enrollment
+before update on students
+for each row execute function guard_student_enrollment_fields();
