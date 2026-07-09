@@ -1023,3 +1023,125 @@ create policy "user updates own notifications" on notifications
   for update to authenticated
   using (user_id = auth.uid())
   with check (user_id = auth.uid());
+
+-- ============================================================
+-- إصلاحات أمنية حرجة (من فحص شامل) — ثلاث ثغرات كانت تسمح بتصعيد
+-- صلاحيات كامل والتلاعب بمبالغ الدفع من طرف العميل مباشرة.
+-- ============================================================
+
+-- ------------------------------------------------------------
+-- ثغرة #1: أي مستخدم مسجّل كان يقدر يغيّر دوره الخاص لـ 'admin' مباشرة
+-- من كونسول المتصفح (sb.from('profiles').update({role:'admin'})...)
+-- لأن الكود الأمامي نفسه كان يعتمد على نجاح هذا الاستعلام في مسار دعوات
+-- الربط (processLinkInvites). الحل: Trigger يمنع تغيير عمود role نهائياً
+-- إلا في حالتين: (أ) استدعاء عبر دالة SECURITY DEFINER موثوقة تفعّل علم
+-- تجاوز مؤقت لمعاملة واحدة، أو (ب) المُنفّذ نفسه له دور admin/executive
+-- بالفعل (لتغيير أدوار الطاقم من لوحة الإدارة).
+-- ------------------------------------------------------------
+create or replace function prevent_role_self_escalation()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if NEW.role is distinct from OLD.role then
+    if current_setting('app.bypass_role_guard', true) = 'true' then
+      return NEW;
+    end if;
+    if exists (select 1 from profiles where id = auth.uid() and role in ('admin','executive')) then
+      return NEW;
+    end if;
+    raise exception 'غير مسموح بتغيير حقل role مباشرة — استخدم الدالة المخصّصة لذلك';
+  end if;
+  return NEW;
+end;
+$$;
+
+drop trigger if exists guard_role_change on profiles;
+create trigger guard_role_change
+before update on profiles
+for each row execute function prevent_role_self_escalation();
+
+-- الدالة الوحيدة المسموح لها بتغيير دور المستخدم لنفسه، ضمن مسار دعوة
+-- ربط شرعية (وليّ أمر↔ابنه) بعد التحقق من ملكية البريد فعلياً
+create or replace function accept_link_invite(p_invite_id bigint)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  inv record;
+  caller_email text;
+begin
+  select email into caller_email from auth.users where id = auth.uid();
+  if caller_email is null then
+    return jsonb_build_object('ok', false, 'error', 'لا يوجد مستخدم موثّق');
+  end if;
+
+  select * into inv from link_invites
+    where id = p_invite_id and invite_email = caller_email and status = 'pending';
+  if inv is null then
+    return jsonb_build_object('ok', false, 'error', 'دعوة غير صالحة أو غير موجّهة لبريدك');
+  end if;
+
+  perform set_config('app.bypass_role_guard', 'true', true);
+
+  if inv.inviter_role = 'parent' then
+    update profiles set role = 'student' where id = auth.uid();
+    if inv.student_id is not null then
+      update students set login_id = auth.uid() where id = inv.student_id;
+    end if;
+  elsif inv.inviter_role = 'student' then
+    update profiles set role = 'parent' where id = auth.uid();
+    if inv.student_id is not null then
+      update students set parent_id = auth.uid() where id = inv.student_id;
+    end if;
+  end if;
+
+  perform set_config('app.bypass_role_guard', 'false', true);
+
+  update link_invites set status = 'linked' where id = p_invite_id;
+
+  return jsonb_build_object('ok', true);
+end;
+$$;
+grant execute on function accept_link_invite(bigint) to authenticated;
+
+-- ------------------------------------------------------------
+-- ثغرة #2: مبلغ الدفعة كان يُرسَل كما هو من المتصفح بدون أي تحقق خلفي —
+-- أي طالب يقدر يبعت مبلغاً وهمياً (مثلاً ١ جنيه) مع أي صورة كإيصال.
+-- الحل: Trigger يحسب المبلغ المتوقَّع فعلياً من سعر الباقة الموحّد لكل
+-- عملة، ومن حالة التخفيض *الحقيقية* المسجّلة على الطالب (وليس القيمة
+-- التي أرسلها العميل نفسه ضمن صف الدفعة)، ويرفض أي دفعة لا تطابقه.
+-- ------------------------------------------------------------
+create or replace function validate_payment_amount()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  full_fee numeric;
+  student_subsidized boolean;
+  expected numeric;
+begin
+  full_fee := case coalesce(NEW.currency_code, 'EGP')
+    when 'SAR' then 105
+    when 'USD' then 30
+    else 450
+  end;
+  select is_subsidized into student_subsidized from students where id = NEW.student_id;
+  expected := case when coalesce(student_subsidized, false) then round(full_fee / 2.0) else full_fee end;
+  if NEW.amount is distinct from expected then
+    raise exception 'المبلغ المُرسَل (%) لا يطابق سعر الباقة الفعلي (%) — رُفضت العملية', NEW.amount, expected;
+  end if;
+  return NEW;
+end;
+$$;
+
+drop trigger if exists guard_payment_amount on payments;
+create trigger guard_payment_amount
+before insert on payments
+for each row execute function validate_payment_amount();

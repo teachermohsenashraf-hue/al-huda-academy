@@ -2348,18 +2348,16 @@ async function processLinkInvites(){
   if(!ME||!ME.email) return;
   const { data:invites }=await sb.from('link_invites').select('*').eq('invite_email',ME.email).eq('status','pending');
   if(!invites||!invites.length) return;
+  // تغيير الدور (role) بقى ممنوعاً على مستوى قاعدة البيانات إلا عبر هذه
+  // الدالة الموثوقة (accept_link_invite)، بعد ثغرة أمنية خطيرة كانت تسمح
+  // لأي مستخدم بتحديث دوره الخاص مباشرة من كونسول المتصفح
   for(const inv of invites){
-    if(inv.inviter_role==='parent'){
-      // وليّ الأمر أنشأ حساباً لابنه: هذا المستخدم هو الطالب
-      // نضبط دوره طالباً ونربطه بصف الطالب
-      if(ME.role!=='student'){ await sb.from('profiles').update({ role:'student' }).eq('id',ME.id); ME.role='student'; }
-      if(inv.student_id){ await sb.from('students').update({ login_id:ME.id }).eq('id',inv.student_id); }
-    } else if(inv.inviter_role==='student'){
-      // الطالب دعا وليّ أمره: هذا المستخدم هو وليّ الأمر
-      if(ME.role!=='parent'){ await sb.from('profiles').update({ role:'parent' }).eq('id',ME.id); ME.role='parent'; }
-      if(inv.student_id){ await sb.from('students').update({ parent_id:ME.id }).eq('id',inv.student_id); }
-    }
-    await sb.from('link_invites').update({ status:'linked' }).eq('id',inv.id);
+    try{
+      const { data:res, error }=await sb.rpc('accept_link_invite',{ p_invite_id:inv.id });
+      if(error||!res?.ok){ console.error('accept_link_invite failed:', error||res?.error); continue; }
+      if(inv.inviter_role==='parent') ME.role='student';
+      else if(inv.inviter_role==='student') ME.role='parent';
+    }catch(e){ console.error('accept_link_invite exception:', e); }
   }
 }
 async function afterAuth(){
