@@ -1208,3 +1208,35 @@ create policy "profiles read" on profiles for select to authenticated using (tru
 
 drop policy if exists "groups read" on groups;
 create policy "groups read" on groups for select to authenticated using (true);
+
+-- ============================================================
+-- ثغرة #6: أي مستخدم مسجّل دخول (حتى طالب أو وليّ أمر) كان يقدر يتلاعب
+-- بجدول طلبات نقل الطلاب بالكامل — يزوّر طلب نقل، يقبل/يرفض طلبات مش
+-- بتاعته، أو يمسح السجل. السياسة القديمة "allow all to authenticated"
+-- كانت USING(true)/WITH CHECK(true) بلا أي قيد، كحل سريع مؤقت لم يُضبَط.
+-- الحل: تقييد كل عملية حسب علاقة المستخدم الفعلية بطلب النقل.
+-- ------------------------------------------------------------
+drop policy if exists "allow all to authenticated" on student_transfers;
+
+create policy "transfers see" on student_transfers for select to authenticated using (
+  exists (select 1 from profiles where id = auth.uid() and role in ('admin','executive','supervisor'))
+  or from_teacher_id = auth.uid()
+  or to_teacher_id = auth.uid()
+  or requested_by = auth.uid()
+);
+
+create policy "transfers insert" on student_transfers for insert to authenticated with check (
+  exists (select 1 from profiles where id = auth.uid() and role in ('admin','executive','supervisor','teacher'))
+);
+
+create policy "transfers update" on student_transfers for update to authenticated using (
+  exists (select 1 from profiles where id = auth.uid() and role in ('admin','executive','supervisor'))
+  or to_teacher_id = auth.uid()
+) with check (
+  exists (select 1 from profiles where id = auth.uid() and role in ('admin','executive','supervisor'))
+  or to_teacher_id = auth.uid()
+);
+
+create policy "transfers delete" on student_transfers for delete to authenticated using (
+  exists (select 1 from profiles where id = auth.uid() and role in ('admin','executive','supervisor'))
+);
