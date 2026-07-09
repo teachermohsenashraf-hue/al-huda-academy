@@ -1189,3 +1189,22 @@ drop trigger if exists guard_student_enrollment on students;
 create trigger guard_student_enrollment
 before update on students
 for each row execute function guard_student_enrollment_fields();
+
+-- ============================================================
+-- ثغرة #5 (اكتُشفت من فحص RLS): تسريب بيانات كل المستخدمين والحلقات
+-- لأي زائر غير مسجّل دخول عبر مفتاح anon المكشوف أصلاً في الكود الأمامي.
+-- السياستان "profiles read" و"groups read" كانتا للدور public (يشمل حتى
+-- من لم يسجّل دخول إطلاقاً)، فأي طرف يملك الـ anon key (وهو ظاهر بشكل
+-- طبيعي في index.html، وآمن فقط بافتراض RLS سليمة) كان يقدر يستدعي
+-- Supabase REST API مباشرة (بدون فتح الموقع حتى) ويسحب:
+--   • profiles: كل الأسماء والبريد والهاتف والدور لكل مستخدم في المنصة
+--   • groups: كل الحلقات، ربط كل حلقة بطالبها، وملاحظات المعلم الخاصة
+-- الحل: تقييد القراءة على المستخدمين المسجّلين دخول فعلياً (authenticated)
+-- بدل الجميع (public) — بدون أي تغيير على وظائف التطبيق الحالية، لأن كل
+-- الاستعلامات الفعلية في الكود تُنفَّذ أصلاً من مستخدم مسجّل دخول.
+-- ------------------------------------------------------------
+drop policy if exists "profiles read" on profiles;
+create policy "profiles read" on profiles for select to authenticated using (true);
+
+drop policy if exists "groups read" on groups;
+create policy "groups read" on groups for select to authenticated using (true);
