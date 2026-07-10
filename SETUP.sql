@@ -1217,6 +1217,10 @@ create policy "groups read" on groups for select to authenticated using (true);
 -- الحل: تقييد كل عملية حسب علاقة المستخدم الفعلية بطلب النقل.
 -- ------------------------------------------------------------
 drop policy if exists "allow all to authenticated" on student_transfers;
+drop policy if exists "transfers see" on student_transfers;
+drop policy if exists "transfers insert" on student_transfers;
+drop policy if exists "transfers update" on student_transfers;
+drop policy if exists "transfers delete" on student_transfers;
 
 create policy "transfers see" on student_transfers for select to authenticated using (
   exists (select 1 from profiles where id = auth.uid() and role in ('admin','executive','supervisor'))
