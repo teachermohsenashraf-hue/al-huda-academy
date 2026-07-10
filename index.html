@@ -7106,6 +7106,10 @@ async function qUpdateFortressColor(id, color){
   await sb.from('quran_fortresses').update({ color }).eq('id',id);
   navigate(SESSION.page);
 }
+// قيمة احتياطية للون/أيقونة الحصن لو مش موجودة في fortMap (نفس القيمة الافتراضية
+// المستخدمة أصلاً في أماكن تانية بالكود — راجع fortMap[...]||{color:'#1B4D3E',icon:'🛡️',...})
+function qFortColor(code){ return '#1B4D3E'; }
+function qFortIcon(code){ return '🛡️'; }
 async function qUpdateFortressUnit(id, unit){
   await sb.from('quran_fortresses').update({ default_unit: unit }).eq('id',id);
   toast('تم الحفظ');
