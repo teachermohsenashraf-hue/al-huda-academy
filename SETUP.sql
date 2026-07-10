@@ -1240,3 +1240,41 @@ create policy "transfers update" on student_transfers for update to authenticate
 create policy "transfers delete" on student_transfers for delete to authenticated using (
   exists (select 1 from profiles where id = auth.uid() and role in ('admin','executive','supervisor'))
 );
+
+-- ============================================================
+-- تشديد إضافي: أي معلم كان يقدر يعدّل خطة أو تقدّم أي طالب "تاني" (مش
+-- طالبه) عبر استدعاء مباشر لقاعدة البيانات من الكونسول، حتى لو الطالب ده
+-- مش ظاهر له في الواجهة أصلاً — لأن السياستين القديمتين كانتا تسمحان لأي
+-- مستخدم دوره 'teacher' بشكل عام، بدل ربط الصلاحية بملكية الخطة الفعلية
+-- (teacher_id = auth.uid()). المشرف (supervisor) يحتفظ بصلاحية الاطّلاع/
+-- التعديل الإشرافي الكاملة كما كانت، لأن هذا دوره الطبيعي.
+-- ------------------------------------------------------------
+drop policy if exists "qplans_teacher" on quran_student_plans;
+create policy "qplans_teacher" on quran_student_plans for all to public
+using (
+  teacher_id = auth.uid()
+  or exists (select 1 from profiles where id = auth.uid() and role = 'supervisor')
+)
+with check (
+  teacher_id = auth.uid()
+  or exists (select 1 from profiles where id = auth.uid() and role in ('supervisor','admin','executive'))
+);
+
+drop policy if exists "qprog_teacher" on quran_ward_progress;
+create policy "qprog_teacher" on quran_ward_progress for all to public
+using (
+  exists (
+    select 1 from quran_plan_wards w
+    join quran_student_plans p on p.id = w.plan_id
+    where w.id = quran_ward_progress.ward_id
+    and (p.teacher_id = auth.uid() or exists (select 1 from profiles where id = auth.uid() and role = 'supervisor'))
+  )
+)
+with check (
+  exists (
+    select 1 from quran_plan_wards w
+    join quran_student_plans p on p.id = w.plan_id
+    where w.id = quran_ward_progress.ward_id
+    and (p.teacher_id = auth.uid() or exists (select 1 from profiles where id = auth.uid() and role = 'supervisor'))
+  )
+);
