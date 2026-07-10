@@ -5990,38 +5990,37 @@ async function unifiedHalqatPage(){ const isAdmin=(ME.role==='admin'||ME.role===
     (allSt||[]).forEach(s=>{ pubCounts[s.group_id]=(pubCounts[s.group_id]||0)+1; const a=pubMasteryAgg[s.group_id]=pubMasteryAgg[s.group_id]||{sum:0,count:0}; a.sum+=(s.mastery||0); a.count++; });
   }
   if(privIds.length){ const { data:allSes }=await sb.from('sessions').select('group_id').in('group_id',privIds); (allSes||[]).forEach(s=>{ sesCounts[s.group_id]=(sesCounts[s.group_id]||0)+1; }); }
-  let pubCards='';
-  for(const g of pub){
-    const count=pubCounts[g.id]||0;
-    const agg=pubMasteryAgg[g.id]; const mastery=agg&&agg.count?Math.round(agg.sum/agg.count):0;
-    const editFn=isAdmin?`groupModal(${g.id})`:`supGroupModal(${g.id})`;
-    const delFn=isAdmin?`delGroup(${g.id},'${(g.name||'').replace(/'/g,'')}')`:`supDelGroup(${g.id},'${(g.name||'').replace(/'/g,'')}')`;
-    pubCards+=`<div class="group-card-sup">
-      <div class="gcs-head"><div><b>${esc(g.name)}</b><div class="gc-teacher">${g.teacher?esc(g.teacher.full_name):'بدون معلم'}</div></div>
-        <div class="gcs-btns">
-          <button class="btn-sm" onclick="${editFn}">تعديل</button>
-          <button class="btn-sm ghost" onclick="navigate('groupreport')">تقرير</button>
-          <button class="btn-sm" style="background:#E74C3C" onclick="${delFn}">حذف</button>
-        </div></div>
-      <div class="gcs-stats"><span>👥 ${ar(count||0)} طالب</span><span>⏰ ${esc(g.meet_time||'—')}</span><span class="chip ${mastery>=85?'g':'gold'}">${pct(mastery)} إتقان</span></div>
-    </div>`;
-  }
-  let privCards='';
-  for(const g of priv){
-    const sesCount=sesCounts[g.id]||0;
-    privCards+=`<div class="group-card-sup">
-      <div class="gcs-head"><div><b>${esc(g.name)}</b><div class="gc-teacher">${mi('child')} ${g.s?esc(g.s.full_name):'—'} • ${mi('teacher')} ${g.teacher?esc(g.teacher.full_name):'—'}</div></div>
-        <div style="display:flex;gap:6px"><button class="btn-sm" onclick="adminViewHalqa(${g.id})">اطّلاع</button>${g.student_id?`<button class="btn-sm ghost" onclick="transferStudentModal(${g.student_id},'${(g.s?g.s.full_name:'طالب').replace(/'/g,'')}')">${mi('refresh')} نقل</button>`:''}</div></div>
-      <div class="gcs-stats"><span>${mi('calendar')} ${g.meet_time||'—'}</span><span>${mi('video')} ${ar(sesCount||0)} حصة</span><span class="chip ${(g.s?.mastery||0)>=80?'g':'gold'}">${pct(g.s?.mastery||0)} إتقان</span></div>
-    </div>`;
+  // قائمة واحدة موحّدة فعلياً بنفس ترتيب allGs الأصلي (الأحدث أولاً)، عامة وخاصة
+  // مع بعض بدون فصل بصري لقسمين — كل كرت ياخد شارة نوعه بدل عنوان قسم منفصل
+  let cards='';
+  for(const g of allGs){
+    if(!g.is_private){
+      const count=pubCounts[g.id]||0;
+      const agg=pubMasteryAgg[g.id]; const mastery=agg&&agg.count?Math.round(agg.sum/agg.count):0;
+      const editFn=isAdmin?`groupModal(${g.id})`:`supGroupModal(${g.id})`;
+      const delFn=isAdmin?`delGroup(${g.id},'${(g.name||'').replace(/'/g,'')}')`:`supDelGroup(${g.id},'${(g.name||'').replace(/'/g,'')}')`;
+      cards+=`<div class="group-card-sup">
+        <div class="gcs-head"><div><b>${esc(g.name)}</b> <span class="chip n" style="font-size:10.5px">🌐 عامة</span><div class="gc-teacher">${g.teacher?esc(g.teacher.full_name):'بدون معلم'}</div></div>
+          <div class="gcs-btns">
+            <button class="btn-sm" onclick="${editFn}">تعديل</button>
+            <button class="btn-sm ghost" onclick="navigate('groupreport')">تقرير</button>
+            <button class="btn-sm" style="background:#E74C3C" onclick="${delFn}">حذف</button>
+          </div></div>
+        <div class="gcs-stats"><span>👥 ${ar(count||0)} طالب</span><span>⏰ ${esc(g.meet_time||'—')}</span><span class="chip ${mastery>=85?'g':'gold'}">${pct(mastery)} إتقان</span></div>
+      </div>`;
+    } else {
+      const sesCount=sesCounts[g.id]||0;
+      cards+=`<div class="group-card-sup">
+        <div class="gcs-head"><div><b>${esc(g.name)}</b> <span class="chip gold" style="font-size:10.5px">🔒 خاصة</span><div class="gc-teacher">${mi('child')} ${g.s?esc(g.s.full_name):'—'} • ${mi('teacher')} ${g.teacher?esc(g.teacher.full_name):'—'}</div></div>
+          <div style="display:flex;gap:6px"><button class="btn-sm" onclick="adminViewHalqa(${g.id})">اطّلاع</button>${g.student_id?`<button class="btn-sm ghost" onclick="transferStudentModal(${g.student_id},'${(g.s?g.s.full_name:'طالب').replace(/'/g,'')}')">${mi('refresh')} نقل</button>`:''}</div></div>
+        <div class="gcs-stats"><span>${mi('calendar')} ${g.meet_time||'—'}</span><span>${mi('video')} ${ar(sesCount||0)} حصة</span><span class="chip ${(g.s?.mastery||0)>=80?'g':'gold'}">${pct(g.s?.mastery||0)} إتقان</span></div>
+      </div>`;
+    }
   }
   const addBtn=isAdmin?`<button class="btn" onclick="groupModal()">+ إضافة حلقة جديدة</button>`:`<button class="btn" onclick="supGroupModal()">+ إضافة حلقة جديدة</button>`;
-  return pageHead('الحلقات','إدارة كاملة: عامة وخاصة — تعديل وتقارير ونقل وحذف')+
+  return pageHead('الحلقات',ar(allGs.length)+' حلقة — عامة وخاصة معاً')+
   `<div style="margin-bottom:18px">${addBtn}</div>
-  <h3 style="margin:6px 0 10px;color:var(--navy-deep)">الحلقات العامة (${ar(pub.length)})</h3>
-  ${pub.length?`<div class="sup-groups-list" style="margin-bottom:26px">${pubCards}</div>`:`<div class="card" style="text-align:center;padding:26px;margin-bottom:26px"><p style="color:var(--muted)">لا حلقات عامة بعد.</p></div>`}
-  <h3 style="margin:6px 0 10px;color:var(--navy-deep)">الحلقات الخاصة (${ar(priv.length)})</h3>
-  ${priv.length?`<div class="sup-groups-list">${privCards}</div>`:`<div class="card" style="text-align:center;padding:26px"><p style="color:var(--muted)">لا حلقات خاصة بعد. ستظهر هنا فور إنشائها من المعلمين.</p></div>`}`;
+  ${allGs.length?`<div class="sup-groups-list">${cards}</div>`:`<div class="card" style="text-align:center;padding:26px"><p style="color:var(--muted)">لا حلقات بعد.</p></div>`}`;
 }
 PAGES.supervisor_privhalqat=unifiedHalqatPage;
 PAGES.admin_privhalqat=unifiedHalqatPage;
