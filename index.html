@@ -2635,7 +2635,10 @@ async function navigate(page){
   const host=$('#pageHost'); host.innerHTML='<div class="card" style="text-align:center;color:var(--muted)">جارٍ التحميل…</div>';
   const fn=PAGES[ME.role+'_'+page];
   try{ host.innerHTML = fn ? await fn() : '<div class="card" style="text-align:center;color:var(--muted)">هذه الصفحة قيد التطوير.</div>'; }
-  catch(e){ console.error('Page error:',e); host.innerHTML=`<div class="card" style="text-align:center"><div style="font-size:36px;margin-bottom:10px">🌱</div><h3 style="margin-bottom:8px">لا توجد بيانات لعرضها بعد</h3><p style="color:var(--muted);font-size:14px">هذه الصفحة ستعرض بياناتك بمجرد توفّرها.</p></div>`; }
+  // خطأ فعلي (استثناء) يختلف جذرياً عن "لا بيانات بعد" — الصفحات نفسها بترجع
+  // رسالة "فاضي" لما ما فيش بيانات فعلاً (بدون استثناء)، فلما نوصل هنا فده يعني
+  // فشل حقيقي (شبكة/صلاحيات/كود) ولازم نقوله كده صراحة بدل ما نوهمه إنها حالة طبيعية
+  catch(e){ console.error('Page error:',e); host.innerHTML=`<div class="card" style="text-align:center"><div style="font-size:36px;margin-bottom:10px">⚠️</div><h3 style="margin-bottom:8px;color:#a33">تعذّر تحميل الصفحة</h3><p style="color:var(--muted);font-size:14px;margin-bottom:14px">حدث خطأ غير متوقع: ${esc(e.message||'خطأ غير معروف')}</p><button class="btn ghost" onclick="navigate('${page}')">${mi('refresh')} أعد المحاولة</button></div>`; }
   $('#sidebar').classList.remove('open'); window.scrollTo(0,0);
   refreshMenuDots();
 }
@@ -4858,10 +4861,18 @@ async function chatPage(){ setTop('الرسائل','تواصل مباشر');
     `:'<div style="display:grid;place-items:center;height:100%;color:var(--muted)">اختر محادثة أو ابدأ واحدة جديدة</div>'}</div>
   </div>`;
 }
-function renderMainBubble(m){
-  const roleLabel = m.sender_id!==ME.id&&m.sender_role ? `<small style="display:block;font-size:10px;opacity:0.7;margin-bottom:2px">${esc(roleAr(m.sender_role))}</small>` : '';
-  return `<div class="bubble ${m.sender_id===ME.id?'me':'them'}">${roleLabel}${esc(m.body)}<span class="tm">${new Date(m.created_at).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})}</span>${m.sender_id===ME.id?`<button style="border:none;background:none;cursor:pointer;opacity:.65;padding:0;margin-inline-start:6px;vertical-align:middle" title="تعديل الرسالة" onclick="editMyMessage(${m.id},'${escJs(m.body)}','main')">${mi('pencil')}</button>`:''}</div>`;
+// فقاعة رسالة مشتركة بين المحادثة الرئيسية وشات الحلقة — الفرق الوحيد بينهما هو
+// شكل الترويسة فوق رسائل الطرف الآخر (main: الدور فقط، halqa: الاسم + الدور
+// لأن شات الحلقة ممكن يضمّ أكتر من طرف)، فوحّدناهما بدل تكرار نفس الـHTML مرتين
+function renderBubble(m, kind){
+  const label = m.sender_id!==ME.id
+    ? (kind==='halqa'
+        ? `<small style="display:block;font-size:10px;opacity:0.7;margin-bottom:2px">${esc(m.sender_name||'')}${m.sender_role?' • '+esc(roleAr(m.sender_role)):''}</small>`
+        : (m.sender_role?`<small style="display:block;font-size:10px;opacity:0.7;margin-bottom:2px">${esc(roleAr(m.sender_role))}</small>`:''))
+    : '';
+  return `<div class="bubble ${m.sender_id===ME.id?'me':'them'}">${label}${esc(m.body)}<span class="tm">${new Date(m.created_at).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})}</span>${m.sender_id===ME.id?`<button style="border:none;background:none;cursor:pointer;opacity:.65;padding:0;margin-inline-start:6px;vertical-align:middle" title="تعديل الرسالة" onclick="editMyMessage(${m.id},'${escJs(m.body)}','${kind}')">${mi('pencil')}</button>`:''}</div>`;
 }
+function renderMainBubble(m){ return renderBubble(m,'main'); }
 function openChat(id){ SESSION.activeChat=id; navigate(SESSION.page); }
 async function sendMsg(){ const inp=$('#chatInput'); const t=inp.value.trim(); if(!t)return;
   const { error }=await insertMessageResilient({chat_id:SESSION.activeChat,sender_id:ME.id,sender_role:ME.role,body:t});
@@ -5159,10 +5170,7 @@ async function halqaChatBox(g, student, isTeacher){
     <div class="chat-input"><input id="halqaChatInput" placeholder="اكتب رسالتك..." onkeydown="if(event.key==='Enter')sendHalqaMsg()"><button onclick="sendHalqaMsg()">${mi('arrowRight')} </button></div>
   </div>`;
 }
-function renderHalqaBubble(m){
-  const nameRoleLabel = m.sender_id!==ME.id ? `<small style="display:block;font-size:10px;opacity:0.7;margin-bottom:2px">${esc(m.sender_name||'')}${m.sender_role?' • '+esc(roleAr(m.sender_role)):''}</small>` : '';
-  return `<div class="bubble ${m.sender_id===ME.id?'me':'them'}">${nameRoleLabel}${esc(m.body)}<span class="tm">${new Date(m.created_at).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})}</span>${m.sender_id===ME.id?`<button style="border:none;background:none;cursor:pointer;opacity:.65;padding:0;margin-inline-start:6px;vertical-align:middle" title="تعديل الرسالة" onclick="editMyMessage(${m.id},'${escJs(m.body)}','halqa')">${mi('pencil')}</button>`:''}</div>`;
-}
+function renderHalqaBubble(m){ return renderBubble(m,'halqa'); }
 async function sendHalqaMsg(){
   const inp=$('#halqaChatInput'); const t=inp.value.trim(); if(!t)return;
   const ctx=SESSION._halqaChat; if(!ctx)return;
