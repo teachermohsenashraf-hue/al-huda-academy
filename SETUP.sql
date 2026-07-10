@@ -1323,7 +1323,7 @@ with check (
 -- مستخدم (بما فيهم بيانات القُصّر) لأي حساب مسجّل دخول ----------
 drop policy if exists "profiles read" on profiles;
 create policy "profiles read" on profiles for select to authenticated using (
-  is_admin() or my_role() = any(array['supervisor','executive'])
+  is_admin() or my_role() = any(array['supervisor','executive']::user_role[])
   or role = 'teacher'  -- دليل المعلمين يبقى مرئياً للجميع: مطلوب لصفحة اختيار المعلم وكروت الحلقات
   or id = auth.uid()
   or exists (
@@ -1371,7 +1371,7 @@ drop policy if exists "staff read quran_system_audit" on quran_system_audit;
 drop policy if exists "any authenticated can insert notifications" on notifications;
 drop policy if exists "notif insert scoped" on notifications;
 create policy "notif insert scoped" on notifications for insert to authenticated with check (
-  is_admin() or my_role() = any(array['supervisor','executive'])
+  is_admin() or my_role() = any(array['supervisor','executive']::user_role[])
   or user_id = auth.uid()
   or exists (
     select 1 from chats c where auth.uid() = any(c.party_ids) and notifications.user_id = any(c.party_ids)
@@ -1399,6 +1399,6 @@ create policy "notif insert scoped" on notifications for insert to authenticated
 -- لأي وليّ أمر — تكامل بيانات ضعيف. نربطها بنفس شرط "place see" ----------
 drop policy if exists "place new" on placement_tests;
 create policy "place new" on placement_tests for insert to public with check (
-  is_admin() or my_role() = any(array['supervisor','executive','teacher'])
+  is_admin() or my_role() = any(array['supervisor','executive','teacher']::user_role[])
   or parent_id = auth.uid()
 );
