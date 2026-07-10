@@ -1402,3 +1402,56 @@ create policy "place new" on placement_tests for insert to public with check (
   is_admin() or my_role() = any(array['supervisor','executive','teacher']::user_role[])
   or parent_id = auth.uid()
 );
+
+-- ============================================================
+-- تحقق حجم/نوع الملف على مستوى الـStorage نفسه (دفاع حقيقي) — التحقق في
+-- الواجهة (accept="image/*"، فحص f.size في JS) اقتراح للمتصفح بس وقابل
+-- للتخطي بسهولة عبر استدعاء مباشر لـ storage API؛ تحديد الحد هنا على
+-- مستوى الـbucket هو التطبيق الفعلي غير القابل للتحايل ----------
+update storage.buckets set file_size_limit = 8388608, allowed_mime_types = array['image/jpeg','image/png','image/webp','image/heic','image/heif']
+where id in ('receipts','avatars');
+
+-- ============================================================
+-- فهارس على الأعمدة الساخنة (Foreign Keys اللي بتتفلتر عليها كل الصفحات
+-- تقريباً عبر .eq()/.in()) — الفهارس الـ12 الموجودة سابقاً كلها على جداول
+-- تجارية غير مستخدَمة (orders/enrollments/...)، بينما الجداول الحقيقية
+-- (students/groups/payments/messages/sessions/quran_*) بلا أي فهرس غير
+-- المفتاح الأساسي. مع نمو البيانات هذه أول نقطة بطء حقيقية في الاستعلامات.
+-- ------------------------------------------------------------
+create index if not exists idx_students_group_id on students(group_id);
+create index if not exists idx_students_parent_id on students(parent_id);
+create index if not exists idx_students_login_id on students(login_id);
+create index if not exists idx_students_chosen_teacher_id on students(chosen_teacher_id);
+create index if not exists idx_students_enrollment_status on students(enrollment_status);
+
+create index if not exists idx_groups_teacher_id on groups(teacher_id);
+create index if not exists idx_groups_student_id on groups(student_id);
+
+create index if not exists idx_payments_student_id on payments(student_id);
+create index if not exists idx_payments_status on payments(status);
+create index if not exists idx_payments_join_request_id on payments(join_request_id);
+
+create index if not exists idx_messages_chat_id on messages(chat_id);
+create index if not exists idx_messages_sender_id on messages(sender_id);
+
+create index if not exists idx_sessions_teacher_id on sessions(teacher_id);
+create index if not exists idx_sessions_group_id on sessions(group_id);
+create index if not exists idx_sessions_student_id on sessions(student_id);
+create index if not exists idx_sessions_status on sessions(status);
+
+create index if not exists idx_session_ratings_teacher_id on session_ratings(teacher_id);
+create index if not exists idx_session_ratings_student_id on session_ratings(student_id);
+
+create index if not exists idx_join_requests_student_id on join_requests(student_id);
+create index if not exists idx_join_requests_parent_id on join_requests(parent_id);
+create index if not exists idx_join_requests_status on join_requests(status);
+
+create index if not exists idx_notifications_user_id on notifications(user_id);
+
+create index if not exists idx_student_transfers_from_teacher on student_transfers(from_teacher_id);
+create index if not exists idx_student_transfers_to_teacher on student_transfers(to_teacher_id);
+
+create index if not exists idx_qplans_teacher_id on quran_student_plans(teacher_id);
+create index if not exists idx_qplans_login_id on quran_student_plans(login_id);
+create index if not exists idx_qward_progress_ward_id on quran_ward_progress(ward_id);
+create index if not exists idx_qplan_wards_plan_id on quran_plan_wards(plan_id);
