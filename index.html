@@ -214,7 +214,8 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 /* مستوى الطالب وشارات الإنجاز — كلها محسوبة من بيانات موجودة أصلاً (points/streak/mastery/pages)
    بدون أي عمود أو جدول جديد، عرض فقط */
 .lvl-strip{display:flex;align-items:center;gap:14px;background:linear-gradient(135deg,var(--emerald),var(--emerald-deep));border:1px solid var(--gold);border-radius:16px;padding:14px 20px;margin-bottom:18px;flex-wrap:wrap}
-.lvl-badge{flex:none;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--gold-light),var(--gold));display:grid;place-items:center;font-size:24px;box-shadow:0 4px 14px rgba(0,0,0,0.2)}
+.lvl-badge{flex:none;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--gold-light),var(--gold));display:grid;place-items:center;color:var(--navy-deep);box-shadow:0 4px 14px rgba(0,0,0,0.2)}
+.lvl-badge svg{width:26px;height:26px}
 .lvl-info{flex:1;min-width:160px}
 .lvl-info b{color:#fff;font-family:'Amiri';font-size:16px;display:block}
 .lvl-track{height:8px;border-radius:5px;background:rgba(255,255,255,0.2);margin-top:6px;overflow:hidden}
@@ -224,7 +225,10 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 .badge-pill{display:flex;align-items:center;gap:7px;padding:8px 14px;border-radius:30px;font-size:13px;font-weight:700;border:1.5px solid var(--line)}
 .badge-pill.earned{background:var(--gold-soft);border-color:var(--gold);color:var(--navy-deep)}
 .badge-pill.locked{color:var(--muted);opacity:.55}
-.badge-pill .bp-ic{font-size:16px}
+.badge-pill .bp-ic{display:inline-flex}
+.badge-pill .bp-ic svg{width:16px;height:16px}
+.badge-pill.earned .bp-ic{color:var(--gold)}
+.badge-pill.locked .bp-ic{color:var(--muted)}
 @keyframes lvlPop{0%{transform:scale(0.6);opacity:0}60%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
 .lvl-celebrate{animation:lvlPop .5s ease}
 .tracktabs{display:flex;gap:6px;background:#fff;border:1px solid var(--line);padding:5px;border-radius:30px}
@@ -2513,6 +2517,8 @@ const ICON_SVGS = {
   phone:'<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>',
   moon:'<path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5Z"/>',
   pin:'<path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12Z"/><circle cx="12" cy="9" r="2.3"/>',
+  flame:'<path d="M12 2c3 3 5 6 5 9.5A5 5 0 0 1 12 21a5 5 0 0 1-5-9.5C7.5 9 9 10 9 12c0-4 1-7 3-10Z"/>',
+  trophy:'<path d="M7 4h10v4a5 5 0 0 1-10 0V4Z"/><path d="M7 5H4a3 3 0 0 0 3 5"/><path d="M17 5h3a3 3 0 0 1-3 5"/><path d="M12 13v4"/><path d="M8 21h8"/><path d="M9 17h6l1 4H8l1-4Z"/>',
 };
 function mi(name){ const p=ICON_SVGS[name]||ICON_SVGS.dot; return `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`; }
 const MENUS = {
@@ -2723,12 +2729,12 @@ function noStudentMsg(){ return `<div class="card" style="text-align:center"><di
    عمود/جدول جديد وبدون أي كتابة على قاعدة البيانات إطلاقاً.
    ============================================================ */
 const STUDENT_LEVELS=[
-  { min:0,    icon:'🌱', title:'مستكشف' },
-  { min:100,  icon:'📖', title:'طالب علم' },
-  { min:300,  icon:'🌿', title:'حافظ مجتهد' },
-  { min:600,  icon:'⭐', title:'حافظ متميز' },
-  { min:1000, icon:'🏅', title:'حافظ متقن' },
-  { min:2000, icon:'🏆', title:'حافظ القرآن' },
+  { min:0,    icon:'leaf',   title:'مستكشف' },
+  { min:100,  icon:'book',   title:'طالب علم' },
+  { min:300,  icon:'sparkle',title:'حافظ مجتهد' },
+  { min:600,  icon:'star',   title:'حافظ متميز' },
+  { min:1000, icon:'medal',  title:'حافظ متقن' },
+  { min:2000, icon:'trophy', title:'حافظ القرآن' },
 ];
 function studentLevelInfo(points){
   points=points||0;
@@ -2739,14 +2745,14 @@ function studentLevelInfo(points){
   return { level:idx+1, icon:cur.icon, title:cur.title, points, next, progressPct:Math.max(0,Math.min(100,pct1)) };
 }
 const STUDENT_BADGES=[
-  { id:'streak3',  icon:'🔥', label:'٣ أيام متتالية', check:s=>(s.streak||0)>=3 },
-  { id:'streak7',  icon:'🔥', label:'أسبوع كامل', check:s=>(s.streak||0)>=7 },
-  { id:'streak30', icon:'🔥', label:'شهر كامل', check:s=>(s.streak||0)>=30 },
-  { id:'mastery50',icon:'📗', label:'نصف الطريق', check:s=>(s.mastery||0)>=50 },
-  { id:'mastery80',icon:'📘', label:'إتقان عالٍ', check:s=>(s.mastery||0)>=80 },
-  { id:'mastery95',icon:'📕', label:'إتقان ممتاز', check:s=>(s.mastery||0)>=95 },
-  { id:'pages50',  icon:'📄', label:'٥٠ صفحة محفوظة', check:s=>(s.pages||0)>=50 },
-  { id:'pages200', icon:'📚', label:'٢٠٠ صفحة محفوظة', check:s=>(s.pages||0)>=200 },
+  { id:'streak3',  icon:'flame', label:'٣ أيام متتالية', check:s=>(s.streak||0)>=3 },
+  { id:'streak7',  icon:'flame', label:'أسبوع كامل', check:s=>(s.streak||0)>=7 },
+  { id:'streak30', icon:'flame', label:'شهر كامل', check:s=>(s.streak||0)>=30 },
+  { id:'mastery50',icon:'check', label:'نصف الطريق', check:s=>(s.mastery||0)>=50 },
+  { id:'mastery80',icon:'star',  label:'إتقان عالٍ', check:s=>(s.mastery||0)>=80 },
+  { id:'mastery95',icon:'medal', label:'إتقان ممتاز', check:s=>(s.mastery||0)>=95 },
+  { id:'pages50',  icon:'book',  label:'٥٠ صفحة محفوظة', check:s=>(s.pages||0)>=50 },
+  { id:'pages200', icon:'books', label:'٢٠٠ صفحة محفوظة', check:s=>(s.pages||0)>=200 },
 ];
 function studentLevelBadgesHTML(s){
   const lv=studentLevelInfo(s.points);
@@ -2765,13 +2771,13 @@ function studentLevelBadgesHTML(s){
     localStorage.setItem(key, JSON.stringify({ level:lv.level, badges:earnedCount }));
   }catch(e){}
   if(celebrate) setTimeout(()=>toast(celebrate==='level'?`🎉 مبروك! وصلت لمستوى جديد: ${lv.title}`:'🎉 مبروك! حصلت على شارة جديدة'), 500);
-  return `<div class="lvl-strip ${celebrate?'lvl-celebrate':''}"><div class="lvl-badge">${lv.icon}</div><div class="lvl-info">
+  return `<div class="lvl-strip ${celebrate?'lvl-celebrate':''}"><div class="lvl-badge">${mi(lv.icon)}</div><div class="lvl-info">
       <b>مستوى ${ar(lv.level)}: ${lv.title}</b>
       <div class="lvl-track"><div class="lvl-fill" style="width:${lv.progressPct}%"></div></div>
-      <div class="lvl-next">${lv.next?`باقي ${ar(Math.max(0,lv.next.min-lv.points))} نقطة للمستوى القادم (${lv.next.icon} ${lv.next.title})`:'وصلت لأعلى مستوى — بارك الله فيك! 🎉'}</div>
+      <div class="lvl-next">${lv.next?`باقي ${ar(Math.max(0,lv.next.min-lv.points))} نقطة للمستوى القادم (${lv.next.title})`:'وصلت لأعلى مستوى — بارك الله فيك! 🎉'}</div>
     </div></div>
     <div class="card" style="margin-top:14px"><div class="ch"><h3>${mi('medal')} شاراتي (${ar(earnedCount)}/${ar(badges.length)})</h3></div>
-    <div class="badges-strip">${badges.map(b=>`<span class="badge-pill ${b.earned?'earned':'locked'} ${celebrate==='badge'&&b.earned?'lvl-celebrate':''}"><span class="bp-ic">${b.earned?b.icon:'🔒'}</span>${esc(b.label)}</span>`).join('')}</div></div>`;
+    <div class="badges-strip">${badges.map(b=>`<span class="badge-pill ${b.earned?'earned':'locked'} ${celebrate==='badge'&&b.earned?'lvl-celebrate':''}"><span class="bp-ic">${mi(b.earned?b.icon:'lock')}</span>${esc(b.label)}</span>`).join('')}</div></div>`;
 }
 /* رسالة الحساب الجديد اللي لسّه ماختارش نظام/مسار/باقة — بتوجّهه يرجع
    للصفحة الرئيسية بدل ما يتوه جوّه لوحة فاضية بلا أي إرشاد. */
