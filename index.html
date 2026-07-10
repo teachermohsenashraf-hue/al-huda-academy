@@ -3227,6 +3227,21 @@ function fmtExactMoment(iso){
   if(isNaN(d)) return iso;
   return d.toLocaleDateString('ar-EG',{day:'numeric',month:'long',year:'numeric'})+' — '+d.toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});
 }
+// "منذ كذا" نسبي (للتنبيهات) — بدل التاريخ الكامل، مناسب لقائمة إشعارات قصيرة
+function qAgo(iso){
+  if(!iso) return '—';
+  const d=new Date(iso);
+  if(isNaN(d)) return '—';
+  const diffSec=Math.max(0, Math.round((Date.now()-d.getTime())/1000));
+  if(diffSec<60) return 'الآن';
+  const mins=Math.round(diffSec/60);
+  if(mins<60) return `منذ ${ar(mins)} ${mins===1?'دقيقة':mins===2?'دقيقتين':mins<=10?'دقائق':'دقيقة'}`;
+  const hrs=Math.round(mins/60);
+  if(hrs<24) return `منذ ${ar(hrs)} ${hrs===1?'ساعة':hrs===2?'ساعتين':hrs<=10?'ساعات':'ساعة'}`;
+  const days=Math.round(hrs/24);
+  if(days<30) return `منذ ${ar(days)} ${days===1?'يوم':days===2?'يومين':days<=10?'أيام':'يوماً'}`;
+  return fmtExactMoment(iso);
+}
 // بطاقة التجديد الشهري
 function renewalBox(k){
   if(!k || k.enrollment_status!=='active' || !k.sub_end) return '';
@@ -8198,7 +8213,7 @@ PAGES.student_qtoday = async function(){
         : `<div class="qcwrange">${esc(w.amount_label||'—')}</div>`;
       const actions = isDone
         ? `<div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">${masteryHtml}${approvedBadge}</div>${noteHtml}`
-        : `<div class="qcwacts"><button class="qa-done" onclick="qMarkWard('${esc(w.id)}','done')">${mi('check')} أتممت</button><button class="qa-help" onclick="qMarkWard('${esc(w.id)}','need_help')">🆘 مساعدة</button><button class="qa-skip" onclick="qMarkWard('${esc(w.id)}','skipped')">${mi('x')} لم أتم</button></div>${noteHtml}`;
+        : `<div class="qcwacts"><button class="qa-done" onclick="qMarkWard('${esc(w.id)}','done','${esc(w.planned_date)}')">${mi('check')} أتممت</button><button class="qa-help" onclick="qMarkWard('${esc(w.id)}','need_help','${esc(w.planned_date)}')">🆘 مساعدة</button><button class="qa-skip" onclick="qMarkWard('${esc(w.id)}','skipped','${esc(w.planned_date)}')">${mi('x')} لم أتم</button></div>${noteHtml}`;
       return `<div class="qcardward ${klass}" style="--accent:${color}">
         <div class="qcwh">
           <div class="qcwic" style="background:${color}">${icon}</div>
@@ -8363,6 +8378,22 @@ async function qRenderFullPlan(planId, role='student'){
   return backBtn + pageHead(title, hint) + statsRow + actBtns + editPanel + daysHtml;
 }
 
+/* ─── تسجيل حالة ورد اليوم (تمّ/محتاج مساعدة/لم يتم) من صفحة "ورد اليوم" ─── */
+async function qMarkWard(wardId, status, plannedDate){
+  const today = qTodayStr();
+  const pd = plannedDate||today;
+  const isEarly = today < pd, isLate = today > pd;
+  const payload = { ward_id:wardId, student_login_id:ME.id, status, planned_for_date:pd,
+    actual_date:today, is_early:isEarly, is_late:isLate,
+    days_offset: Math.round((new Date(pd)-new Date(today))/86400000),
+    updated_at: new Date().toISOString() };
+  const { data: ex } = await sb.from('quran_ward_progress').select('id').eq('ward_id',wardId).maybeSingle();
+  if(ex) await sb.from('quran_ward_progress').update(payload).eq('id',ex.id);
+  else await sb.from('quran_ward_progress').insert(payload);
+  const msgs={ done:(isEarly?'🚀 تم الإنجاز مبكراً — بارك الله فيك!':'✓ تم تسجيل الإنجاز'), need_help:'🆘 تم إبلاغ معلمك بحاجتك للمساعدة', skipped:'تم تسجيل التخطي' };
+  toast(msgs[status]||'✅ تم الحفظ');
+  navigate(SESSION.page);
+}
 /* ─── تسجيل الورد من الخطة الكاملة (مع دعم التقدم المبكر) ─── */
 async function qMarkWardFromPlan(wardId, plannedDate){
   const today = qTodayStr();
@@ -8712,6 +8743,13 @@ async function qGatherPlanExportData(planId){
 const QFNAMES={new_hifz:'الحفظ الجديد',review_near:'المراجعة القريبة',review_far:'المراجعة البعيدة',reading:'ورد القراءة',listening:'ورد السماع'};
 const QFORDER=['new_hifz','review_near','review_far','reading','listening'];
 function qWardStatusLabel(p){ return p ? (p.status==='done'?'مكتمل ✓':'—') : 'لم يبدأ'; }
+// شارة حالة الورد (تُستخدم في بطاقات "ورد اليوم") — نفس تسميات الحالة المستخدمة
+// في أماكن أخرى بالكود (done/need_help/skipped/قيد التنفيذ الافتراضي)
+function qStatusLabel(status){
+  const map={ done:{t:'✓ مكتمل',c:'g'}, need_help:{t:'🆘 محتاج مساعدة',c:'gold'}, skipped:{t:'تم تخطّيه',c:'n'}, not_started:{t:'لم يبدأ',c:'n'} };
+  const st=map[status]||{t:'قيد التنفيذ',c:'gold'};
+  return `<span class="chip ${st.c}" style="font-size:11px">${st.t}</span>`;
+}
 // يحوّل قائمة الأوراد المسطّحة (يوم×حصن لكل صف) لجدول محوري: صف واحد لكل يوم،
 // وعمود لكل حصن — عشان الطالب يقدر يتابع نفسه بمربع تعليم أمام كل حصن كل يوم
 function qBuildPivotDays(wards, progMap){
