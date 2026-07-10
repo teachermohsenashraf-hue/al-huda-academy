@@ -1455,3 +1455,16 @@ create index if not exists idx_qplans_teacher_id on quran_student_plans(teacher_
 create index if not exists idx_qplans_login_id on quran_student_plans(login_id);
 create index if not exists idx_qward_progress_ward_id on quran_ward_progress(ward_id);
 create index if not exists idx_qplan_wards_plan_id on quran_plan_wards(plan_id);
+
+-- ============================================================
+-- تصحيح: صفحة "الطاقم والإدارة" (admin_staff) مشتركة بين admin وexecutive
+-- (PAGES.executive_staff تستدعي PAGES.admin_staff نفسها في index.html)، لكن
+-- سياسة "profiles admin all" كانت مقصورة على is_admin() فقط — يعني المدير
+-- التنفيذي (executive) كان يفتح نفس صفحة إدارة الطاقم لكن أي محاولة تعديل/
+-- حذف عضو طاقم كانت بترفضها RLS بصمت. نوسّع السياسة لتشمل executive أيضاً
+-- بنفس النمط المستخدم في كل سياسات الجلسة دي.
+-- ------------------------------------------------------------
+drop policy if exists "profiles admin all" on profiles;
+create policy "profiles admin all" on profiles for all to public
+using (is_admin() or my_role() = 'executive'::user_role)
+with check (is_admin() or my_role() = 'executive'::user_role);
