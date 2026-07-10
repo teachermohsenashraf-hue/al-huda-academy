@@ -2673,7 +2673,10 @@ async function navigate(page){
   document.querySelectorAll('#sidebar a').forEach(a=>a.classList.toggle('active',a.dataset.page===page));
   const host=$('#pageHost'); host.innerHTML='<div class="card" style="text-align:center;color:var(--muted)">جارٍ التحميل…</div>';
   const fn=PAGES[ME.role+'_'+page];
-  try{ host.innerHTML = fn ? await fn() : '<div class="card" style="text-align:center;color:var(--muted)">هذه الصفحة قيد التطوير.</div>'; }
+  // شبكة أمان: لو صفحة عَلِقت لأي سبب (استعلام واقف، Promise ما بيتحلّش) بدل
+  // ما تفضل "جارٍ التحميل" للأبد، نوريه بعد ١٠ ثواني إنها انتهت مهلتها
+  const timeout=(ms)=>new Promise((_,rej)=>setTimeout(()=>rej(new Error('انتهت المهلة — استغرق تحميل الصفحة وقتاً أطول من المتوقع')),ms));
+  try{ host.innerHTML = fn ? await Promise.race([fn(), timeout(10000)]) : '<div class="card" style="text-align:center;color:var(--muted)">هذه الصفحة قيد التطوير.</div>'; }
   // خطأ فعلي (استثناء) يختلف جذرياً عن "لا بيانات بعد" — الصفحات نفسها بترجع
   // رسالة "فاضي" لما ما فيش بيانات فعلاً (بدون استثناء)، فلما نوصل هنا فده يعني
   // فشل حقيقي (شبكة/صلاحيات/كود) ولازم نقوله كده صراحة بدل ما نوهمه إنها حالة طبيعية
@@ -8874,7 +8877,10 @@ async function qCheckAndFireNotifications(planId){
   }
   // Check station near completion
   const { data: allW } = await sb.from('quran_plan_wards').select('id').eq('plan_id',planId);
-  const { data: doneW } = await sb.from('quran_ward_progress').select('id').in('ward_id',(allW||[]).map(w=>w.id)).eq('status','done');
+  const wIds = (allW||[]).map(w=>w.id);
+  // .in() بمصفوفة فاضية كان بيعلّق الاستعلام بلا نهاية (بخلاف كل استخدامات .in()
+  // التانية في الملف اللي بتتأكد من طول القائمة الأول) — لو مفيش أوراد أصلاً، نتخطى الاستعلام
+  const { data: doneW } = wIds.length ? await sb.from('quran_ward_progress').select('id').in('ward_id',wIds).eq('status','done') : { data:[] };
   const pct = (allW||[]).length ? Math.round((doneW||[]).length/(allW||[]).length*100) : 0;
   if(pct>=90) await qFireNotif(plan.login_id,'near_station_end',{ pct });
   if(pct>=100) await qFireNotif(plan.login_id,'station_complete',{ pct });
