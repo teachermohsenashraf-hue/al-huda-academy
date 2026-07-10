@@ -1479,7 +1479,10 @@ with check (is_admin() or my_role() = 'executive'::user_role);
 -- المدير (admin) والتنفيذي (executive) يشوفوا الكل دايماً زي seesAllGenders()
 -- في الواجهة؛ المشرف فقط مقيّد بجنسه.
 -- ------------------------------------------------------------
-drop function if exists my_gender();
+-- ملاحظة: بلا "drop function if exists" هنا عمداً — بعد الإصلاح الطارئ
+-- بقت سياسات كتير في آخر الملف بتعتمد على my_gender()، فحذفها هنا (حتى لو
+-- مؤقتاً في نفس تشغيلة السكربت) بيفشل بخطأ "other objects depend on it".
+-- create or replace كافية تماماً لتحديث تعريف الدالة بدون حذفها.
 create or replace function my_gender()
 returns text
 language sql
