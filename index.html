@@ -2752,13 +2752,26 @@ function studentLevelBadgesHTML(s){
   const lv=studentLevelInfo(s.points);
   const badges=STUDENT_BADGES.map(b=>({ ...b, earned:b.check(s) }));
   const earnedCount=badges.filter(b=>b.earned).length;
-  return `<div class="lvl-strip"><div class="lvl-badge">${lv.icon}</div><div class="lvl-info">
+  // احتفال بصري خفيف عند وصول مستوى جديد أو شارة جديدة — المقارنة بآخر قيمة
+  // شافها الطالب محفوظة في localStorage بمتصفحه بس، صفر كتابة على قاعدة البيانات
+  let celebrate=null;
+  try{
+    const key='lvl_seen_'+s.id;
+    const seen=JSON.parse(localStorage.getItem(key)||'{}');
+    if(seen.level!=null){
+      if(lv.level>seen.level) celebrate='level';
+      else if(earnedCount>(seen.badges||0)) celebrate='badge';
+    }
+    localStorage.setItem(key, JSON.stringify({ level:lv.level, badges:earnedCount }));
+  }catch(e){}
+  if(celebrate) setTimeout(()=>toast(celebrate==='level'?`🎉 مبروك! وصلت لمستوى جديد: ${lv.title}`:'🎉 مبروك! حصلت على شارة جديدة'), 500);
+  return `<div class="lvl-strip ${celebrate?'lvl-celebrate':''}"><div class="lvl-badge">${lv.icon}</div><div class="lvl-info">
       <b>مستوى ${ar(lv.level)}: ${lv.title}</b>
       <div class="lvl-track"><div class="lvl-fill" style="width:${lv.progressPct}%"></div></div>
       <div class="lvl-next">${lv.next?`باقي ${ar(Math.max(0,lv.next.min-lv.points))} نقطة للمستوى القادم (${lv.next.icon} ${lv.next.title})`:'وصلت لأعلى مستوى — بارك الله فيك! 🎉'}</div>
     </div></div>
     <div class="card" style="margin-top:14px"><div class="ch"><h3>${mi('medal')} شاراتي (${ar(earnedCount)}/${ar(badges.length)})</h3></div>
-    <div class="badges-strip">${badges.map(b=>`<span class="badge-pill ${b.earned?'earned':'locked'}"><span class="bp-ic">${b.earned?b.icon:'🔒'}</span>${esc(b.label)}</span>`).join('')}</div></div>`;
+    <div class="badges-strip">${badges.map(b=>`<span class="badge-pill ${b.earned?'earned':'locked'} ${celebrate==='badge'&&b.earned?'lvl-celebrate':''}"><span class="bp-ic">${b.earned?b.icon:'🔒'}</span>${esc(b.label)}</span>`).join('')}</div></div>`;
 }
 /* رسالة الحساب الجديد اللي لسّه ماختارش نظام/مسار/باقة — بتوجّهه يرجع
    للصفحة الرئيسية بدل ما يتوه جوّه لوحة فاضية بلا أي إرشاد. */
