@@ -1646,3 +1646,98 @@ create policy "jr_write" on join_requests for all to public using (
   or applicant_id = auth.uid()
   or parent_id = auth.uid()
 );
+
+-- ============================================================
+-- 🔴 إصلاح طارئ: سياسة "profiles read" الجديدة (اللي فيها my_gender()
+-- ومنطق فصل دليل المعلمين عن المشرف) سبّبت خطأ 403 يمنع **كل مستخدم من
+-- قراءة بروفايله هو نفسه** عند تسجيل الدخول — يعني المنصة كانت بتفشل في
+-- الدخول بالكامل لأي حساب. رجّعنا "profiles read" لآخر نسخة مؤكَّد نجاحها
+-- (بدون my_gender()) فوراً لاستعادة الدخول لكل المستخدمين. فصل جنس دليل
+-- المعلمين للمشرف يحتاج تشخيصاً أعمق قبل أي محاولة تانية.
+-- ------------------------------------------------------------
+drop policy if exists "profiles read" on profiles;
+create policy "profiles read" on profiles for select to authenticated using (
+  is_admin() or my_role() = any(array['supervisor','executive']::user_role[])
+  or role = 'teacher'::user_role
+  or id = auth.uid()
+  or exists (
+    select 1 from students s
+    where (s.parent_id = profiles.id or s.login_id = profiles.id)
+      and (
+        s.parent_id = auth.uid() or s.login_id = auth.uid()
+        or s.chosen_teacher_id = auth.uid()
+        or exists (select 1 from groups g where g.id = s.group_id and g.teacher_id = auth.uid())
+      )
+  )
+);
+
+-- نفس الإصلاح الطارئ: التراجع عن نسخ students/groups/join_requests المعتمدة
+-- على my_gender() لآخر نسخة مؤكَّدة من مراجعة RLS الشاملة، لحين تشخيص
+-- المشكلة الحقيقية في my_gender() بدقة قبل إعادة محاولة فصل الجنس فيهم
+drop policy if exists "students see" on students;
+create policy "students see" on students for select to public using (
+  is_admin() or my_role() = any(array['supervisor','executive']::user_role[])
+  or parent_id = auth.uid() or login_id = auth.uid() or chosen_teacher_id = auth.uid()
+  or is_my_group(group_id)
+);
+
+drop policy if exists "students write" on students;
+create policy "students write" on students for all to public using (
+  is_admin() or my_role() = any(array['supervisor','executive']::user_role[])
+  or parent_id = auth.uid() or login_id = auth.uid() or chosen_teacher_id = auth.uid()
+  or is_my_group(group_id)
+) with check (
+  is_admin() or my_role() = any(array['supervisor','executive']::user_role[])
+  or parent_id = auth.uid() or login_id = auth.uid() or chosen_teacher_id = auth.uid()
+  or is_my_group(group_id)
+);
+
+drop policy if exists "groups see" on groups;
+create policy "groups see" on groups for select to public using (
+  is_admin() or my_role() = any(array['supervisor','executive']::user_role[])
+  or teacher_id = auth.uid()
+  or (is_private and owns_private_group(student_id))
+  or my_student_in_group(id)
+);
+
+drop policy if exists "groups delete" on groups;
+create policy "groups delete" on groups for delete to public using (
+  is_admin() or my_role() = any(array['supervisor','executive']::user_role[])
+  or teacher_id = auth.uid()
+);
+
+drop policy if exists "groups insert" on groups;
+create policy "groups insert" on groups for insert to public with check (
+  is_admin() or my_role() = any(array['supervisor','executive']::user_role[])
+  or teacher_id = auth.uid()
+);
+
+drop policy if exists "groups update" on groups;
+create policy "groups update" on groups for update to public using (
+  is_admin() or my_role() = any(array['supervisor','executive']::user_role[])
+  or teacher_id = auth.uid()
+) with check (
+  is_admin() or my_role() = any(array['supervisor','executive']::user_role[])
+  or teacher_id = auth.uid()
+);
+
+drop policy if exists "groups teacher" on groups;
+create policy "groups teacher" on groups for update to public using (
+  teacher_id = auth.uid() or is_admin() or my_role() = 'supervisor'::user_role
+);
+
+drop policy if exists "jr_see" on join_requests;
+create policy "jr_see" on join_requests for select to public using (
+  is_admin() or my_role() = any(array['supervisor','executive']::user_role[])
+  or applicant_id = auth.uid() or parent_id = auth.uid()
+  or exists (select 1 from students s where s.id = join_requests.student_id and s.chosen_teacher_id = auth.uid())
+);
+
+drop policy if exists "jr_write" on join_requests;
+create policy "jr_write" on join_requests for all to public using (
+  is_admin() or my_role() = 'supervisor'::user_role
+  or applicant_id = auth.uid() or parent_id = auth.uid()
+) with check (
+  is_admin() or my_role() = 'supervisor'::user_role
+  or applicant_id = auth.uid() or parent_id = auth.uid()
+);
