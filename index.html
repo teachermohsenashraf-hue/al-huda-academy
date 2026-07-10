@@ -211,6 +211,22 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 .hero-band{border-radius:24px;padding:28px 32px;color:#fff;position:relative;overflow:hidden;margin-bottom:24px}
 .hero-band.e{background:linear-gradient(130deg,var(--emerald),var(--emerald-deep) 70%)}
 .hero-band::before{content:"";position:absolute;top:-60px;left:-40px;width:220px;height:220px;border-radius:50%;background:rgba(201,162,39,0.16)}
+/* مستوى الطالب وشارات الإنجاز — كلها محسوبة من بيانات موجودة أصلاً (points/streak/mastery/pages)
+   بدون أي عمود أو جدول جديد، عرض فقط */
+.lvl-strip{display:flex;align-items:center;gap:14px;background:linear-gradient(135deg,var(--emerald),var(--emerald-deep));border:1px solid var(--gold);border-radius:16px;padding:14px 20px;margin-bottom:18px;flex-wrap:wrap}
+.lvl-badge{flex:none;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--gold-light),var(--gold));display:grid;place-items:center;font-size:24px;box-shadow:0 4px 14px rgba(0,0,0,0.2)}
+.lvl-info{flex:1;min-width:160px}
+.lvl-info b{color:#fff;font-family:'Amiri';font-size:16px;display:block}
+.lvl-track{height:8px;border-radius:5px;background:rgba(255,255,255,0.2);margin-top:6px;overflow:hidden}
+.lvl-fill{height:100%;background:linear-gradient(90deg,var(--gold-light),var(--gold));border-radius:5px;transition:width .6s ease}
+.lvl-next{font-size:11.5px;color:rgba(255,255,255,0.75);margin-top:4px}
+.badges-strip{display:flex;gap:10px;flex-wrap:wrap;padding:4px 0}
+.badge-pill{display:flex;align-items:center;gap:7px;padding:8px 14px;border-radius:30px;font-size:13px;font-weight:700;border:1.5px solid var(--line)}
+.badge-pill.earned{background:var(--gold-soft);border-color:var(--gold);color:var(--navy-deep)}
+.badge-pill.locked{color:var(--muted);opacity:.55}
+.badge-pill .bp-ic{font-size:16px}
+@keyframes lvlPop{0%{transform:scale(0.6);opacity:0}60%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
+.lvl-celebrate{animation:lvlPop .5s ease}
 .tracktabs{display:flex;gap:6px;background:#fff;border:1px solid var(--line);padding:5px;border-radius:30px}
 .tracktabs button{border:none;background:none;padding:8px 18px;border-radius:24px;font-weight:700;font-size:13.5px;color:var(--muted);cursor:pointer;transition:.2s}
 .tracktabs button.on{background:linear-gradient(135deg,var(--emerald),var(--emerald-deep));color:#fff}
@@ -2700,6 +2716,50 @@ async function myStudentRow(){
   return null;
 }
 function noStudentMsg(){ return `<div class="card" style="text-align:center"><div class="empty-ic">${mi('child')}</div><h3 style="margin-bottom:8px">لا يوجد ملف طالب مرتبط</h3><p style="color:var(--muted);font-size:14px">هذه الصفحة تظهر بيانات الطالب. سجّل الدخول بحساب طالب لرؤيتها، أو اطلب من المدير ربط حسابك بملف طالب.</p></div>`; }
+
+/* ============================================================
+   مستوى الطالب وشارات الإنجاز — تحويل بحت لبيانات موجودة أصلاً في
+   جدول students (points/streak/mastery/pages) لعرض تحفيزي، بدون أي
+   عمود/جدول جديد وبدون أي كتابة على قاعدة البيانات إطلاقاً.
+   ============================================================ */
+const STUDENT_LEVELS=[
+  { min:0,    icon:'🌱', title:'مستكشف' },
+  { min:100,  icon:'📖', title:'طالب علم' },
+  { min:300,  icon:'🌿', title:'حافظ مجتهد' },
+  { min:600,  icon:'⭐', title:'حافظ متميز' },
+  { min:1000, icon:'🏅', title:'حافظ متقن' },
+  { min:2000, icon:'🏆', title:'حافظ القرآن' },
+];
+function studentLevelInfo(points){
+  points=points||0;
+  let idx=0;
+  for(let i=0;i<STUDENT_LEVELS.length;i++){ if(points>=STUDENT_LEVELS[i].min) idx=i; }
+  const cur=STUDENT_LEVELS[idx], next=STUDENT_LEVELS[idx+1];
+  const pct1=next?Math.round(((points-cur.min)/(next.min-cur.min))*100):100;
+  return { level:idx+1, icon:cur.icon, title:cur.title, points, next, progressPct:Math.max(0,Math.min(100,pct1)) };
+}
+const STUDENT_BADGES=[
+  { id:'streak3',  icon:'🔥', label:'٣ أيام متتالية', check:s=>(s.streak||0)>=3 },
+  { id:'streak7',  icon:'🔥', label:'أسبوع كامل', check:s=>(s.streak||0)>=7 },
+  { id:'streak30', icon:'🔥', label:'شهر كامل', check:s=>(s.streak||0)>=30 },
+  { id:'mastery50',icon:'📗', label:'نصف الطريق', check:s=>(s.mastery||0)>=50 },
+  { id:'mastery80',icon:'📘', label:'إتقان عالٍ', check:s=>(s.mastery||0)>=80 },
+  { id:'mastery95',icon:'📕', label:'إتقان ممتاز', check:s=>(s.mastery||0)>=95 },
+  { id:'pages50',  icon:'📄', label:'٥٠ صفحة محفوظة', check:s=>(s.pages||0)>=50 },
+  { id:'pages200', icon:'📚', label:'٢٠٠ صفحة محفوظة', check:s=>(s.pages||0)>=200 },
+];
+function studentLevelBadgesHTML(s){
+  const lv=studentLevelInfo(s.points);
+  const badges=STUDENT_BADGES.map(b=>({ ...b, earned:b.check(s) }));
+  const earnedCount=badges.filter(b=>b.earned).length;
+  return `<div class="lvl-strip"><div class="lvl-badge">${lv.icon}</div><div class="lvl-info">
+      <b>مستوى ${ar(lv.level)}: ${lv.title}</b>
+      <div class="lvl-track"><div class="lvl-fill" style="width:${lv.progressPct}%"></div></div>
+      <div class="lvl-next">${lv.next?`باقي ${ar(Math.max(0,lv.next.min-lv.points))} نقطة للمستوى القادم (${lv.next.icon} ${lv.next.title})`:'وصلت لأعلى مستوى — بارك الله فيك! 🎉'}</div>
+    </div></div>
+    <div class="card" style="margin-top:14px"><div class="ch"><h3>${mi('medal')} شاراتي (${ar(earnedCount)}/${ar(badges.length)})</h3></div>
+    <div class="badges-strip">${badges.map(b=>`<span class="badge-pill ${b.earned?'earned':'locked'}"><span class="bp-ic">${b.earned?b.icon:'🔒'}</span>${esc(b.label)}</span>`).join('')}</div></div>`;
+}
 /* رسالة الحساب الجديد اللي لسّه ماختارش نظام/مسار/باقة — بتوجّهه يرجع
    للصفحة الرئيسية بدل ما يتوه جوّه لوحة فاضية بلا أي إرشاد. */
 function noJourneyMsg(who){
@@ -2722,6 +2782,7 @@ PAGES.student_dash = async function(){
   const { data:todayLog }=await sb.from('daily_hifz').select('*').eq('student_id',s.id).eq('date',today).single().catch(()=>({data:null}));
   const hifzDone=todayLog?[todayLog.new_hifz_done,todayLog.review_near_done,todayLog.daily_read_done,todayLog.review_far_done,todayLog.listening_done].filter(Boolean).length:0;
   return `<div class="hero-band e"><div style="display:flex;align-items:center;justify-content:space-between;gap:24px;position:relative;z-index:2;flex-wrap:wrap"><div><h1 style="font-size:25px;margin-bottom:6px;color:#fff">أنت تسير في خير، فلا تقف 🌟</h1><p style="color:rgba(255,255,255,0.85);font-size:15px;max-width:440px">حافظت على وردك ${ar(s.streak)} يوماً متتالياً. كلّ صفحة تتعب فيها اليوم نورٌ لك غداً.</p><div class="quran" style="font-size:17px;color:var(--gold-light);margin-top:10px">﴿ ورتّل القرآن ترتيلاً ﴾</div></div><div style="background:rgba(255,255,255,0.12);border:1px solid rgba(217,184,77,0.4);border-radius:18px;padding:16px 26px;text-align:center"><div style="font-family:Amiri;font-size:38px;line-height:1;color:var(--gold-light)">${ar(s.streak)}</div><div style="font-size:12.5px;color:rgba(255,255,255,0.8);margin-top:4px">يوماً 🔥</div></div></div></div>
+  ${studentLevelBadgesHTML(s)}
   <!-- بطاقة حفظ اليوم السريعة -->
   <div class="hifz-quick-card" onclick="navigate('qtoday')">
     <div class="hq-left"><div class="hq-icon">${mi('pencil')}</div><div><b>ورد اليوم</b><span>اذهب لتسجيل وردك اليوم</span></div></div>
