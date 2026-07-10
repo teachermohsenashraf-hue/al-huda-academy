@@ -2798,7 +2798,7 @@ PAGES.student_dash = async function(){
   const hp=Math.round((done+part*0.5)/(hus.length||1)*100);
   // حفظ اليوم
   const today=new Date().toISOString().slice(0,10);
-  const { data:todayLog }=await sb.from('daily_hifz').select('*').eq('student_id',s.id).eq('date',today).single().catch(()=>({data:null}));
+  let todayLog=null; try{ const r=await sb.from('daily_hifz').select('*').eq('student_id',s.id).eq('date',today).single(); todayLog=r.data; }catch(e){}
   const hifzDone=todayLog?[todayLog.new_hifz_done,todayLog.review_near_done,todayLog.daily_read_done,todayLog.review_far_done,todayLog.listening_done].filter(Boolean).length:0;
   return `<div class="hero-band e"><div style="display:flex;align-items:center;justify-content:space-between;gap:24px;position:relative;z-index:2;flex-wrap:wrap"><div><h1 style="font-size:25px;margin-bottom:6px;color:#fff">أنت تسير في خير، فلا تقف 🌟</h1><p style="color:rgba(255,255,255,0.85);font-size:15px;max-width:440px">حافظت على وردك ${ar(s.streak)} يوماً متتالياً. كلّ صفحة تتعب فيها اليوم نورٌ لك غداً.</p><div class="quran" style="font-size:17px;color:var(--gold-light);margin-top:10px">﴿ ورتّل القرآن ترتيلاً ﴾</div></div><div style="background:rgba(255,255,255,0.12);border:1px solid rgba(217,184,77,0.4);border-radius:18px;padding:16px 26px;text-align:center"><div style="font-family:Amiri;font-size:38px;line-height:1;color:var(--gold-light)">${ar(s.streak)}</div><div style="font-size:12.5px;color:rgba(255,255,255,0.8);margin-top:4px">يوماً 🔥</div></div></div></div>
   ${studentLevelBadgesHTML(s)}
@@ -2928,7 +2928,7 @@ async function saveHifzField(studentId, field, value){
 }
 async function updateHifzProgress(studentId){
   const today=new Date().toISOString().slice(0,10);
-  const { data }=await sb.from('daily_hifz').select('new_hifz_done,review_near_done,daily_read_done,review_far_done,listening_done').eq('student_id',studentId).eq('date',today).single().catch(()=>({data:null}));
+  let data=null; try{ const r=await sb.from('daily_hifz').select('new_hifz_done,review_near_done,daily_read_done,review_far_done,listening_done').eq('student_id',studentId).eq('date',today).single(); data=r.data; }catch(e){}
   if(!data) return;
   const done=[data.new_hifz_done,data.review_near_done,data.daily_read_done,data.review_far_done,data.listening_done].filter(Boolean).length;
   const fill=$('.hp-fill'); if(fill) fill.style.width=Math.round(done*100/5)+'%';
@@ -8494,8 +8494,8 @@ async function qUpdatePlanStatus(planId, btn){
     const { data:updated, error } = await sb.from('quran_student_plans').update({ status, updated_at:new Date().toISOString() }).eq('id',planId).select();
     if(error){ toast('تعذّر الحفظ: '+error.message); return; }
     if(!updated||!updated.length){ toast('⚠️ لم يُحفَظ أي تغيير — تأكد أنك المعلم المسؤول عن هذه الخطة'); return; }
-    // audit
-    await sb.from('quran_system_audit').insert({ system_id:null, actor_id:ME.id, action:'plan_status_changed', before_data:{status:before?.status}, after_data:{status, note}, created_at:new Date().toISOString() }).catch(()=>{});
+    // audit — .catch() مش موجودة على query builder سوبابيز قبل await، فلازم try/catch
+    try{ await sb.from('quran_system_audit').insert({ system_id:null, actor_id:ME.id, action:'plan_status_changed', before_data:{status:before?.status}, after_data:{status, note}, created_at:new Date().toISOString() }); }catch(e){}
     toast('✅ تم تحديث الحالة');
     navigate(SESSION.page);
   } finally {
@@ -8881,7 +8881,7 @@ async function qCheckAndFireNotifications(planId){
 }
 async function qFireNotif(userId, kind, payload){
   if(!userId) return;
-  await sb.from('quran_notifications').insert({ user_id:userId, kind, payload:JSON.stringify(payload), created_at:new Date().toISOString() }).catch(()=>{});
+  try{ await sb.from('quran_notifications').insert({ user_id:userId, kind, payload:JSON.stringify(payload), created_at:new Date().toISOString() }); }catch(e){}
 }
 
 /* ─── صفحة التنبيهات ─── */
@@ -8908,7 +8908,7 @@ PAGES.student_qnotifs = async function(){
       <div class="qat">${qAgo(n.created_at)}</div>
     </div>`;
   }).join('');
-  await sb.from('quran_notifications').update({ read_at:new Date().toISOString() }).eq('user_id',ME.id).is('read_at',null).catch(()=>{});
+  try{ await sb.from('quran_notifications').update({ read_at:new Date().toISOString() }).eq('user_id',ME.id).is('read_at',null); }catch(e){}
   return pageHead('تنبيهات القرآن','') + html;
 };
 PAGES.teacher_qnotifs = PAGES.student_qnotifs;
