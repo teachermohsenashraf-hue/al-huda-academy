@@ -49,9 +49,12 @@ grant execute on function get_teacher_loads() to authenticated;
 --      فكل رفع إيصال كان بيفشل بصمت والكود القديم كان بيخزّن الصورة
 --      كنص base64 عملاق في قاعدة البيانات بدل الرفع الفعلي للـ Storage.
 -- ------------------------------------------------------------
+-- باكيت الإيصالات كان public بالكامل (أي حد يعرف/يخمّن الرابط يشوف إيصال دفع أي طالب،
+-- بما فيه اسمه ورقم مرجعه) — حوّلناه private، والقراءة بقت مقصورة على الطاقم الإداري
+-- أو وليّ أمر/طالب الإيصال نفسه فقط (عبر Signed URL يُنشأ وقت العرض، راجع resolveReceiptUrls في index.html).
 insert into storage.buckets (id, name, public)
-values ('receipts', 'receipts', true)
-on conflict (id) do update set public = true;
+values ('receipts', 'receipts', false)
+on conflict (id) do update set public = false;
 
 drop policy if exists "authenticated upload receipts" on storage.objects;
 create policy "authenticated upload receipts" on storage.objects
@@ -64,10 +67,24 @@ create policy "authenticated update own receipts" on storage.objects
   using (bucket_id = 'receipts')
   with check (bucket_id = 'receipts');
 
+-- اسم الملف بصيغة "{student_id}_{timestamp}.{ext}" — نستخرج student_id من أول الاسم
+-- ونتحقّق إن طالب الإيصال ده مرتبط بالمستخدم الطالب لهذا الإيصال، أو المستخدم من الطاقم الإداري
 drop policy if exists "public read receipts" on storage.objects;
-create policy "public read receipts" on storage.objects
-  for select to public
-  using (bucket_id = 'receipts');
+drop policy if exists "staff or owner read receipts" on storage.objects;
+create policy "staff or owner read receipts" on storage.objects
+  for select to authenticated
+  using (
+    bucket_id = 'receipts'
+    and (
+      exists (select 1 from profiles where id = auth.uid() and role in ('admin','executive','supervisor'))
+      or exists (
+        select 1 from students s
+        where name ~ '^[0-9]+_'
+          and s.id = split_part(name,'_',1)::bigint
+          and (s.login_id = auth.uid() or s.parent_id = auth.uid())
+      )
+    )
+  );
 
 -- ------------------------------------------------------------
 -- ٠) السماح لصاحب الرسالة بتعديل رسالته في المحادثات

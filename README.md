@@ -24,3 +24,11 @@ This project is deployed on Vercel. Push to `main` branch to trigger automatic d
 https://your-project.vercel.app/          → Landing Page
 https://your-project.vercel.app/dashboard → Admin Dashboard
 ```
+
+## Database setup (from scratch)
+
+Run these in the Supabase SQL Editor, **in order**, on a fresh project:
+
+1. `migrations/000_core_schema.sql` — creates the six core tables (`profiles`, `students`, `groups`, `payments`, `messages`, `chats`) and enables RLS on them. This is the only file that defines their structure; they used to exist only inside the Supabase dashboard with no record in the repo.
+2. `SETUP.sql` — all RLS policies, triggers, RPC functions, and additive columns/tables built on top of the core schema. Safe to re-run in full any time (fully idempotent).
+3. Anything under `migrations/` dated after `000_` — smaller one-off additive migrations, each independent and safe to run once.
