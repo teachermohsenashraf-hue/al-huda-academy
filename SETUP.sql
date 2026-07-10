@@ -1309,3 +1309,96 @@ with check (
     and (p.teacher_id = auth.uid() or exists (select 1 from profiles where id = auth.uid() and role = 'supervisor'))
   )
 );
+
+-- ============================================================
+-- مراجعة RLS شاملة على كل الجداول (٥٤ جدولاً) — اكتُشفت ٣ ثغرات حقيقية،
+-- كلها ناتجة من سياسات "قراءة مفتوحة" (authenticated, using(true)) أُضيفت
+-- في جولات سابقة لحل مشاكل عرض بيانات (مثل "لا أنظمة" عند المشرف)، وكانت
+-- بتلغي فعلياً منطق التقييد الدقيق الموجود في سياسات أخرى على نفس الجدول،
+-- لأن السياسات الـPERMISSIVE في Postgres تُجمع بـOR: تكفي واحدة "true"
+-- عشان تفتح الجدول بالكامل بغض النظر عن باقي السياسات الدقيقة.
+-- ------------------------------------------------------------
+
+-- ---------- ١) profiles: كانت "true" للجميع — تكشف تليفون/إيميل/دولة كل
+-- مستخدم (بما فيهم بيانات القُصّر) لأي حساب مسجّل دخول ----------
+drop policy if exists "profiles read" on profiles;
+create policy "profiles read" on profiles for select to authenticated using (
+  is_admin() or my_role() = any(array['supervisor','executive'])
+  or role = 'teacher'  -- دليل المعلمين يبقى مرئياً للجميع: مطلوب لصفحة اختيار المعلم وكروت الحلقات
+  or id = auth.uid()
+  or exists (
+    -- المعلم يشوف بروفايل ولي أمر/حساب طلابه هو فقط (مش أي طالب في المنصة)
+    -- وكذلك ولي الأمر/الطالب يشوفوا بروفايل بعض (الحساب المرتبط بيهم)
+    select 1 from students s
+    where (s.parent_id = profiles.id or s.login_id = profiles.id)
+      and (
+        s.parent_id = auth.uid() or s.login_id = auth.uid()
+        or s.chosen_teacher_id = auth.uid()
+        or exists (select 1 from groups g where g.id = s.group_id and g.teacher_id = auth.uid())
+      )
+  )
+);
+
+-- ---------- ٢) groups: كانت "true" للجميع — تكشف كل الحلقات الخاصة وربط
+-- معلم-طالب. السياسة "groups see" الموجودة أصلاً كافية ودقيقة، فمجرد حذف
+-- السياسة المفتوحة كفيل بإغلاق الثغرة بلا أي فقد وظيفي ----------
+drop policy if exists "groups read" on groups;
+
+-- ---------- ٣) خطط القرآن الشخصية لكل طالب: أربع سياسات "staff read true"
+-- كانت بتلغي التقييد الدقيق (qplans_teacher/qprog_teacher/قراءة الطالب
+-- والولي) — أي حساب مسجّل كان يقدر يشوف خطة/تقدّم/تقييم أي طالب في
+-- المنصة. السياسات الدقيقة الموجودة أصلاً (قبل هذا التعديل) تغطي كل
+-- الاستخدامات الشرعية (معلم/مشرف/إدارة/الطالب نفسه/وليّ أمره)، فحذف
+-- السياسات المفتوحة الأربعة هو الإصلاح الكامل والكافي ----------
+drop policy if exists "staff read quran_student_plans" on quran_student_plans;
+drop policy if exists "staff read quran_plan_wards" on quran_plan_wards;
+drop policy if exists "staff read quran_ward_progress" on quran_ward_progress;
+drop policy if exists "staff read quran_student_assessment" on quran_student_assessment;
+
+-- ---------- ٤) سجل تدقيق النظام: سجل تعديلات إدارية، الأصح يقتصر على
+-- admin/executive (متاح أصلاً عبر qaud_admin_all) بدل الجميع ----------
+drop policy if exists "staff read quran_system_audit" on quran_system_audit;
+
+-- ملاحظة: الجداول التالية أُبقيت على سياسة "true" الواسعة عمداً لأنها بيانات
+-- مناهج/كتالوج عامة غير شخصية (مثل كتالوج كورسات)، مش بيانات طالب فردية:
+-- quran_systems, quran_stations, quran_fortresses, quran_station_fortress_config,
+-- quran_plan_fortress_rates, programs, app_settings, content, teacher_slots.
+
+-- ---------- ٥) notifications: كان أي مستخدم مسجّل يقدر يُدرج إشعاراً
+-- لأي user_id بأي محتوى — باب انتحال شخصية/تصيّد داخل المنصة. نربط
+-- الإذن بوجود علاقة فعلية بين المُرسِل والمُستقبِل (نفس المحادثة، أو
+-- معلم↔طالبه/وليّ أمره) بدل فتحه بلا أي قيد ----------
+drop policy if exists "any authenticated can insert notifications" on notifications;
+drop policy if exists "notif insert scoped" on notifications;
+create policy "notif insert scoped" on notifications for insert to authenticated with check (
+  is_admin() or my_role() = any(array['supervisor','executive'])
+  or user_id = auth.uid()
+  or exists (
+    select 1 from chats c where auth.uid() = any(c.party_ids) and notifications.user_id = any(c.party_ids)
+  )
+  or exists (
+    select 1 from students s
+    where (s.login_id = notifications.user_id or s.parent_id = notifications.user_id)
+      and (
+        s.chosen_teacher_id = auth.uid()
+        or exists (select 1 from groups g where g.id = s.group_id and g.teacher_id = auth.uid())
+      )
+  )
+  or exists (
+    select 1 from students s
+    where (s.login_id = auth.uid() or s.parent_id = auth.uid())
+      and (
+        s.chosen_teacher_id = notifications.user_id
+        or exists (select 1 from groups g where g.id = s.group_id and g.teacher_id = notifications.user_id)
+      )
+  )
+);
+
+-- ---------- ٦) placement_tests: سياسة الإدراج كان فيها مخرج "auth.uid()
+-- IS NOT NULL" يسمح لأي مستخدم مسجّل بإضافة نتيجة اختبار تصنيف منسوبة
+-- لأي وليّ أمر — تكامل بيانات ضعيف. نربطها بنفس شرط "place see" ----------
+drop policy if exists "place new" on placement_tests;
+create policy "place new" on placement_tests for insert to public with check (
+  is_admin() or my_role() = any(array['supervisor','executive','teacher'])
+  or parent_id = auth.uid()
+);
