@@ -1468,3 +1468,181 @@ drop policy if exists "profiles admin all" on profiles;
 create policy "profiles admin all" on profiles for all to public
 using (is_admin() or my_role() = 'executive'::user_role)
 with check (is_admin() or my_role() = 'executive'::user_role);
+
+-- ============================================================
+-- نقل فصل الجنس من فلترة جافاسكريبت (filterByMyGender في الواجهة) إلى
+-- قاعدة البيانات نفسها. قبل كده: أي مشرف (supervisor) كانت سياسات RLS
+-- بتديه رؤية كاملة لكل الطلاب/الحلقات/المعلمين بغضّ النظر عن الجنس،
+-- وسياسة "فصل الجنسين" كانت بس فلتر في الواجهة (filterByMyGender) —
+-- يعني مشرف يفتح Console ويستدعي sb.from('students').select('*') مباشرة
+-- كان يشوف طلاب/معلمين الجنس التاني كمان، رغم إن الواجهة بتخفيهم عنه.
+-- المدير (admin) والتنفيذي (executive) يشوفوا الكل دايماً زي seesAllGenders()
+-- في الواجهة؛ المشرف فقط مقيّد بجنسه.
+-- ------------------------------------------------------------
+drop function if exists my_gender();
+create or replace function my_gender()
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select gender from profiles where id = auth.uid();
+$$;
+grant execute on function my_gender() to authenticated;
+
+-- ---------- students: رؤية/تعديل المشرف مقصورة على نفس جنسه (أو مفتوح الجنس) ----------
+drop policy if exists "students see" on students;
+create policy "students see" on students for select to public using (
+  is_admin()
+  or my_role() = 'executive'::user_role
+  or (my_role() = 'supervisor'::user_role and (gender is null or gender = my_gender()))
+  or parent_id = auth.uid()
+  or login_id = auth.uid()
+  or chosen_teacher_id = auth.uid()
+  or is_my_group(group_id)
+);
+
+drop policy if exists "students write" on students;
+create policy "students write" on students for all to public using (
+  is_admin()
+  or my_role() = 'executive'::user_role
+  or (my_role() = 'supervisor'::user_role and (gender is null or gender = my_gender()))
+  or parent_id = auth.uid()
+  or login_id = auth.uid()
+  or chosen_teacher_id = auth.uid()
+  or is_my_group(group_id)
+) with check (
+  is_admin()
+  or my_role() = 'executive'::user_role
+  or (my_role() = 'supervisor'::user_role and (gender is null or gender = my_gender()))
+  or parent_id = auth.uid()
+  or login_id = auth.uid()
+  or chosen_teacher_id = auth.uid()
+  or is_my_group(group_id)
+);
+
+-- ---------- groups: رؤية/تعديل المشرف مقصورة على حلقات معلمين من نفس جنسه ----------
+drop policy if exists "groups see" on groups;
+create policy "groups see" on groups for select to public using (
+  is_admin()
+  or my_role() = 'executive'::user_role
+  or (my_role() = 'supervisor'::user_role and (
+    teacher_id is null
+    or (select gender from profiles where id = groups.teacher_id) is null
+    or (select gender from profiles where id = groups.teacher_id) = my_gender()
+  ))
+  or teacher_id = auth.uid()
+  or (is_private and owns_private_group(student_id))
+  or my_student_in_group(id)
+);
+
+drop policy if exists "groups delete" on groups;
+create policy "groups delete" on groups for delete to public using (
+  is_admin()
+  or my_role() = 'executive'::user_role
+  or (my_role() = 'supervisor'::user_role and (
+    teacher_id is null
+    or (select gender from profiles where id = groups.teacher_id) is null
+    or (select gender from profiles where id = groups.teacher_id) = my_gender()
+  ))
+  or teacher_id = auth.uid()
+);
+
+drop policy if exists "groups insert" on groups;
+create policy "groups insert" on groups for insert to public with check (
+  is_admin()
+  or my_role() = 'executive'::user_role
+  or (my_role() = 'supervisor'::user_role and (
+    teacher_id is null
+    or (select gender from profiles where id = groups.teacher_id) is null
+    or (select gender from profiles where id = groups.teacher_id) = my_gender()
+  ))
+  or teacher_id = auth.uid()
+);
+
+drop policy if exists "groups update" on groups;
+create policy "groups update" on groups for update to public using (
+  is_admin()
+  or my_role() = 'executive'::user_role
+  or (my_role() = 'supervisor'::user_role and (
+    teacher_id is null
+    or (select gender from profiles where id = groups.teacher_id) is null
+    or (select gender from profiles where id = groups.teacher_id) = my_gender()
+  ))
+  or teacher_id = auth.uid()
+) with check (
+  is_admin()
+  or my_role() = 'executive'::user_role
+  or (my_role() = 'supervisor'::user_role and (
+    teacher_id is null
+    or (select gender from profiles where id = groups.teacher_id) is null
+    or (select gender from profiles where id = groups.teacher_id) = my_gender()
+  ))
+  or teacher_id = auth.uid()
+);
+
+drop policy if exists "groups teacher" on groups;
+create policy "groups teacher" on groups for update to public using (
+  teacher_id = auth.uid()
+  or is_admin()
+  or (my_role() = 'supervisor'::user_role and (
+    teacher_id is null
+    or (select gender from profiles where id = groups.teacher_id) is null
+    or (select gender from profiles where id = groups.teacher_id) = my_gender()
+  ))
+);
+
+-- ---------- profiles: دليل المعلمين يبقى مقصوراً على نفس جنس المشرف؛
+-- باقي الأدوار (أهل/طلاب يختارون معلماً) يفضل مفتوحاً كما هو ----------
+drop policy if exists "profiles read" on profiles;
+create policy "profiles read" on profiles for select to authenticated using (
+  is_admin()
+  or my_role() = 'executive'::user_role
+  or (my_role() = 'supervisor'::user_role and (role <> 'teacher'::user_role or gender is null or gender = my_gender()))
+  or (role = 'teacher'::user_role and my_role() <> 'supervisor'::user_role)
+  or id = auth.uid()
+  or exists (
+    select 1 from students s
+    where (s.parent_id = profiles.id or s.login_id = profiles.id)
+      and (
+        s.parent_id = auth.uid() or s.login_id = auth.uid()
+        or s.chosen_teacher_id = auth.uid()
+        or exists (select 1 from groups g where g.id = s.group_id and g.teacher_id = auth.uid())
+      )
+  )
+);
+
+-- ---------- join_requests: طلبات مشرف مقصورة على طلاب من نفس جنسه (أو
+-- طلب لسه بلا طالب مرتبط — قبل التسجيل الفعلي) ----------
+drop policy if exists "jr_see" on join_requests;
+create policy "jr_see" on join_requests for select to public using (
+  is_admin()
+  or my_role() = 'executive'::user_role
+  or (my_role() = 'supervisor'::user_role and (
+    student_id is null
+    or exists (select 1 from students s where s.id = join_requests.student_id and (s.gender is null or s.gender = my_gender()))
+  ))
+  or applicant_id = auth.uid()
+  or parent_id = auth.uid()
+  or exists (select 1 from students s where s.id = join_requests.student_id and s.chosen_teacher_id = auth.uid())
+);
+
+drop policy if exists "jr_write" on join_requests;
+create policy "jr_write" on join_requests for all to public using (
+  is_admin()
+  or (my_role() = 'supervisor'::user_role and (
+    student_id is null
+    or exists (select 1 from students s where s.id = join_requests.student_id and (s.gender is null or s.gender = my_gender()))
+  ))
+  or applicant_id = auth.uid()
+  or parent_id = auth.uid()
+) with check (
+  is_admin()
+  or (my_role() = 'supervisor'::user_role and (
+    student_id is null
+    or exists (select 1 from students s where s.id = join_requests.student_id and (s.gender is null or s.gender = my_gender()))
+  ))
+  or applicant_id = auth.uid()
+  or parent_id = auth.uid()
+);
