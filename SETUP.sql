@@ -165,6 +165,11 @@ declare
   new_user_id uuid;
   existing_id uuid;
 begin
+  -- قفل استشاري (advisory lock) مفتاحه البريد نفسه: يمنع تنفيذ طلبين متزامنين
+  -- بنفس البريد في نفس اللحظة من عبور فحص "البريد غير مستخدم" معاً قبل ما
+  -- يكتب أي منهما فعلياً (Race Condition) — القفل يُفكّ تلقائياً آخر المعاملة.
+  perform pg_advisory_xact_lock(hashtext(lower(p_email)));
+
   select id into existing_id from auth.users where email = p_email;
   if existing_id is not null then
     return jsonb_build_object('ok', false, 'error', 'هذا البريد مستخدم بالفعل');
@@ -203,6 +208,11 @@ begin
   end if;
 
   return jsonb_build_object('ok', true, 'user_id', new_user_id);
+exception
+  -- خط دفاع أخير: لو نجح طلب متزامن آخر بنفس البريد رغم القفل (نادر جداً)،
+  -- نرجع رسالة عربية واضحة بدل انهيار الدالة بخطأ SQL خام غير مفهوم للمستخدم
+  when unique_violation then
+    return jsonb_build_object('ok', false, 'error', 'هذا البريد مستخدم بالفعل');
 end;
 $$;
 grant execute on function create_linked_account(text, text, text, text, bigint) to authenticated;
