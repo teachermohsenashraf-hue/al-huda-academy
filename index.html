@@ -352,7 +352,17 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 .toast.show{transform:translateX(50%) translateY(0);opacity:1}
 
 @media(max-width:1080px){.stats{grid-template-columns:1fr 1fr}.grid2,.grid2.even{grid-template-columns:1fr}.grid3{grid-template-columns:1fr}.roles-pick{grid-template-columns:repeat(2,1fr)}.chat-wrap{grid-template-columns:1fr}.chat-list{display:none}}
-@media(max-width:860px){.side{transform:translateX(100%)}.side.open{transform:translateX(0)}.main{margin-inline-start:0}.topbar .mtoggle{display:block}.content{padding:20px 16px 60px}.tasks{grid-template-columns:1fr}}
+@media(max-width:860px){
+  .side{transform:translateX(100%)}
+  .side.open{transform:translateX(0)}
+  .main{margin-inline-start:0}
+  .topbar .mtoggle{display:block}
+  .content{padding:20px 16px 60px}
+  .tasks{grid-template-columns:1fr}
+  .side-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:49;opacity:0;transition:opacity .3s}
+  .side.open ~ .side-backdrop,.side-backdrop.show{display:block;opacity:1}
+}
+.side-backdrop{display:none}
 @media(max-width:540px){.roles-pick{grid-template-columns:1fr}}
 
 /* ============ Landing + Auth + Setup ============ */
@@ -1117,6 +1127,14 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 .qfort .qftoggle::after{content:"";position:absolute;top:3px;right:3px;width:18px;height:18px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 2px 5px rgba(0,0,0,0.15)}
 .qfort.on .qftoggle{background:var(--emerald)}
 .qfort.on .qftoggle::after{right:21px}
+@media(max-width:600px){
+  .qfort{flex-wrap:wrap}
+  .qfort .qfbody{flex-basis:100%;order:1}
+  .qfort .qfic{order:0}
+  .qfort .qftoggle{order:2;margin-inline-start:auto}
+  .qfort .qfctl{flex-basis:100%;order:3;width:100%}
+  .qfort .qfctl select{flex:1;min-width:0}
+}
 
 .qsticky{position:sticky;bottom:0;background:linear-gradient(180deg,transparent,#fff 30%);padding:18px 0 4px;margin-top:18px;display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
 
@@ -1369,6 +1387,7 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 <div id="shell" class="hidden">
   <div class="app">
     <aside class="side" id="sidebar"></aside>
+    <div class="side-backdrop" id="sideBackdrop" onclick="side_toggleMobile()"></div>
     <div class="main">
       <div class="topbar">
         <div style="display:flex;align-items:center;gap:12px"><button class="mtoggle" onclick="side_toggleMobile()">☰</button><div class="hello"><h2 id="topTitle">أكاديمية الهدى</h2><p id="topSub"></p></div></div>
@@ -2146,6 +2165,14 @@ async function submitReceipt(studentId, jrId, pathId, subsidized){
   if(error){ $('#rcBtn').disabled=false; alert('تعذّر: '+error.message); return; }
   // التجديد لا يُغيّر حالة الطالب (يبقى active)؛ الالتحاق الأول ينتظر التأكيد
   if(!isRenewal){ await sb.from('students').update({ enrollment_status:'awaiting_confirm' }).eq('id',studentId); }
+  // تنبيه فوري للمشرفين (من نفس جنس الطالب) بوصول طلب دفع جديد يحتاج تأكيد —
+  // بدونه كان المشرف ملوش أي طريقة يعرف بيها إن فيه إيصال جديد غير الدخول العشوائي للصفحة
+  try{
+    const { data:st }=await sb.from('students').select('gender,full_name').eq('id',studentId).maybeSingle();
+    const { data:sups }=await sb.from('profiles').select('id,gender').eq('role','supervisor');
+    const target=(sups||[]).filter(sv=>!st?.gender||!sv.gender||sv.gender===st.gender);
+    for(const sv of target){ await pushNotif(sv.id, '💰 إيصال دفع جديد', `${st?esc(st.full_name):'طالب'} أرسل إيصال دفع بانتظار تأكيدك.`, 'payment', studentId); }
+  }catch(e){}
   RECEIPT_DATA=null; closeModal();
   $('#modalHost').innerHTML=`<div class="modal-bg show"><div class="modal" style="text-align:center">
     <div class="empty-ic">${mi('mail')}</div>
@@ -2914,9 +2941,9 @@ PAGES.parent_mydata=async function(){ setTop('بياناتي','بيانات حس
     ${myDataRow('عدد الأبناء المسجّلين',ar((kids||[]).length))}
   </div>`+myDataPasswordBlock();
 };
-PAGES.student_challenge=async function(){ setTop('تحدي رجل الأسبوع',''); const s=await myStudentRow(); return pageHead('تحدي رجل الأسبوع','عادات يومية')+`<div class="card"><div id="chalBox">${await challengeBox(s.id)}</div></div>`; };
-PAGES.student_worship=async function(){ setTop('متابعة العبادات',''); const s=await myStudentRow(); return pageHead('متابعة العبادات','أسبوعك مع العبادة')+`<div class="card">${await worshipTable(s.id)}</div>`; };
-PAGES.student_rank=async function(){ setTop('الترتيب','تنافس شريف'); const s=await myStudentRow(); return pageHead('ترتيب الحلقة','')+`<div class="card">${await leaderboard(s.group_id,s.id)}</div>`; };
+PAGES.student_challenge=async function(){ setTop('تحدي رجل الأسبوع',''); const s=await myStudentRow(); if(!s)return noStudentMsg(); if(s.enrollment_status!=='active')return enrollGateMsg(s.enrollment_status); return pageHead('تحدي رجل الأسبوع','عادات يومية')+`<div class="card"><div id="chalBox">${await challengeBox(s.id)}</div></div>`; };
+PAGES.student_worship=async function(){ setTop('متابعة العبادات',''); const s=await myStudentRow(); if(!s)return noStudentMsg(); if(s.enrollment_status!=='active')return enrollGateMsg(s.enrollment_status); return pageHead('متابعة العبادات','أسبوعك مع العبادة')+`<div class="card">${await worshipTable(s.id)}</div>`; };
+PAGES.student_rank=async function(){ setTop('الترتيب','تنافس شريف'); const s=await myStudentRow(); if(!s)return noStudentMsg(); if(s.enrollment_status!=='active')return enrollGateMsg(s.enrollment_status); return pageHead('ترتيب الحلقة','')+`<div class="card">${await leaderboard(s.group_id,s.id)}</div>`; };
 // حفظ حقل الحفظ اليومي (upsert) — يبقى مستخدماً من صفحة متابعة ولي الأمر
 let HIFZ_SAVE_TIMER={};
 async function saveHifzField(studentId, field, value){
@@ -3101,6 +3128,8 @@ PAGES.student_renewal=async function(){ setTop('تجديد اشتراكي','');
 
 PAGES.student_listen=async function(){ setTop('ورد السماع','وجهان يومياً — استمع وتدبّر');
   const s=await myStudentRow();
+  if(!s) return noStudentMsg();
+  if(s.enrollment_status!=='active') return enrollGateMsg(s.enrollment_status);
   // نجلب أوراد السماع: العامة + الخاصة بحلقته
   let q=sb.from('content').select('*').eq('type','سماع').order('id',{ascending:false});
   const { data:all }=await q;
@@ -3150,6 +3179,7 @@ async function myChildren(){ const { data, error }=await sb.from('students').sel
 PAGES.parent_paths=async function(){ return PAGES.student_paths(); };
 PAGES.parent_roadmap=async function(){
   const k=await currentChild(); if(!k) return noChildMsg();
+  if(k.enrollment_status!=='active') return pageHead('خطة المسار','')+enrollGateMsg(k.enrollment_status);
   if(!k.quran_path) return pageHead('خطة المسار','')+`<div class="card" style="text-align:center;padding:36px"><div class="empty-ic">${mi('map')}</div><h3 style="color:var(--navy-deep)">لم يُختر مسار لابنك بعد</h3></div>`;
   const rm=ROADMAPS[k.quran_path]; if(!rm) return '<div class="card">لا توجد خطة.</div>';
   setTop('خطة مسار '+k.full_name.split(' ')[0],'خطة متوقعة لسير المسار');
@@ -3163,6 +3193,7 @@ async function currentChild(){ const kids=await myChildren(); if(!SESSION.curren
 PAGES.parent_hifztrack=async function(){ setTop('متابعة الحفظ اليومي','تابع حصون أبنائك يومياً');
   const kids=await myChildren(); if(!kids.length) return noChildMsg();
   const k=await currentChild();
+  if(k.enrollment_status!=='active') return enrollGateMsg(k.enrollment_status);
   const today=new Date().toISOString().slice(0,10);
   const todayLabel=new Date().toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long'});
   let log={};
@@ -3686,7 +3717,10 @@ function enrollGateMsg(status){
     awaiting_confirm:['mail','بانتظار تأكيد المشرف','استلمنا إيصالك، وسيؤكّده المشرف قريباً لتختار معلمك.'],
   };
   const m=map[status]||map.pending;
-  return `<div class="card" style="text-align:center;padding:40px"><div class="empty-ic">${mi(m[0])}</div><h3 style="color:var(--navy-deep);margin-bottom:8px">${m[1]}</h3><p style="color:var(--muted);font-size:14px;line-height:1.8">${m[2]}</p>${status==='pending'?'<button class="btn" style="margin-top:16px" onclick="location.href=\'landing.html#systems\'">الصفحة الرئيسية</button>':''}</div>`;
+  const homeBtn=status==='pending'
+    ?'<button class="btn" style="margin-top:16px" onclick="location.href=\'landing.html#systems\'">'+mi('home')+' الصفحة الرئيسية</button>'
+    :'<button class="btn ghost" style="margin-top:16px" onclick="navigate(\'dash\')">'+mi('home')+' الصفحة الرئيسية</button>';
+  return `<div class="card" style="text-align:center;padding:40px"><div class="empty-ic">${mi(m[0])}</div><h3 style="color:var(--navy-deep);margin-bottom:8px">${m[1]}</h3><p style="color:var(--muted);font-size:14px;line-height:1.8">${m[2]}</p>${homeBtn}</div>`;
 }
 async function alreadyChosenMsg(s){
   const { data:t }=await sb.from('profiles').select('id,full_name,specialty').eq('id',s.chosen_teacher_id).single();
@@ -3881,7 +3915,9 @@ PAGES.teacher_dash=async function(){ const nm=ME.full_name.split(' '); setTop('�
     lowAtt=s.filter(x=>(x.attendance||100)<70).length;
   }
   return pageHead('لوحتي','نظرة على حلقاتك')+`<div class="stats">${statCard(mi('users'),'e',ar(total),'طلابي')}${statCard(mi('books'),'n',ar(gs.length),'مجموعاتي')}${statCard(mi('check'),'e',pct(avgMastery),'متوسط الإتقان')}${statCard(mi('hourglass'),'g',ar(lowAtt),'حضور منخفض',lowAtt?'warn':null,'warn')}</div>
-  <div class="section-label"><span class="sl-t">👥 مجموعاتي</span><span class="sl-line"></span></div><div class="list1col">${gs.length?await groupCards(gs):'<p style="color:var(--muted)">لا حلقات مُسندة إليك بعد. يسندها المدير.</p>'}</div>`;
+  <div class="section-label"><span class="sl-t">👥 مجموعاتي</span><span class="sl-line"></span></div>
+  ${gs.length>4?`<div class="field" style="max-width:360px;margin-bottom:12px"><input id="myGroupsSearch" placeholder="🔍 دوّر على حلقة أو طالب..." oninput="filterTeacherHalqat(this.value,'myGroupsList')"></div>`:''}
+  <div class="list1col" id="myGroupsList">${gs.length?await groupCards(gs):'<p style="color:var(--muted)">لا حلقات مُسندة إليك بعد. يسندها المدير.</p>'}</div>`;
 };
 async function groupCards(gs){ let h='';
   // استعلام واحد مجمّع بدل استعلام منفصل لكل حلقة (N+1) — نجيب طلاب كل الحلقات مرة واحدة
@@ -3929,9 +3965,9 @@ PAGES.teacher_groups=async function(){ setTop('حلقاتي','');
   `<div class="field" style="max-width:360px;margin-bottom:16px"><input id="teacherHalqaSearch" placeholder="🔍 دوّر على حلقة طالب..." oninput="filterTeacherHalqat(this.value)"></div>
   <div id="teacherHalqatList">${cardsHtml||'<p style="color:var(--muted)">لا حلقات مُسندة إليك بعد. يسندها المدير.</p>'}</div>`;
 };
-function filterTeacherHalqat(q){
+function filterTeacherHalqat(q, containerId){
   const nq=(q||'').trim();
-  document.querySelectorAll('#teacherHalqatList [data-search]').forEach(el=>{
+  document.querySelectorAll('#'+(containerId||'teacherHalqatList')+' [data-search]').forEach(el=>{
     el.style.display = (!nq || el.dataset.search.includes(nq)) ? '' : 'none';
   });
 }
@@ -4326,8 +4362,12 @@ async function confirmPay(payId, studentId, pathId){
   // نقطة البداية: من نهاية الاشتراك الحالي إن لم ينتهِ (بنفس توقيته)، وإلا من الآن بالضبط
   let base=new Date();
   if(isRenewal && st.sub_end && new Date(st.sub_end)>base) base=new Date(st.sub_end);
-  const nextEndIso=new Date(base.getTime()+30*86400000).toISOString();
-  await sb.from('payments').update({ status:'paid', paid_at:today, confirmed_by:ME.id }).eq('id',payId);
+  // شهر ميلادي حقيقي (نفس اليوم في الشهر التالي) بدل +30 يوم ثابتة،
+  // اللي كانت بتختصر الشهور الطويلة (31 يوم) وتُطيل القصيرة (28/29 يوم).
+  const nextEnd=new Date(base.getTime());
+  nextEnd.setMonth(nextEnd.getMonth()+1);
+  const nextEndIso=nextEnd.toISOString();
+  await sb.from('payments').update({ status:'paid', paid_at:nowIso, confirmed_by:ME.id }).eq('id',payId);
   await sb.from('students').update({ enrollment_status:'active', sub_start:isRenewal?(st.sub_end||nowIso):nowIso, sub_end:nextEndIso }).eq('id',studentId);
   // إشعار فوري لصاحب الحساب (الطالب أو ولي أمره) بالتفعيل، مع توجيهه لاختيار المعلم
   try{
@@ -4606,8 +4646,9 @@ PAGES.admin_analytics=async function(){ setTop('التحليلات','مؤشرا�
   const avgAtt=Math.round(s.reduce((a,x)=>a+(x.attendance||0),0)/tot);
   const avgWorship=Math.round(s.reduce((a,x)=>a+(x.worship||0),0)/tot);
   const totalPages=s.reduce((a,x)=>a+(x.pages||0),0);
-  // أعلى ٥ طلاب بالنقاط
-  const top=[...s].sort((a,b)=>(b.points||0)-(a.points||0)).slice(0,5);
+  // أعلى ٥ طلاب بالنقاط — لكل مسار على حدة (مش على مستوى المنصة كلها)
+  const topByPath={};
+  QURAN_PATHS.forEach(p=>{ topByPath[p.id]=s.filter(x=>x.quran_path===p.id).sort((a,b)=>(b.points||0)-(a.points||0)).slice(0,5); });
   // توزيع الطلاب النشطين حسب دولة الإقامة + إجمالي التحصيل النقدي بكل عملة
   const activeForGeo=s.filter(x=>x.enrollment_status==='active');
   const geoMap=await residenceMap(activeForGeo);
@@ -4652,7 +4693,7 @@ PAGES.admin_analytics=async function(){ setTop('التحليلات','مؤشرا�
   </div>
   <div class="grid2">
     <div class="card"><div class="ch"><h3>متوسط الإتقان حسب الحلقة</h3></div>${g.length?`<div class="rbars">${g.map(gr=>{ const liveAvg=groupLiveMastery(gr.id); return `<div class="rbar"><div class="l"><span>${gr.name}</span><b>${pct(liveAvg)}</b></div><div class="rtrack"><div class="rfill ${liveAvg>=85?'e':liveAvg>=70?'g':'r'}" style="width:${liveAvg}%"></div></div></div>`; }).join('')}</div>`:'<p style="color:var(--muted)">لا حلقات بعد.</p>'}</div>
-    <div class="card"><div class="ch"><h3>${mi('medal')} أعلى ٥ طلاب</h3></div>${top.length?top.map((st,i)=>`<div class="lbrow"><div class="rank ${i===0?'gold':''}">${ar(i+1)}</div><div class="lav">${st.initials||'؟'}</div><div class="ln">${esc(st.full_name)}</div><div class="lp">${ar(st.points||0)}</div></div>`).join(''):'<p style="color:var(--muted)">لا طلاب بعد.</p>'}</div>
+    <div class="card"><div class="ch"><h3>${mi('medal')} أعلى ٥ طلاب لكل مسار</h3></div>${QURAN_PATHS.map(p=>{ const top=topByPath[p.id]||[]; if(!top.length) return ''; return `<div style="margin-bottom:14px"><div style="font-size:13px;font-weight:700;color:var(--navy-deep);margin-bottom:6px">${p.icon} ${esc(p.name)}</div>${top.map((st,i)=>`<div class="lbrow"><div class="rank ${i===0?'gold':''}">${ar(i+1)}</div><div class="lav">${st.initials||'؟'}</div><div class="ln">${esc(st.full_name)}</div><div class="lp">${ar(st.points||0)}</div></div>`).join('')}</div>`; }).join('')||'<p style="color:var(--muted)">لا طلاب بعد.</p>'}</div>
   </div>`;
 };
 let _usersGeoMap={};
@@ -5151,6 +5192,8 @@ async function newChatModal(){
     // المعلم في الرسائل العامة يكلّم الإشراف والإدارة فقط
     // (التواصل مع الطلاب وأولياء الأمور يكون من داخل الحلقة الخاصة)
     await addSupervisors();
+    const { data:admins }=await sb.from('profiles').select('id,full_name,role').in('role',['admin','executive']);
+    (admins||[]).forEach(p=>people.push({id:p.id,name:p.full_name+' ('+roleAr(p.role)+')'}));
   } else if(ME.role==='parent'){
     // معلمو أبنائه فقط + المشرف
     const { data:kids }=await sb.from('students').select('group_id, chosen_teacher_id, full_name, g:groups!students_group_id_fkey(teacher_id, teacher:profiles!groups_teacher_id_fkey(id,full_name))').eq('parent_id',ME.id);
@@ -5220,6 +5263,7 @@ async function startChat(){
 }
 PAGES.student_homework=async function(){
   const s=await myStudentRow(); if(!s) return noStudentMsg();
+  if(s.enrollment_status!=='active') return enrollGateMsg(s.enrollment_status);
   if(!s.group_id){ setTop('واجباتي','واجبات حلقتك'); return `<div class="card" style="text-align:center;padding:36px"><div class="empty-ic">${mi('pencil')}</div><h3 style="color:var(--navy-deep)">لا حلقة بعد</h3><p style="color:var(--muted)">بعد إنشاء حلقتك الخاصة، ستظهر واجباتك هنا.</p></div>`; }
   // نوجّه للحلقة على تبويب الواجبات
   SESSION._activeHalqa=s.group_id;
@@ -5315,10 +5359,11 @@ function privSessionCard(s, isTeacher, rated){
 // ===== صفحة "حلقتي" عند الطالب =====
 PAGES.student_myhalqa=async function(){ setTop('حلقتي','حلقتك الخاصة مع معلمك');
   const s=await myStudentRow(); if(!s) return noStudentMsg();
+  if(s.enrollment_status!=='active') return enrollGateMsg(s.enrollment_status);
   if(isSubExpired(s)) return subExpiredGate(s, false);
-  if(!s.group_id) return privNoHalqa();
+  if(!s.group_id) return await privNoHalqa(s);
   const { data:g }=await sb.from('groups').select('*, teacher:profiles!groups_teacher_id_fkey(id,full_name,initials)').eq('id',s.group_id).single();
-  if(!g||!g.is_private) return privNoHalqa();
+  if(!g||!g.is_private) return await privNoHalqa(s);
   return await renderHalqaPage(g, s, false);
 };
 // ===== صفحة "حلقة الأبناء" عند ولي الأمر =====
@@ -5326,14 +5371,32 @@ PAGES.parent_myhalqa=async function(){ setTop('حلقة الأبناء','متا�
   const kids=await myChildren(); if(!kids.length) return noChildMsg();
   const k=await currentChild();
   let head=`<div style="display:flex;justify-content:flex-end;margin-bottom:16px">${kidSwitch(kids)}</div>`;
-  if(!k.group_id) return head+privNoHalqa();
+  if(k.enrollment_status!=='active') return head+enrollGateMsg(k.enrollment_status);
+  if(!k.group_id) return head+await privNoHalqa(k);
   const { data:g }=await sb.from('groups').select('*, teacher:profiles!groups_teacher_id_fkey(id,full_name,initials)').eq('id',k.group_id).single();
-  if(!g||!g.is_private) return head+privNoHalqa();
+  if(!g||!g.is_private) return head+await privNoHalqa(k);
   return head+await renderHalqaPage(g, k, false);
 };
-function privNoHalqa(){
+// حالتان بعد تفعيل الاشتراك وقبل جاهزية الحلقة: (1) لسه ما اختارش معلماً، (2) اختار معلماً لكن حلقته لسه ما اتنشأتش
+async function privNoHalqa(s){
   const needsTeacher = ME && ME.role==='student';
+  if(s && s.chosen_teacher_id){
+    const { data:t }=await sb.from('profiles').select('full_name').eq('id',s.chosen_teacher_id).maybeSingle();
+    return `<div class="card" style="text-align:center;padding:40px"><div class="empty-ic">${mi('mosque')}</div><h3 style="color:var(--navy-deep);margin-bottom:8px">معلمك سيتواصل معك قريباً</h3><p style="color:var(--muted);font-size:14px;line-height:1.8">اخترت ${t?esc(t.full_name):'معلمك'} بالفعل، وجاري إنشاء حلقتك الخاصة. لو تأخر التواصل، سرّع الأمر عبر واتساب الإدارة.</p><a class="btn" style="margin-top:16px;background:#25D366;color:#fff" href="https://wa.me/${WHATSAPP}" target="_blank" rel="noopener">${mi('chat')} تواصل معنا واتساب</a></div>`;
+  }
   return `<div class="card" style="text-align:center;padding:40px"><div class="empty-ic">${mi('mosque')}</div><h3 style="color:var(--navy-deep);margin-bottom:8px">لم تبدأ حلقتك الخاصة بعد</h3><p style="color:var(--muted);font-size:14px;line-height:1.8">${needsTeacher?'اشتراكك مفعّل، وباقي خطوة: اختر معلمك الآن ليضع لك خطتك ويبدأ التواصل معك على مواعيد حلقتك.':'بعد اختيارك معلماً والتواصل معه على المواعيد، سينشئ حلقتك الخاصة وتظهر هنا بكل تفاصيلها: المحادثة، الحصص، والتقارير.'}</p>${needsTeacher?`<button class="btn" style="margin-top:16px" onclick="navigate('choose')">${mi('chooseTeacher')} اختر معلمك</button>`:''}</div>`;
+}
+// حالة "لا توجد خطة قرآنية بعد" — تُستخدم في تقريري القرآني/ورد اليوم/خطتي الكاملة
+// وتتفرّع حسب مرحلة الطالب الحقيقية: لسه ما اختارش معلم / اختار معلم بس الحلقة لسه / الحلقة جاهزة بس المعلم لسه ما عملش الخطة
+async function noPlanYetCard(s){
+  if(!s.chosen_teacher_id){
+    return `<div class="qnoplan"><div class="nei">🕋</div><h3>لا توجد خطة بعد</h3><p>سينشئ معلمك خطتك بعد اختيارك له — اختر معلمك الآن لتبدأ.</p><button class="btn" style="margin-top:14px" onclick="navigate('choose')">${mi('chooseTeacher')} اختر معلمك</button></div>`;
+  }
+  const { data:t }=await sb.from('profiles').select('id,full_name').eq('id',s.chosen_teacher_id).maybeSingle();
+  if(!s.group_id){
+    return `<div class="qnoplan"><div class="nei">🕋</div><h3>معلمك سيتواصل معك قريباً</h3><p>اخترت ${t?esc(t.full_name):'معلمك'} بالفعل، وجاري إنشاء حلقتك الخاصة قبل وضع خطتك.</p><a class="btn" style="margin-top:14px;background:#25D366;color:#fff" href="https://wa.me/${WHATSAPP}" target="_blank" rel="noopener">${mi('chat')} تواصل معنا واتساب</a></div>`;
+  }
+  return `<div class="qnoplan"><div class="nei">🕋</div><h3>تواصل مع معلمك ${t?esc(t.full_name):''}</h3><p>حلقتك جاهزة، وباقي إن معلمك ينشئ خطتك القرآنية حتى تظهر لك هنا.</p>${t?`<button class="btn" style="margin-top:14px" onclick="startChatWith('${t.id}','${escJs(t.full_name)}')">${mi('chat')} محادثة معلمي</button>`:''}</div>`;
 }
 // عرض صفحة الحلقة المشتركة
 async function renderHalqaPage(g, student, isTeacher){
@@ -5432,6 +5495,9 @@ async function halqaReports(g, student, ratedIds, sessions){
   const since=new Date(Date.now()-6*86400000).toISOString().slice(0,10);
   const { data:hifz }=await sb.from('daily_hifz').select('*').eq('student_id',student.id).gte('date',since).order('date',{ascending:false});
   const hifzDays=hifz||[];
+  // هل عنده أي سجل حصون قبل كده أصلاً؟ (لو لأ، فالمشكلة إنه لسه ما بدأش، مش إنه مقصّر في آخر ٧ أيام)
+  let hasAnyHifzEver=hifzDays.length>0;
+  if(!hasAnyHifzEver){ const { count }=await sb.from('daily_hifz').select('id',{count:'exact',head:true}).eq('student_id',student.id); hasAnyHifzEver=!!count; }
   // متوسطات التقييمات
   const scoreMap={excellent:3,good:2,weak:1,done:3,partial:2,none:1,present:3,late:2,absent:1};
   const avg=(field)=>{ const vals=r.map(x=>scoreMap[x[field]]).filter(Boolean); return vals.length?(vals.reduce((a,b)=>a+b,0)/vals.length):0; };
@@ -5458,7 +5524,7 @@ async function halqaReports(g, student, ratedIds, sessions){
       return `<tr><td>${new Date(d.date).toLocaleDateString('ar-EG',{weekday:'short',day:'numeric'})}</td><td>${ic(d.new_hifz_done)}</td><td>${ic(d.review_near_done)}</td><td>${ic(d.daily_read_done)}</td><td>${ic(d.review_far_done)}</td><td>${ic(d.listening_done)}</td><td><span class="chip ${done===5?'g':done>=3?'gold':'r'}">${ar(done)}/٥</span></td></tr>`;
     }).join('')}</tbody></table></div>
     ${hifzDays.some(d=>d.general_note)?`<div style="margin-top:12px;padding:12px;background:var(--cream);border-radius:10px;font-size:13px"><b>📝 ملاحظات الطالب:</b><br>${hifzDays.filter(d=>d.general_note).map(d=>`«${esc(d.general_note)}» <span style="color:var(--muted);font-size:11px">(${new Date(d.date).toLocaleDateString('ar-EG')})</span>`).join('<br>')}</div>`:''}`
-    :'<p style="color:var(--muted);text-align:center;padding:16px">لم يسجّل الطالب حصونه الخمسة في آخر ٧ أيام بعد.</p>'}
+    :`<p style="color:var(--muted);text-align:center;padding:16px">${hasAnyHifzEver?'لم يسجّل الطالب حصونه الخمسة في آخر ٧ أيام.':'لا توجد بيانات بعد — لم يبدأ الطالب تسجيل حصونه اليومية.'}</p>`}
   </div>
   ${r.length?`<div class="card" style="margin-bottom:16px"><div class="ch"><h3>متوسط الأداء في الحصص</h3></div><div class="rbars">
     <div class="rbar"><div class="l"><span>الحفظ</span><b>${pct(pctOf(avg('memorization')))}</b></div><div class="rtrack"><div class="rfill e" style="width:${pctOf(avg('memorization'))}%"></div></div></div>
@@ -6189,6 +6255,7 @@ function sessionCard(s,canManage){
 PAGES.student_sessions = async function(){
   setTop('حصصي المباشرة','جدولك القادم');
   const s=await myStudentRow(); if(!s) return noStudentMsg();
+  if(s.enrollment_status!=='active') return enrollGateMsg(s.enrollment_status);
   const { data:ses, error }=await sb.from('sessions').select('*').eq('group_id',s.group_id).order('starts_at');
   if(error) return pageHead('حصصي المباشرة','')+loadErrorCard(error);
   return pageHead('حصصي المباشرة','حلقتك وروابط الدخول')+
@@ -6197,6 +6264,7 @@ PAGES.student_sessions = async function(){
 PAGES.parent_sessions = async function(){
   setTop('حصص الأبناء','مواعيد وروابط');
   const kids=await myChildren(); if(!kids.length) return noChildMsg(); const k=await currentChild();
+  if(k.enrollment_status!=='active') return enrollGateMsg(k.enrollment_status);
   const { data:ses, error }=await sb.from('sessions').select('*').eq('group_id',k.group_id).order('starts_at');
   if(error) return pageHead('حصص الأبناء','')+loadErrorCard(error);
   return `<div style="display:flex;justify-content:flex-end;margin-bottom:16px">${kidSwitch(kids)}</div>`+
@@ -7303,6 +7371,10 @@ function snapAyahsForPages(surahNo, targetPages){
   return Math.max(1, Math.round(targetPages*density));
 }
 
+// نطاق الآيات/الصفحات (زي "١ → ٧") لازم يتعزل كوحدة LTR مستقلة (Unicode Isolate) قبل
+// إدراجه جوه جملة عربية RTL — من غيرها، خوارزمية bidi في المتصفح بتقلب ترتيب الرقمين
+// والسهم بصريًا فتظهر النطاقات معكوسة (الكبير قبل الصغير) في العرض والطباعة/PDF.
+function ltrRange(from, to){ return '⁦'+from+' → '+to+'⁩'; }
 /* ===== محرك التوليد ===== */
 async function generatePlanSchedule(planId){
   // 1) Load plan + assessment + system + stations + fortress configs
@@ -7312,6 +7384,12 @@ async function generatePlanSchedule(planId){
   const { data: forts } = await sb.from('quran_fortresses').select('*').eq('system_id',plan.system_id).eq('is_enabled',true).order('order_index');
   const { data: stations } = await sb.from('quran_stations').select('*').eq('system_id',plan.system_id).order('order_index');
   if(!forts || !forts.length){ throw new Error('النظام لا يحوي حصوناً مفعّلة'); }
+  const { data: sysRow } = await sb.from('quran_systems').select('path_key').eq('id',plan.system_id).maybeSingle();
+  // ملحوظة جوهرية جداً: ترتيب الحفظ الفعلي في كل المسارات (ما عدا الزهراوين) يكون
+  // عكسياً — يبدأ الطالب بسورة الناس ويرجع للخلف حتى الفاتحة (جزء عمّ = آخر جزء في
+  // المصحف لكنه أول ما يُحفظ بهذا الترتيب). الزهراوين (البقرة وآل عمران) وحدهما
+  // بترتيبهما الطبيعي (تصاعدي) لأنهما ليسا جزءاً من تسلسل "من آخر القرآن للأول".
+  const isReversedOrder = (sysRow?.path_key||'') !== 'zahrawan';
 
   // pick first station (or current_station_id)
   const station = stations.find(s=>s.id===plan.current_station_id) || stations[0];
@@ -7326,7 +7404,9 @@ async function generatePlanSchedule(planId){
   });
 
   // 2) Setup cursors from assessment
-  let curSurah = (assess && assess.current_surah_no) || 78; // النبأ default
+  // الافتراضي بدون تقييم مسبق: يبدأ من سورة الناس (١١٤) للمسارات العكسية (وهي كل
+  // المسارات ما عدا الزهراوين)، أو من البقرة (٢) للزهراوين بترتيبهما الطبيعي
+  let curSurah = (assess && assess.current_surah_no) || (isReversedOrder ? 114 : 2);
   let curAyah  = (assess && assess.current_ayah_no) || 0;
   let curRead  = (assess && assess.current_read_page) || 1;
   let curLisn  = (assess && assess.current_listen_page) || 1;
@@ -7338,14 +7418,14 @@ async function generatePlanSchedule(planId){
   const startDate = new Date(plan.start_date);
   const studyDays = plan.study_days||[1,2,3,4,5];
   const restDays  = plan.rest_days ||[6,7];
-  const days = parseInt(station.expected_duration_days)||90;
-
-  // 4) Generate wards array
-  const wards = [];
-  let dayIdx = 0;
-  let dt = new Date(startDate);
-  let studyDayCount = 0;
-  const maxIter = days + 60; // safety
+  const configuredDays = parseInt(station.expected_duration_days)||90;
+  // مدة المحطة يجب أن تتأقلم تلقائياً حسب معدّل الحفظ اليومي الفعلي اللي حدده المعلم،
+  // مش تتوقف عند رقم ثابت مُعدّ سلفاً على المحطة — لو فيه حصن "حفظ جديد" مفعّل، بنخلّي
+  // اكتمال محتواه (curSurah بيبقى null) هو الفيصل الحقيقي لنهاية المحطة، مع سقف أمان
+  // معقول (نفس الرقم المُعَدّ +حد أقصى) عشان لا يستمر الحساب للأبد لو حصل خطأ بيانات.
+  const hasNewHifz = forts.some(f=>f.code==='new_hifz' && (cfgMap[f.id]?.is_enabled!==false));
+  const days = configuredDays;
+  const maxIter = Math.max(days,30)*3 + 60; // سقف أمان أعلى يسمح للخطة تطول أو تقصر فعلياً حسب المعدّل
   for(let i=0; i<maxIter; i++){
     const dow = dt.getDay(); // 0=Sun
     const dowInt = dow+1;    // 1=Sunday ... 7=Saturday matching our convention
@@ -7372,13 +7452,13 @@ async function generatePlanSchedule(planId){
           let to = Math.min(curAyah+amount, s.ayat);
           w.surah_no = s.no; w.surah_name = s.name;
           w.ayah_from = from; w.ayah_to = to;
-          w.amount_label = `${s.name} • ${from} → ${to}`;
+          w.amount_label = `${s.name} • ${ltrRange(from,to)}`;
           curAyah = to;
           if(curAyah >= s.ayat){
-            // move to next surah (next in mushaf order; for جزء عمّ flow this goes backwards but plan defines order)
-            // Default: continue forward by surah_no - 1 (i.e. النبأ -> النازعات -> ...)
-            const next = curSurah + 1;
-            if(next<=114){ curSurah=next; curAyah=0; }
+            // الانتقال للسورة التالية في تسلسل الحفظ الفعلي: عكسي (الناس→الفاتحة) لكل
+            // المسارات ما عدا الزهراوين اللي بترتيبها الطبيعي (البقرة→آل عمران)
+            const next = isReversedOrder ? curSurah-1 : curSurah+1;
+            if(next>=1 && next<=114){ curSurah=next; curAyah=0; }
             else { curSurah=null; }
           }
         } else if(f.code==='review_near'){
@@ -7386,7 +7466,7 @@ async function generatePlanSchedule(planId){
           if(s && curAyah>0){
             w.surah_no = s.no; w.surah_name = s.name;
             w.ayah_from = 1; w.ayah_to = curAyah;
-            w.amount_label = `${s.name} • ١ → ${curAyah}`;
+            w.amount_label = `${s.name} • ${ltrRange(1,curAyah)}`;
           } else {
             w.surah_no = s?s.no:null; w.surah_name = s?s.name:'—';
             w.amount_label = 'لا مراجعة قريبة بعد';
@@ -7434,20 +7514,24 @@ async function generatePlanSchedule(planId){
           let from = curRead;
           let to = Math.min(curRead + Math.max(0,amount-1), 604);
           w.page_from = from; w.page_to = to;
-          w.amount_label = `صفحة ${from} → ${to}`;
+          w.amount_label = `صفحة ${ltrRange(from,to)}`;
           curRead = to + 1;
           if(curRead>604) curRead=1;
         } else if(f.code==='listening'){
           let from = curLisn;
           let to = Math.min(curLisn + Math.max(0,amount-1), 604);
           w.page_from = from; w.page_to = to;
-          w.amount_label = `صفحة ${from} → ${to}`;
+          w.amount_label = `صفحة ${ltrRange(from,to)}`;
           curLisn = to + 1;
           if(curLisn>604) curLisn=1;
         }
         wards.push(w);
       }
-      if(studyDayCount >= days) break;
+      // لو فيه حفظ جديد: نكمّل لحد ما المحتوى يخلص فعلاً (curSurah===null) حتى لو تعدّى
+      // الرقم المُعَدّ على المحطة، ونوقف بمجرد اكتماله حتى لو أسرع من المتوقع.
+      // لو مفيش حفظ جديد (محطة مراجعة بحتة مثلاً): نلتزم بالرقم المُعَدّ كالمعتاد.
+      const contentDone = hasNewHifz ? (curSurah==null) : (studyDayCount >= days);
+      if(contentDone) break;
     } else if(isRest){
       // create a rest day marker (one record without fortress detail)
       // we'll skip wards but add a marker via a single record using first fortress code
@@ -7509,7 +7593,7 @@ PAGES.teacher_qplans = async function(){
   const rows = students.map(s=>{
     const p = planMap[s.id];
     if(!p){
-      return `<div class="qstu-row qstu-noplan" onclick="qOpenWizard('${esc(s.id)}')">
+      return `<div class="qstu-row qstu-noplan" data-search="${esc(s.full_name)}" onclick="qOpenWizard('${esc(s.id)}')">
         <div class="qstu-ava">+</div>
         <div class="qstu-info"><b>${esc(s.full_name)}</b><small>لا توجد خطة بعد — اضغط لإنشائها</small></div>
         <div class="qstu-stat"><b>—</b>الخطة</div>
@@ -7518,7 +7602,7 @@ PAGES.teacher_qplans = async function(){
     const prog = progressMap[p.id] || {total:0,past:0};
     const pct = prog.total ? Math.round(prog.past/prog.total*100) : 0;
     const statusLbl = p.status==='active'?'نشطة':p.status==='paused'?'متوقفة':p.status==='completed'?'مكتملة':'ملغاة';
-    return `<div class="qstu-row" onclick="qOpenStudentPlan('${esc(p.id)}')">
+    return `<div class="qstu-row" data-search="${esc(s.full_name)}" onclick="qOpenStudentPlan('${esc(p.id)}')">
       <div class="qstu-ava">${esc(s.full_name.charAt(0))}</div>
       <div class="qstu-info"><b>${esc(s.full_name)}</b><small>${statusLbl} · بداية: ${esc(p.start_date)}</small></div>
       <div class="qstu-stat"><b>${ar(prog.total)}</b>يوم</div>
@@ -7526,10 +7610,12 @@ PAGES.teacher_qplans = async function(){
     </div>`;
   }).join('');
 
-  return pageHead('خطط طلابي','إنشاء ومتابعة خطط القرآن لطلابك') + rows;
+  const searchBox = students.length>4?`<div class="field" style="max-width:360px;margin-bottom:12px"><input id="qplansSearch" placeholder="🔍 دوّر على طالب..." oninput="filterTeacherHalqat(this.value,'qplansList')"></div>`:'';
+  return pageHead('خطط طلابي','إنشاء ومتابعة خطط القرآن لطلابك') + searchBox + `<div id="qplansList">${rows}</div>`;
 };
 
 let QPLAN_STATE = { view:'list', studentId:null, planId:null, step:1, data:{} };
+let QWIZ_SYSTEMS_CACHE = []; // كاش مؤقت لأنظمة القرآن (مع path_key) وقت فتح المعالج، لحساب اتجاه الحفظ الافتراضي
 
 function qOpenWizard(studentId){
   QPLAN_STATE = { view:'wizard', studentId, planId:null, step:1, data:{
@@ -7564,6 +7650,7 @@ async function renderWizard(){
     }
   }
   const { data: allSys } = await sb.from('quran_systems').select('*').eq('status','active').order('created_at',{ascending:false});
+  QWIZ_SYSTEMS_CACHE = allSys||[];
 
   const step = QPLAN_STATE.step;
   const stepLabels = [
@@ -7673,6 +7760,12 @@ function qSystemChanged(){
   d.system_id = $('#qwSystem').value;
   d.station_id = null;
   d.custom_rates = {};
+  // نحدّث افتراضي "السورة الحالية" حسب اتجاه الحفظ الفعلي للمسار (عكسي يبدأ من
+  // الناس ١١٤، أو الزهراوين بترتيبها الطبيعي من البقرة ٢) — فقط لو المعلم لسه
+  // ما دخلش تقييماً حقيقياً (يعني القيمة لسه على أحد الافتراضات القديمة)
+  const sysRow = QWIZ_SYSTEMS_CACHE.find(s=>s.id===d.system_id);
+  const wasDefault = !d.current_ayah_no && [78,2,114].includes(d.current_surah_no);
+  if(sysRow && wasDefault){ d.current_surah_no = sysRow.path_key==='zahrawan' ? 2 : 114; }
   renderWizardInline();
 }
 function qStationChanged(){
@@ -7696,13 +7789,35 @@ function renderStep2(){
     </div>`;
   }).join('');
 
+  const surahOpts=(sel)=>QURAN_SURAHS.map(s=>`<option value="${s.no}" ${s.no===sel?'selected':''}>${s.no}. ${esc(s.name)}</option>`).join('');
   return `<p style="color:var(--muted);font-size:13.5px;line-height:1.9;margin-bottom:14px">اختر السور التي حفظها الطالب سابقاً بالكامل. ستُستخدم في حصن «المراجعة البعيدة».</p>
+  <div class="qform" style="background:var(--cream);border-radius:12px;padding:12px;margin-bottom:14px">
+    <label style="font-weight:700;font-size:13px;color:var(--navy-deep);display:block;margin-bottom:8px">تحديد سريع بنطاق (من سورة إلى سورة)</label>
+    <div class="qrow">
+      <div><label>من سورة</label><select id="qMemRangeFrom">${surahOpts(1)}</select></div>
+      <div><label>إلى سورة</label><select id="qMemRangeTo">${surahOpts(114)}</select></div>
+    </div>
+    <button class="btn-sm" style="margin-top:8px" onclick="qApplyMemRange()">${mi('check')} حدّد النطاق كمحفوظ</button>
+  </div>
   <div class="qsurahgrid" id="qSurahGrid">${grid}</div>
   <div style="margin-top:12px;font-size:13px;color:var(--emerald-deep);font-weight:700">المختار: <span id="qMemCount">${ar(memList.length)}</span> سورة</div>
   <div class="qsticky">
     <button class="btn ghost" onclick="qWizPrev(2)">→ السابق</button>
     <button class="btn" onclick="qWizNext(2)">التالي ←</button>
   </div>`;
+}
+// تحديد نطاق كامل من السور دفعة واحدة كمحفوظ، بدل الضغط سورة سورة يدوياً — مفيد جداً
+// لما الطالب يكون حافظ جزءاً كاملاً أو مجموعة سور متتالية سابقاً
+function qApplyMemRange(){
+  const d = QPLAN_STATE.data;
+  const from=+$('#qMemRangeFrom').value, to=+$('#qMemRangeTo').value;
+  const lo=Math.min(from,to), hi=Math.max(from,to);
+  if(!d.prior_memorized) d.prior_memorized=[];
+  for(let no=lo; no<=hi; no++){
+    if(!d.prior_memorized.find(m=>m.surah_no===no)) d.prior_memorized.push({surah_no:no, mastery:3});
+  }
+  toast('✅ اتحددت السور من '+ar(lo)+' إلى '+ar(hi)+' كمحفوظة');
+  renderWizardInline();
 }
 
 function qToggleMem(no){
@@ -7804,9 +7919,18 @@ function renderStep4(){
     </div>
   </div>` : '';
 
+  const memOpts=(sel)=>memorized.map(m=>{ const s=surahByNo(m.surah_no); return `<option value="${m.surah_no}" ${m.surah_no===sel?'selected':''}>${m.surah_no}. ${esc(s?s.name:'')}</option>`; }).join('');
   return `<p style="color:var(--muted);font-size:13.5px;line-height:1.9;margin-bottom:14px">اختر نمط المراجعة البعيدة، ثم حدّد السور التي تدخل دورة المراجعة.</p>
   <label style="display:block;margin-bottom:8px;font-weight:700;color:var(--navy-deep)">نمط المراجعة</label>
   <div style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap">${modeBtns}</div>
+  <div class="qform" style="background:var(--cream);border-radius:12px;padding:12px;margin-bottom:14px">
+    <label style="font-weight:700;font-size:13px;color:var(--navy-deep);display:block;margin-bottom:8px">تحديد سريع بنطاق (من سورة إلى سورة، من ضمن المحفوظة)</label>
+    <div class="qrow">
+      <div><label>من سورة</label><select id="qPoolRangeFrom">${memOpts(memorized[0]?.surah_no)}</select></div>
+      <div><label>إلى سورة</label><select id="qPoolRangeTo">${memOpts(memorized[memorized.length-1]?.surah_no)}</select></div>
+    </div>
+    <button class="btn-sm" style="margin-top:8px" onclick="qApplyPoolRange()">${mi('check')} أدخل النطاق في المراجعة البعيدة</button>
+  </div>
   <label style="display:block;margin-bottom:8px;font-weight:700;color:var(--navy-deep)">سور المراجعة البعيدة (من السور المحفوظة)</label>
   <div class="qsurahgrid" id="qPoolGrid">${poolHtml}</div>
   <div style="margin-top:12px;font-size:13px;color:var(--emerald-deep);font-weight:700">مختار: <span id="qPoolCount">${ar(pool.length)}</span></div>
@@ -7865,6 +7989,20 @@ function qTogglePool(no){
     else c.classList.remove('on');
   });
   $('#qPoolCount').textContent = ar(d.far_review_pool.length);
+}
+// إدخال نطاق كامل من السور المحفوظة في دورة المراجعة البعيدة دفعة واحدة
+function qApplyPoolRange(){
+  const d = QPLAN_STATE.data;
+  const from=+$('#qPoolRangeFrom').value, to=+$('#qPoolRangeTo').value;
+  const lo=Math.min(from,to), hi=Math.max(from,to);
+  if(!d.far_review_pool) d.far_review_pool=[];
+  const memorizedNos=new Set((d.prior_memorized||[]).map(m=>m.surah_no));
+  for(let no=lo; no<=hi; no++){
+    if(!memorizedNos.has(no)) continue;
+    if(!d.far_review_pool.find(p=>(typeof p==='object'?p.surah_no:p)===no)) d.far_review_pool.push({surah_no:no});
+  }
+  toast('✅ اتضافت السور من '+ar(lo)+' إلى '+ar(hi)+' للمراجعة البعيدة');
+  renderWizardInline();
 }
 
 async function renderStep5(stu){
@@ -8157,8 +8295,9 @@ PAGES.student_qtoday = async function(){
   setTop('ورد اليوم','حصون خطتك اليومية');
   const s = await myStudentRow();
   if(!s) return `<div class="qnoplan"><div class="nei">🌱</div><h3>لا توجد بيانات طالب</h3></div>`;
+  if(s.enrollment_status!=='active') return enrollGateMsg(s.enrollment_status);
   const { data: plan } = await sb.from('quran_student_plans').select('*').eq('login_id',ME.id).eq('status','active').maybeSingle();
-  if(!plan) return `<div class="qnoplan"><div class="nei">🕋</div><h3>لا توجد خطة بعد</h3><p>سينشئ معلمك خطتك بعد اختيارك له — اختر معلمك الآن لتبدأ.</p><button class="btn" style="margin-top:14px" onclick="navigate('choose')">${mi('chooseTeacher')} اختر معلمك</button></div>`;
+  if(!plan) return await noPlanYetCard(s);
   await applyAbsenceShift(plan);
   const today = qTodayStr();
   const { data: todayWards } = await sb.from('quran_plan_wards').select('*').eq('plan_id',plan.id).eq('planned_date',today).order('fortress_code');
@@ -8255,8 +8394,9 @@ PAGES.student_qmyplan = async function(){
   setTop('خطتي الكاملة','');
   const s = await myStudentRow();
   if(!s) return `<div class="qnoplan"><div class="nei">🌱</div><h3>لا بيانات</h3></div>`;
+  if(s.enrollment_status!=='active') return enrollGateMsg(s.enrollment_status);
   const { data: plan } = await sb.from('quran_student_plans').select('*').eq('login_id',ME.id).eq('status','active').maybeSingle();
-  if(!plan) return `<div class="qnoplan"><div class="nei">🕋</div><h3>لا توجد خطة بعد</h3><p>سينشئ معلمك خطتك الكاملة بعد اختيارك له — اختر معلمك الآن لتبدأ.</p><button class="btn" style="margin-top:14px" onclick="navigate('choose')">${mi('chooseTeacher')} اختر معلمك</button></div>`;
+  if(!plan) return await noPlanYetCard(s);
   await applyAbsenceShift(plan);
   return await qRenderFullPlan(plan.id, 'student');
 };
@@ -8328,6 +8468,7 @@ async function qRenderFullPlan(planId, role='student'){
         <button class="btn-sm" onclick="qUpdatePlanStatus('${esc(planId)}',this)">${mi('save')} حفظ الحالة</button>
         <button class="btn-sm ghost" onclick="qRescheduleRemaining('${esc(planId)}')">${mi('refresh')} إعادة جدولة المتبقي</button>
         ${role==='teacher'?`<button class="btn-sm gold" onclick="qCheckTransition('${esc(planId)}')">${mi('cap')} فحص الانتقال للمحطة التالية</button>`:''}
+        ${role==='teacher'?`<button class="btn-sm" style="background:var(--emerald);color:#fff" onclick="qCatchUpPlan('${esc(planId)}')">${mi('refresh')} استدراك (تقديم الخطة)</button>`:''}
       </div>
     </div>
   </div>` : '';
@@ -8441,36 +8582,75 @@ async function qEditWard(wardId){
   const { data:w } = await sb.from('quran_plan_wards').select('*').eq('id',wardId).maybeSingle();
   if(!w){ toast('تعذّر جلب بيانات الورد'); return; }
   const isSurahBased = w.surah_no!=null;
+  const surahOptions = QURAN_SURAHS.map(s=>`<option value="${s.no}" ${s.no===w.surah_no?'selected':''}>${s.no}. ${esc(s.name)} (${ar(s.ayat)} آية)</option>`).join('');
   $('#modalHost').innerHTML=`<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal">
     <h3>${mi('calendar')} تعديل ورد يوم ${esc(w.planned_date)}</h3>
-    <p style="color:var(--muted);font-size:13px;margin-bottom:12px;line-height:1.7">هذا التعديل خاص بهذا اليوم فقط، ولن يغيّر أي يوم آخر في الخطة.</p>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:12px;line-height:1.7">هذا التعديل خاص بهذا اليوم. تقدر كمان تختار "رحّل الزيادة/النقصان على باقي الخطة" تحت لو التعديل ده لازم يغيّر باقي الأيام.</p>
     ${isSurahBased?`
-    <div class="field"><label>السورة</label><input id="qwEditSurah" value="${esc(w.surah_name||'')}" disabled style="background:var(--cream);color:var(--muted)"></div>
+    <div class="field"><label>السورة</label><select id="qwEditSurah" onchange="qwSurahChanged()">${surahOptions}</select></div>
     <div class="arow">
       <div class="field"><label>من آية</label><input id="qwEditFrom" type="number" min="1" value="${w.ayah_from||1}"></div>
       <div class="field"><label>إلى آية</label><input id="qwEditTo" type="number" min="1" value="${w.ayah_to||1}"></div>
     </div>`:''}
     <div class="field"><label>وصف الورد (كما يظهر للطالب)</label><input id="qwEditLabel" value="${esc(w.amount_label||'')}"></div>
-    <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إلغاء</button><button class="btn" id="qwEditBtn" onclick="qSaveWardEdit('${esc(wardId)}',${isSurahBased})">${mi('check')} حفظ تعديل هذا اليوم</button></div>
+    <div class="field" style="display:flex;align-items:center;gap:8px;margin-top:6px"><input type="checkbox" id="qwRipple"><label for="qwRipple" style="margin:0">رحّل هذا التغيير على بقية أيام الخطة (إزاحة تلقائية للزيادة أو النقصان)</label></div>
+    <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إلغاء</button><button class="btn" id="qwEditBtn" onclick="qSaveWardEdit('${esc(wardId)}',${isSurahBased})">${mi('check')} حفظ التعديل</button></div>
   </div></div>`;
+}
+function qwSurahChanged(){
+  const sel=$('#qwEditSurah'); if(!sel) return;
+  const s=QURAN_SURAHS.find(x=>x.no===+sel.value); if(!s) return;
+  const fromEl=$('#qwEditFrom'), toEl=$('#qwEditTo');
+  if(fromEl) fromEl.value=1;
+  if(toEl) toEl.value=s.ayat;
 }
 async function qSaveWardEdit(wardId, isSurahBased){
   const btn=$('#qwEditBtn'); if(btn){ btn.disabled=true; btn.textContent='جارٍ الحفظ...'; }
   const payload={};
+  let newAyahCount=null;
   if(isSurahBased){
+    const surahNo=+$('#qwEditSurah').value;
+    const s=QURAN_SURAHS.find(x=>x.no===surahNo);
     const from=+$('#qwEditFrom').value||1, to=+$('#qwEditTo').value||1;
     payload.ayah_from=from; payload.ayah_to=to;
-    const surahName=$('#qwEditSurah').value;
-    payload.amount_label = $('#qwEditLabel').value.trim() || `${surahName} • ${from} → ${to}`;
+    if(s){ payload.surah_no=s.no; payload.surah_name=s.name; }
+    const surahName=s?s.name:$('#qwEditSurah').value;
+    payload.amount_label = $('#qwEditLabel').value.trim() || `${surahName} • ${ltrRange(from,to)}`;
+    newAyahCount = to-from+1;
   } else {
     payload.amount_label = $('#qwEditLabel').value.trim();
   }
+  const { data:before } = await sb.from('quran_plan_wards').select('ayah_from,ayah_to,plan_id,planned_date').eq('id',wardId).maybeSingle();
   const { error } = await sb.from('quran_plan_wards').update(payload).eq('id',wardId);
-  if(btn){ btn.disabled=false; btn.textContent='حفظ تعديل هذا اليوم'; }
-  if(error){ toast('تعذّر الحفظ: '+error.message); return; }
+  if(error){ if(btn){ btn.disabled=false; btn.textContent='حفظ التعديل'; } toast('تعذّر الحفظ: '+error.message); return; }
+  // الترحيل: لو المعلم فعّل الخيار، نحسب فرق عدد الآيات (زيادة/نقصان) عن اليوم الأصلي
+  // وننقله كإزاحة على أيام الخطة اللاحقة (نفس فكرة applyAbsenceShift لكن بسبب تعديل يدوي مش غياب)
+  if($('#qwRipple')?.checked && isSurahBased && before){
+    const oldCount=(before.ayah_to||1)-(before.ayah_from||1)+1;
+    const diff=newAyahCount-oldCount;
+    if(diff!==0){
+      try{ await qRippleWardChange(before.plan_id, before.planned_date, wardId, diff); }catch(e){ console.error('qRippleWardChange:',e); }
+    }
+  }
+  if(btn){ btn.disabled=false; btn.textContent='حفظ التعديل'; }
   closeModal();
   toast('✅ تم تعديل ورد هذا اليوم');
   navigate(SESSION.page);
+}
+// يرحّل أثر تعديل يدوي على ورد يوم واحد لبقية أيام نفس المحطة: زيادة الآيات في يوم
+// معيّن تعني إن الأيام اللي بعده تتزاح للأمام (تتأجل)، ونقصانها يعني تتقدّم (استدراك تلقائي)
+async function qRippleWardChange(planId, fromDate, excludeWardId, ayahDiff){
+  if(!planId || !ayahDiff) return;
+  const { data:future } = await sb.from('quran_plan_wards').select('id,planned_date').eq('plan_id',planId).gt('planned_date',fromDate).order('planned_date');
+  const rows=(future||[]).filter(w=>w.id!==excludeWardId);
+  if(!rows.length) return;
+  // كل ٣٠ آية زيادة/نقصان ≈ تأخير/تقديم يوم واحد تقريبياً (تقدير عملي بسيط، قابل لضبط المعلم لاحقاً يدوياً)
+  const dayShift = Math.round(ayahDiff/30);
+  if(!dayShift) return;
+  for(const w of rows){
+    const nd=new Date(w.planned_date); nd.setDate(nd.getDate()+dayShift);
+    await sb.from('quran_plan_wards').update({ planned_date: nd.toISOString().slice(0,10) }).eq('id',w.id);
+  }
 }
 async function qSaveTeacherNote(wardId, clear){
   const note = clear ? null : ($('#qwNoteTxt')?.value.trim()||null);
@@ -8523,6 +8703,21 @@ async function qRescheduleRemaining(planId){
     const res = await generatePlanSchedule(planId);
     toast('🔄 تمت إعادة الجدولة — '+ar(res.count)+' ورد جديد');
   } catch(e){ toast('تعذّر: '+e.message); }
+  navigate(SESSION.page);
+}
+// استدراك: تقديم كل الأوراد المتبقية (من النهاردة فصاعداً) بعدد أيام يحدده المعلم —
+// عكس الترحيل التلقائي (اللي بيأجّل بسبب غياب)، ده تقديم يدوي لما الطالب يكون سابق خطته
+async function qCatchUpPlan(planId){
+  const days=+prompt('كام يوم عايز تستدرك (تقدّم) الخطة؟ (رقم موجب)','1');
+  if(!days || days<=0) return;
+  const today=qTodayStr();
+  const { data:futureWards } = await sb.from('quran_plan_wards').select('id,planned_date').eq('plan_id',planId).gte('planned_date',today);
+  if(!futureWards || !futureWards.length){ toast('لا توجد أيام متبقية لاستدراكها'); return; }
+  for(const w of futureWards){
+    const nd=new Date(w.planned_date); nd.setDate(nd.getDate()-days);
+    await sb.from('quran_plan_wards').update({ planned_date: nd.toISOString().slice(0,10) }).eq('id',w.id);
+  }
+  toast('✅ تم تقديم الخطة '+ar(days)+' يوم');
   navigate(SESSION.page);
 }
 
@@ -8594,31 +8789,40 @@ PAGES.teacher_qmonitor = async function(){
   if(error) return pageHead('متابعة يومية','')+loadErrorCard(error);
   const gids = (groups||[]).map(g=>g.id);
   if(!gids.length) return '<div class="qnoplan"><div class="nei">👥</div><h3>لا حلقات</h3></div>';
-  const { data: students } = await sb.from('students').select('id,full_name').in('group_id',gids);
+  const { data: students } = await sb.from('students').select('id,full_name,login_id').in('group_id',gids);
   if(!students?.length) return '<div class="qnoplan"><div class="nei">🎓</div><h3>لا طلاب</h3></div>';
   const sids = students.map(s=>s.id);
   const { data: plans } = await sb.from('quran_student_plans').select('*').in('student_id',sids).eq('status','active');
   const planMap = {}; (plans||[]).forEach(p=>{ planMap[p.student_id]=p; });
   const today = qTodayStr();
   const planIds = (plans||[]).map(p=>p.id);
-  let todayMap = {}, lateMap = {};
+  const { data: forts } = await sb.from('quran_fortresses').select('code,name');
+  const fortNameMap = {}; (forts||[]).forEach(f=>{ fortNameMap[f.code]=f.name; });
+  let todayMap = {}, lateMap = {}, byFortMap = {};
   if(planIds.length){
-    const { data: todayW } = await sb.from('quran_plan_wards').select('id,plan_id').in('plan_id',planIds).eq('planned_date',today);
-    const { data: overdueW } = await sb.from('quran_plan_wards').select('id,plan_id').in('plan_id',planIds).lt('planned_date',today);
+    const { data: todayW } = await sb.from('quran_plan_wards').select('id,plan_id,fortress_code').in('plan_id',planIds).eq('planned_date',today);
+    const { data: overdueW } = await sb.from('quran_plan_wards').select('id,plan_id,fortress_code').in('plan_id',planIds).lt('planned_date',today);
     const tCount = {}; (todayW||[]).forEach(w=>{ tCount[w.plan_id]=(tCount[w.plan_id]||0)+1; });
     const lCount = {}; (overdueW||[]).forEach(w=>{ lCount[w.plan_id]=(lCount[w.plan_id]||0)+1; });
     const allW = [...(todayW||[]),...(overdueW||[])];
     const allIds = allW.map(w=>w.id);
-    let doneMap = {};
+    let doneMap = {}, doneWardIds = new Set();
     if(allIds.length){
       const { data: progs } = await sb.from('quran_ward_progress').select('ward_id,status,is_late').in('ward_id',allIds);
       (progs||[]).forEach(p=>{
         if(p.status==='done'){
+          doneWardIds.add(p.ward_id);
           const w = allW.find(x=>x.id===p.ward_id);
           if(w) doneMap[w.plan_id]=(doneMap[w.plan_id]||0)+1;
         }
       });
     }
+    // لكل خطة، توزيع "أنجز/لم ينجز" على مستوى نوع الورد (حفظ/مراجعة قريبة/بعيدة/سماع/قراءة...) لليوم الحالي فقط
+    (todayW||[]).forEach(w=>{
+      if(!byFortMap[w.plan_id]) byFortMap[w.plan_id]={};
+      const name = fortNameMap[w.fortress_code]||w.fortress_code;
+      byFortMap[w.plan_id][name] = doneWardIds.has(w.id);
+    });
     (plans||[]).forEach(p=>{
       todayMap[p.student_id] = { total:tCount[p.id]||0, done:doneMap[p.id]||0 };
       lateMap[p.student_id]  = lCount[p.id]||0;
@@ -8627,18 +8831,27 @@ PAGES.teacher_qmonitor = async function(){
   const dateLabel = new Date().toLocaleDateString('ar-EG',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   const rows = students.map(s=>{
     const p = planMap[s.id];
-    if(!p) return `<div class="qstu-row qstu-noplan"><div class="qstu-ava">!</div><div class="qstu-info"><b>${esc(s.full_name)}</b><small>لا خطة نشطة</small></div><div class="qstu-stat"><b>—</b></div></div>`;
+    const chatBtn = s.login_id?`<button class="icon-act" title="محادثة ${esc(s.full_name)}" onclick="event.stopPropagation();startChatWith('${s.login_id}','${escJs(s.full_name)}')">${mi('chat')}</button>`:'';
+    if(!p) return `<div class="qstu-row qstu-noplan"><div class="qstu-ava">!</div><div class="qstu-info"><b>${esc(s.full_name)}</b><small>لا خطة نشطة</small></div>${chatBtn}<div class="qstu-stat"><b>—</b></div></div>`;
     const t = todayMap[s.id]||{total:0,done:0};
     const lc = lateMap[s.id]||0;
     const pct = t.total ? Math.round(t.done/t.total*100) : 0;
     const lateTag = lc ? `<span style="background:rgba(231,76,60,0.12);color:var(--rose);font-size:11px;padding:2px 7px;border-radius:8px;font-weight:700">${ar(lc)} متأخر</span>` : '';
-    return `<div class="qstu-row" onclick="qOpenStudentPlan('${esc(p.id)}')">
+    const byFort = byFortMap[p.id]||{};
+    const doneNames = Object.keys(byFort).filter(n=>byFort[n]);
+    const missNames = Object.keys(byFort).filter(n=>!byFort[n]);
+    const breakdown = Object.keys(byFort).length
+      ? `<div style="font-size:11.5px;line-height:1.7;margin-top:2px">${doneNames.length?`<span style="color:var(--emerald)">✓ ${doneNames.map(esc).join('، ')}</span>`:''}${doneNames.length&&missNames.length?' · ':''}${missNames.length?`<span style="color:var(--muted)">لم يُنجز: ${missNames.map(esc).join('، ')}</span>`:''}</div>`
+      : '';
+    return `<div class="qstu-row" data-search="${esc(s.full_name)}" onclick="qOpenStudentPlan('${esc(p.id)}')">
       <div class="qstu-ava">${esc(s.full_name.charAt(0))}</div>
-      <div class="qstu-info"><b>${esc(s.full_name)}</b><small>أنجز ${ar(t.done)} من ${ar(t.total)} ورد اليوم ${lateTag}</small></div>
+      <div class="qstu-info"><b>${esc(s.full_name)}</b><small>أنجز ${ar(t.done)} من ${ar(t.total)} ورد اليوم ${lateTag}</small>${breakdown}</div>
+      ${chatBtn}
       <div class="qstu-stat"><b style="color:${pct>=80?'var(--emerald)':pct>=40?'var(--gold)':'var(--rose)'}">${ar(pct)}٪</b></div>
     </div>`;
   }).join('');
-  return pageHead('متابعة يومية', esc(dateLabel)) + rows;
+  const searchBox = students.length>4?`<div class="field" style="max-width:360px;margin-bottom:12px"><input id="qmonitorSearch" placeholder="🔍 دوّر على طالب..." oninput="filterTeacherHalqat(this.value,'qmonitorList')"></div>`:'';
+  return pageHead('متابعة يومية', esc(dateLabel)) + searchBox + `<div id="qmonitorList">${rows}</div>`;
 };
 
 /* ─── تقارير الطالب ─── */
@@ -8646,9 +8859,10 @@ PAGES.student_qreport = async function(){
   setTop('تقريري القرآني','');
   const s = await myStudentRow();
   if(!s) return `<div class="qnoplan"><div class="nei">📊</div><h3>لا بيانات</h3></div>`;
+  if(ME.role==='student' && s.enrollment_status!=='active') return enrollGateMsg(s.enrollment_status);
   const { data: plan } = await sb.from('quran_student_plans').select('*').eq('login_id',ME.id).eq('status','active').maybeSingle();
   if(!plan) return ME.role==='student'
-    ? `<div class="qnoplan"><div class="nei">📊</div><h3>لا توجد خطة بعد</h3><p>سينشئ معلمك خطتك القرآنية بعد اختيارك له — اختر معلمك الآن لتبدأ.</p><button class="btn" style="margin-top:14px" onclick="navigate('choose')">${mi('chooseTeacher')} اختر معلمك</button></div>`
+    ? await noPlanYetCard(s)
     : `<div class="qnoplan"><div class="nei">📊</div><h3>لا توجد خطة</h3></div>`;
   return await qRenderReport(plan.id);
 };

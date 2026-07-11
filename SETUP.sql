@@ -17,6 +17,25 @@ create extension if not exists pgcrypto with schema extensions;
 alter table payments add column if not exists currency_code text default 'EGP';
 
 -- ------------------------------------------------------------
+-- ٠-د) sub_start/sub_end كانت من نوع date بس (بدون وقت)، فلحظة تفعيل
+--      الاشتراك الحقيقية (بالساعة والدقيقة) كانت بتتقطع لتاريخ بس، وبعد كده
+--      لما تتقرأ في المتصفح كـ "منتصف الليل UTC" بتترجم لمنطقة القاهرة/الرياض
+--      كساعة 2 أو 3 صباحاً وهمية مش هي وقت التفعيل الحقيقي. التحويل لـ
+--      timestamptz بيحافظ على الوقت الفعلي للحظة التأكيد.
+-- ------------------------------------------------------------
+alter table students alter column sub_start type timestamptz using sub_start::timestamptz;
+alter table students alter column sub_end type timestamptz using sub_end::timestamptz;
+
+-- ------------------------------------------------------------
+-- ٠-هـ) جدول payments أصلاً ملوش عمود created_at، فمفيش أي وقت مسجَّل للحظة
+--      إرسال الطالب لطلب الدفع (paid_at بيتسجّل بس وقت تأكيد المشرف له، مش وقت
+--      الإرسال) — فصفحة "تأكيد المدفوعات" كانت تعرض وقت إرسال فارغ دائماً.
+--      كمان paid_at كان من نوع date بس (بدون وقت)، نفس مشكلة sub_start/sub_end.
+-- ------------------------------------------------------------
+alter table payments add column if not exists created_at timestamptz default now();
+alter table payments alter column paid_at type timestamptz using paid_at::timestamptz;
+
+-- ------------------------------------------------------------
 -- ٠-ب) دالة حساب عدد طلاب كل معلم (لصفحة "اختر معلمك")
 --      المشكلة: الطالب اللي بيسجّل ولسه ملوش صلاحيات كاملة، سياسات RLS بتمنعه
 --      من قراءة صفوف طلاب تانيين أو كل جدول الحلقات، فأي حساب في المتصفح كان
@@ -215,7 +234,7 @@ begin
   );
 
   insert into profiles (id, role, full_name, email)
-  values (new_user_id, p_role, p_name, p_email)
+  values (new_user_id, p_role::user_role, p_name, p_email)
   on conflict (id) do update set role=excluded.role, full_name=excluded.full_name, email=excluded.email;
 
   if p_role = 'student' and p_student_id is not null then
@@ -1658,10 +1677,14 @@ create policy "jr_write" on join_requests for all to public using (
 -- (بدون my_gender()) فوراً لاستعادة الدخول لكل المستخدمين. فصل جنس دليل
 -- المعلمين للمشرف يحتاج تشخيصاً أعمق قبل أي محاولة تانية.
 -- ------------------------------------------------------------
+-- تعديل: دليل المشرفين لازم يكون مرئياً لكل مستخدم مسجّل دخول (زي دليل المعلمين
+-- بالظبط)، لأن الطالب/ولي الأمر محتاج يشوف اسم المشرف عشان يقدر يبدأ محادثة معه
+-- من "محادثة جديدة" — بدونها كانت newChatModal بترجع "لا يوجد من يمكن مراسلته"
+-- فارغة تماماً لأي طالب/ولي أمر رغم إن الكود بيحاول يضيف المشرف صراحةً.
 drop policy if exists "profiles read" on profiles;
 create policy "profiles read" on profiles for select to authenticated using (
   is_admin() or my_role() = any(array['supervisor','executive']::user_role[])
-  or role = 'teacher'::user_role
+  or role = any(array['teacher','supervisor']::user_role[])
   or id = auth.uid()
   or exists (
     select 1 from students s
