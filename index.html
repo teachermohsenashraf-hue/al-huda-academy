@@ -17,6 +17,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@400;700;800;900&family=Cairo:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 <style>:root{
   --emerald:#1B4D3E;--emerald-deep:#123A2E;--emerald-light:#226B54;
   --gold:#C9A227;--gold-light:#D9B84D;--gold-soft:#F5EFDD;
@@ -1418,6 +1419,10 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 const SUPABASE_URL  = 'https://yvloiecymqbhpoizfucl.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2bG9pZWN5bXFiaHBvaXpmdWNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxNjkxNzAsImV4cCI6MjA5Nzc0NTE3MH0.z-tNunvzx17UHUZPRUoS_thqHJyHj3-0Gl5FNTQQSHo';
 const WHATSAPP = '201227958232';   // رقم واتساب الأكاديمية (بصيغة دولية)
+// مفتاح Cloudflare Turnstile العلني (Site Key) — استبدله بمفتاحك الحقيقي من
+// لوحة Cloudflare (Turnstile → Add site). لازم كمان تحط الـ Secret Key المقابل
+// له في Supabase Dashboard → Authentication → Attack Protection → Enable CAPTCHA.
+const TURNSTILE_SITE_KEY = 'ضع_مفتاحك_هنا_من_Cloudflare_Turnstile';
 // باقة اشتراك واحدة موحّدة بسعر ثابت لكل دولة (مش محسوب بسعر صرف) — نفس السعر للنظامين
 const SINGLE_FEE = { EGP:450, SAR:105, USD:30 };
 let USER_CURRENCY = { code:'EGP', symbol:'ج.م' };
@@ -2232,6 +2237,16 @@ function renderAuthBody(){
   else if(AUTH_MODE==='signup') body=signupForm();
   else body=loginForm();
   $('#authBody').innerHTML = body;
+  // Turnstile بيكتشف عناصر cf-turnstile الموجودة وقت تحميل سكريبته بس — نموذج
+  // التسجيل بيتحقن ديناميكياً بعد كده، فلازم نستدعي render() يدوياً في كل مرة
+  if(AUTH_MODE==='signup'){
+    _turnstileToken=null;
+    const tryRender=()=>{
+      if(window.turnstile && $('#suTurnstile')) turnstile.render('#suTurnstile');
+      else if(!window.turnstile) setTimeout(tryRender,300);
+    };
+    tryRender();
+  }
 }
 async function doForgot(){
   const email=$('#fgEmail').value.trim();
@@ -2349,9 +2364,12 @@ function signupForm(){
     <div class="afield"><label>تأكيد كلمة المرور <span class="req">*</span></label><input id="suPass4" type="password" placeholder="أعد كتابتها"></div>
   </div>
   <div style="font-size:12px;color:var(--muted);margin-bottom:12px">الحقول المعلّمة بـ <span class="req">*</span> مطلوبة.</div>
+  <div id="suTurnstile" class="cf-turnstile" data-sitekey="${TURNSTILE_SITE_KEY}" data-callback="onTurnstileOk" style="margin-bottom:14px"></div>
   <button class="auth-btn" id="suBtn2" onclick="doSignup()">إنشاء الحساب</button>
   <div class="auth-alt">لديك حساب بالفعل؟ <a onclick="switchAuth('login')">سجّل الدخول</a></div>`;
 }
+let _turnstileToken=null;
+function onTurnstileOk(token){ _turnstileToken=token; }
 function pickSignupRole(r){ SIGNUP_ROLE=r; document.querySelectorAll('.rc').forEach(x=>x.classList.remove('on')); event.currentTarget.classList.add('on'); $('#studentExtra').classList.toggle('hidden',r!=='student'); }
 
 async function doLogin(){
@@ -2384,17 +2402,20 @@ async function doSignup(){
   if(p1.length<6){ toast('كلمة المرور ٦ أحرف على الأقل'); return; }
   if(p1!==p2){ toast('كلمتا المرور غير متطابقتين'); $('#suPass4').focus(); return; }
   if(SIGNUP_ROLE==='student' && !$('#suTrack').value){ toast('اختر المسار'); return; }
+  if(!_turnstileToken){ toast('أكمل التحقق "أنا لست روبوت" أولاً'); return; }
   const fullPhone=($('#suDial')?$('#suDial').value:'')+' '+phone;
   const meta={ role:SIGNUP_ROLE, full_name:name, initials:name.slice(0,2),
     age:age, phone:fullPhone.trim(), gender:$('#suGender').value,
     country:$('#suCountry').value, governorate:gov, residence:$('#suResidence').value };
   if(SIGNUP_ROLE==='student'){ meta.chosen_track=$('#suTrack').value; meta.parent_email=$('#suParentEmail').value.trim(); }
   $('#suBtn2').disabled=true; $('#suBtn2').textContent='جارٍ الإنشاء...';
-  const { data:suData, error } = await sb.auth.signUp({ email:e1, password:p1, options:{ data:meta } });
+  const { data:suData, error } = await sb.auth.signUp({ email:e1, password:p1, options:{ data:meta, captchaToken:_turnstileToken } });
   $('#suBtn2').disabled=false; $('#suBtn2').textContent='إنشاء الحساب';
   if(error){
     if(error.message.includes('already')){ alert('هذا البريد مسجّل بالفعل، سجّل الدخول مباشرة'); switchAuth('login'); }
     else alert('تعذّر الإنشاء: '+error.message);
+    try{ if(window.turnstile) turnstile.reset('#suTurnstile'); }catch(e){}
+    _turnstileToken=null;
     return;
   }
   // الحساب أُنشئ — نوجّه لصفحة الدخول ليكتب بياناته ويدخل
