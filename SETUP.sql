@@ -1767,3 +1767,212 @@ create policy "jr_write" on join_requests for all to public using (
   is_admin() or my_role() = 'supervisor'::user_role
   or applicant_id = auth.uid() or parent_id = auth.uid()
 );
+
+-- ============================================================
+-- ==========  تحصين أمني حرج — إغلاق ٣ ثغرات (يجب أن يبقى في آخر الملف)  ==========
+-- هذا القسم في آخر الملف عمداً حتى تكسب سياساته على أي تعريف أقدم أعلاه.
+-- ============================================================
+
+-- ------------------------------------------------------------
+-- 🔴 حرج (١): تسريب أفقي لبيانات الطلاب
+-- الحلقة أعلى في الملف (staff read ... using(true)) كانت تكشف خطط وتقييمات
+-- وأوراد وتقدّم كل الطلاب لأي مستخدم مسجّل (بما فيهم أي طالب أو ولي أمر آخر).
+-- نعيد تحديد القراءة على الجداول المحتوية على بيانات طالب بعينه فقط، مع إبقاء
+-- جداول المناهج العامة (systems/stations/fortresses/config/audit) مقروءة للجميع
+-- كما هي لأنها إعدادات مشتركة لا تخص طالباً بعينه.
+-- ------------------------------------------------------------
+
+-- خطط الطلاب: صاحبها (الطالب/ولي أمره)، معلمها، والإدارة/التنفيذي/المشرف فقط
+drop policy if exists "staff read quran_student_plans" on quran_student_plans;
+drop policy if exists "plans scoped read" on quran_student_plans;
+create policy "plans scoped read" on quran_student_plans for select to authenticated using (
+  is_admin()
+  or my_role() = any(array['executive','supervisor']::user_role[])
+  or teacher_id = auth.uid()
+  or login_id = auth.uid()
+  or exists (select 1 from students s where s.id = quran_student_plans.student_id
+             and (s.login_id = auth.uid() or s.parent_id = auth.uid()))
+);
+
+-- أوراد الخطة: عبر الخطة الأم
+drop policy if exists "staff read quran_plan_wards" on quran_plan_wards;
+drop policy if exists "wards scoped read" on quran_plan_wards;
+create policy "wards scoped read" on quran_plan_wards for select to authenticated using (
+  exists (select 1 from quran_student_plans qp
+    where qp.id = quran_plan_wards.plan_id and (
+      is_admin() or my_role() = any(array['executive','supervisor']::user_role[])
+      or qp.teacher_id = auth.uid() or qp.login_id = auth.uid()
+      or exists (select 1 from students s where s.id = qp.student_id
+                 and (s.login_id = auth.uid() or s.parent_id = auth.uid()))
+    ))
+);
+
+-- تقدّم الأوراد: صاحبها مباشرة (student_login_id) أو عبر الخطة الأم
+drop policy if exists "staff read quran_ward_progress" on quran_ward_progress;
+drop policy if exists "progress scoped read" on quran_ward_progress;
+create policy "progress scoped read" on quran_ward_progress for select to authenticated using (
+  student_login_id = auth.uid()
+  or exists (select 1 from quran_plan_wards w
+      join quran_student_plans qp on qp.id = w.plan_id
+      where w.id = quran_ward_progress.ward_id and (
+        is_admin() or my_role() = any(array['executive','supervisor']::user_role[])
+        or qp.teacher_id = auth.uid() or qp.login_id = auth.uid()
+        or exists (select 1 from students s where s.id = qp.student_id
+                   and (s.login_id = auth.uid() or s.parent_id = auth.uid()))
+      ))
+);
+
+-- تقييم الطالب: عبر الخطة الأم
+drop policy if exists "staff read quran_student_assessment" on quran_student_assessment;
+drop policy if exists "assessment scoped read" on quran_student_assessment;
+create policy "assessment scoped read" on quran_student_assessment for select to authenticated using (
+  exists (select 1 from quran_student_plans qp
+    where qp.id = quran_student_assessment.plan_id and (
+      is_admin() or my_role() = any(array['executive','supervisor']::user_role[])
+      or qp.teacher_id = auth.uid() or qp.login_id = auth.uid()
+      or exists (select 1 from students s where s.id = qp.student_id
+                 and (s.login_id = auth.uid() or s.parent_id = auth.uid()))
+    ))
+);
+
+-- معدلات الحصون المخصّصة للطالب: عبر الخطة الأم
+drop policy if exists "staff read quran_plan_fortress_rates" on quran_plan_fortress_rates;
+drop policy if exists "rates scoped read" on quran_plan_fortress_rates;
+create policy "rates scoped read" on quran_plan_fortress_rates for select to authenticated using (
+  exists (select 1 from quran_student_plans qp
+    where qp.id = quran_plan_fortress_rates.plan_id and (
+      is_admin() or my_role() = any(array['executive','supervisor']::user_role[])
+      or qp.teacher_id = auth.uid() or qp.login_id = auth.uid()
+      or exists (select 1 from students s where s.id = qp.student_id
+                 and (s.login_id = auth.uid() or s.parent_id = auth.uid()))
+    ))
+);
+
+-- ------------------------------------------------------------
+-- 🔴 حرج (٢): سياسات المحادثات/الرسائل لم تكن موثّقة في هذا الملف
+-- (كانت تُنشأ يدوياً في لوحة Supabase — غير قابلة للمراجعة، وقد تكون فضفاضة).
+-- نمسح كل سياسة موجودة على الجدولين ديناميكياً، ثم نبني مجموعة قانونية واحدة
+-- مقصورة على أطراف المحادثة فقط، فيصبح هذا الملف هو المصدر الوحيد للحقيقة.
+-- ------------------------------------------------------------
+alter table chats enable row level security;
+alter table messages enable row level security;
+do $$
+declare pol record;
+begin
+  for pol in select policyname, tablename from pg_policies
+             where schemaname='public' and tablename in ('chats','messages') loop
+    execute format('drop policy if exists %I on %I', pol.policyname, pol.tablename);
+  end loop;
+end $$;
+
+-- المحادثة: يقرأها/ينشئها/يعدّلها أطرافها فقط (party_ids)
+create policy "chats party read" on chats for select to authenticated
+  using (auth.uid() = any(party_ids));
+create policy "chats party insert" on chats for insert to authenticated
+  with check (auth.uid() = any(party_ids));
+create policy "chats party update" on chats for update to authenticated
+  using (auth.uid() = any(party_ids)) with check (auth.uid() = any(party_ids));
+
+-- الرسائل: يقرأها أطراف المحادثة، ويرسلها المرسل نفسه داخل محادثة هو طرف فيها،
+-- ويعدّل كلٌّ رسالته هو فقط
+create policy "messages party read" on messages for select to authenticated using (
+  sender_id = auth.uid()
+  or exists (select 1 from chats c where c.id = messages.chat_id and auth.uid() = any(c.party_ids))
+);
+create policy "messages party insert" on messages for insert to authenticated with check (
+  sender_id = auth.uid()
+  and exists (select 1 from chats c where c.id = messages.chat_id and auth.uid() = any(c.party_ids))
+);
+create policy "messages sender update" on messages for update to authenticated
+  using (sender_id = auth.uid()) with check (sender_id = auth.uid());
+
+-- ------------------------------------------------------------
+-- 🔴 حرج (٣): تصعيد صلاحيات عبر create_linked_account
+-- الدالة كانت متاحة لأي authenticated بلا تحقق من دور المُستدعي ولا تقييد للدور
+-- المُنشأ، فكان بإمكان أي مستخدم (حتى طالب) استدعاؤها بـ p_role='admin' وإنشاء
+-- حساب مدير لنفسه. كما كان بإمكانه اختطاف طالب قائم بربط نفسه به.
+-- الإصلاح: (أ) قصر الدور المُنشأ على student/parent فقط، (ب) منع الربط بخانة
+-- مشغولة إلا للموظفين. (البنية الأعمق — الكتابة المباشرة في auth.users — تبقى
+-- كما هي مؤقتاً؛ نقلها لـ Edge Function بمفتاح service_role خطوة منفصلة تحتاج
+-- صلاحية نشر عبر Supabase CLI.)
+-- ------------------------------------------------------------
+create or replace function create_linked_account(
+  p_email text, p_password text, p_name text, p_role text, p_student_id bigint
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  new_user_id uuid;
+  existing_id uuid;
+  caller_role text;
+  existing_link uuid;
+begin
+  -- (أ) قصر الدور المُنشأ: يُمنع تماماً إنشاء admin/executive/supervisor/teacher عبر هذه الدالة
+  if p_role not in ('student','parent') then
+    return jsonb_build_object('ok', false, 'error', 'هذه الدالة تنشئ حسابات الطلاب وأولياء الأمور فقط');
+  end if;
+
+  -- (ب) منع اختطاف طالب مرتبط بالفعل: لو الخانة المستهدفة مشغولة، فقط الموظفون يغيّرونها
+  select role into caller_role from profiles where id = auth.uid();
+  if p_student_id is not null then
+    if p_role = 'student' then
+      select login_id into existing_link from students where id = p_student_id;
+    else
+      select parent_id into existing_link from students where id = p_student_id;
+    end if;
+    if existing_link is not null
+       and (caller_role is null or caller_role not in ('admin','executive','supervisor')) then
+      return jsonb_build_object('ok', false, 'error', 'هذا الطالب مرتبط بحساب بالفعل');
+    end if;
+  end if;
+
+  -- قفل استشاري بمفتاح البريد لمنع تنفيذ طلبين متزامنين بنفس البريد (Race Condition)
+  perform pg_advisory_xact_lock(hashtext(lower(p_email)));
+
+  select id into existing_id from auth.users where email = p_email;
+  if existing_id is not null then
+    return jsonb_build_object('ok', false, 'error', 'هذا البريد مستخدم بالفعل');
+  end if;
+
+  new_user_id := gen_random_uuid();
+
+  insert into auth.users (
+    id, instance_id, aud, role, email, encrypted_password,
+    email_confirmed_at, created_at, updated_at,
+    raw_app_meta_data, raw_user_meta_data, is_super_admin, confirmation_token
+  ) values (
+    new_user_id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+    p_email, crypt(p_password, gen_salt('bf')),
+    now(), now(), now(),
+    '{"provider":"email","providers":["email"]}', jsonb_build_object('full_name', p_name, 'role', p_role),
+    false, ''
+  );
+
+  insert into auth.identities (
+    id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at
+  ) values (
+    gen_random_uuid(), new_user_id, new_user_id::text,
+    jsonb_build_object('sub', new_user_id::text, 'email', p_email),
+    'email', now(), now(), now()
+  );
+
+  insert into profiles (id, role, full_name, email)
+  values (new_user_id, p_role::user_role, p_name, p_email)
+  on conflict (id) do update set role=excluded.role, full_name=excluded.full_name, email=excluded.email;
+
+  if p_role = 'student' and p_student_id is not null then
+    update students set login_id = new_user_id where id = p_student_id;
+  elsif p_role = 'parent' and p_student_id is not null then
+    update students set parent_id = new_user_id where id = p_student_id;
+  end if;
+
+  return jsonb_build_object('ok', true, 'user_id', new_user_id);
+exception
+  when unique_violation then
+    return jsonb_build_object('ok', false, 'error', 'هذا البريد مستخدم بالفعل');
+end;
+$$;
+grant execute on function create_linked_account(text, text, text, text, bigint) to authenticated;
