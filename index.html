@@ -1391,7 +1391,7 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
     <div class="main">
       <div class="topbar">
         <div style="display:flex;align-items:center;gap:12px"><button class="mtoggle" onclick="side_toggleMobile()">☰</button><div class="hello"><h2 id="topTitle">أكاديمية الهدى</h2><p id="topSub"></p></div></div>
-        <div class="tools"><div class="bell-wrap" onclick="showNotifications()" style="position:relative;cursor:pointer"><span style="font-size:22px">🔔</span><span id="notifBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:#E74C3C;color:#fff;border-radius:50%;width:18px;height:18px;font-size:11px;font-weight:700;align-items:center;justify-content:center"></span></div><div class="uava" id="topAva">ه</div></div>
+        <div class="tools"><div class="chat-wrap" onclick="navigate('chat')" title="الرسائل" style="position:relative;cursor:pointer"><span style="font-size:21px">💬</span><span id="chatBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:#E74C3C;color:#fff;border-radius:50%;width:18px;height:18px;font-size:11px;font-weight:700;align-items:center;justify-content:center"></span></div><div class="bell-wrap" onclick="showNotifications()" style="position:relative;cursor:pointer"><span style="font-size:22px">🔔</span><span id="notifBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:#E74C3C;color:#fff;border-radius:50%;width:18px;height:18px;font-size:11px;font-weight:700;align-items:center;justify-content:center"></span></div><div class="uava" id="topAva">ه</div></div>
       </div>
       <div class="content"><div id="pageHost" class="page active"></div></div>
     </div>
@@ -2462,13 +2462,13 @@ async function enterEnrollmentDashboard(intent){
     console.error('enroll flow:', e);
     $('#pageHost').innerHTML = `<div class="card" style="text-align:center;padding:40px"><div class="empty-ic">${mi('warning')}</div><h3 style="color:var(--navy-deep)">تعذّر فتح الالتحاق تلقائياً</h3><p style="color:var(--muted);font-size:14px;margin-bottom:16px">ارجع للصفحة الرئيسية واختر نظامك ومسارك وباقتك من جديد.</p><button class="btn" onclick="location.href='landing.html#systems'">الصفحة الرئيسية</button></div>`;
   }
-  setTimeout(()=>{ maybeStartTour(); loadNotifications(); }, 400);
+  setTimeout(()=>{ maybeStartTour(); loadNotifications(); maybeCheckExpiryReminder(); }, 400);
 }
 function enterDashboard(){
   hideAll(); $('#shell').classList.remove('hidden');
   buildShell(); qInjectStudentMenuExtras(); navigate(ME.role==='student'?'roadmap':'dash');
   subscribeToNotifs(); requestNotifPermission();
-  setTimeout(()=>{ maybeStartTour(); loadNotifications(); maybeShowWelcomeBook(); }, 400);
+  setTimeout(()=>{ maybeStartTour(); loadNotifications(); maybeShowWelcomeBook(); maybeCheckExpiryReminder(); }, 400);
 }
 async function logout(){ if(NOTIF_CHANNEL){ try{ sb.removeChannel(NOTIF_CHANNEL); }catch(e){} NOTIF_CHANNEL=null; } await sb.auth.signOut(); location.reload(); }
 
@@ -2678,8 +2678,9 @@ const NOTIF_PAGE_MAP = {
   supervisor:{message:'chat', payment:'confirm'},
   admin:{message:'chat', enrollment:'leads'},
   executive:{message:'chat', enrollment:'leads'},
-  parent:{message:'chat', payment:'plan'},
-  student:{message:'chat'},
+  // 'plan' كانت مفتاح صفحة غير موجود أصلاً عند ولي الأمر (خطأ قديم) — الصحيح 'fees'
+  parent:{message:'chat', payment:'fees'},
+  student:{message:'chat', payment:'renewal'},
 };
 async function refreshMenuDots(){
   try{
@@ -2976,12 +2977,18 @@ async function loadNotifications(){
   const { data }=await sb.from('notifications').select('*').eq('user_id',ME.id).eq('is_read',false).order('created_at',{ascending:false});
   NOTIF_COUNT=(data||[]).length;
   updateNotifBadge();
+  updateChatBadge((data||[]).filter(n=>n.type==='message').length);
   return data||[];
 }
 function updateNotifBadge(){
   const badge=$('#notifBadge'); if(!badge) return;
   badge.textContent=NOTIF_COUNT>0?ar(NOTIF_COUNT):'';
   badge.style.display=NOTIF_COUNT>0?'flex':'none';
+}
+function updateChatBadge(count){
+  const badge=$('#chatBadge'); if(!badge) return;
+  badge.textContent=count>0?ar(count):'';
+  badge.style.display=count>0?'flex':'none';
 }
 async function showNotifications(){
   const notifs=await loadNotifications();
@@ -3296,6 +3303,30 @@ function renewalBox(k){
 function isSubExpired(s){
   if(!s||!s.sub_end||s.enrollment_status!=='active') return false;
   return new Date(s.sub_end) < new Date();
+}
+// تذكير بقرب انتهاء الاشتراك (١٠ أيام قبل الموعد، بمعدل يوم وبعده يوم) — يُستدعى
+// عند دخول الطالب/ولي الأمر. مفيش مجدول (cron) على السيرفر، فالفحص بيحصل عميل-جانبي
+// وقت الدخول، ومنع التكرار بـ localStorage عشان ميتبعتش نفس التنبيه أكتر من مرة لنفس اليوم
+async function maybeCheckExpiryReminder(){
+  if(!ME || (ME.role!=='student' && ME.role!=='parent')) return;
+  try{
+    const rows = ME.role==='student' ? [await myStudentRow()].filter(Boolean) : await myChildren();
+    const today = new Date(); today.setHours(0,0,0,0);
+    const sendDays = [10,8,6,4,2,1,0];
+    for(const s of rows){
+      if(!s || s.enrollment_status!=='active' || !s.sub_end) continue;
+      const end = new Date(s.sub_end); end.setHours(0,0,0,0);
+      const daysLeft = Math.round((end-today)/86400000);
+      if(!sendDays.includes(daysLeft)) continue;
+      const key='exp_reminder_'+s.id+'_'+daysLeft;
+      if(localStorage.getItem(key)) continue;
+      const title = daysLeft===0 ? '⏰ اشتراكك ينتهي اليوم' : `⏰ باقي ${ar(daysLeft)} ${daysLeft===1?'يوم':'أيام'} على انتهاء الاشتراك`;
+      const body = `اشتراك ${esc(s.full_name)} سينتهي قريباً — جدّده الآن لضمان استمرار الحلقة بدون انقطاع.`;
+      if(s.login_id) await pushNotif(s.login_id, title, body, 'payment', s.id);
+      if(s.parent_id) await pushNotif(s.parent_id, title, body, 'payment', s.id);
+      localStorage.setItem(key,'1');
+    }
+  }catch(e){ console.error('maybeCheckExpiryReminder failed:', e); }
 }
 // شاشة توقّف الحلقة عند انتهاء الاشتراك
 function subExpiredGate(s, isParent){
@@ -5382,7 +5413,7 @@ async function privNoHalqa(s){
   const needsTeacher = ME && ME.role==='student';
   if(s && s.chosen_teacher_id){
     const { data:t }=await sb.from('profiles').select('full_name').eq('id',s.chosen_teacher_id).maybeSingle();
-    return `<div class="card" style="text-align:center;padding:40px"><div class="empty-ic">${mi('mosque')}</div><h3 style="color:var(--navy-deep);margin-bottom:8px">معلمك سيتواصل معك قريباً</h3><p style="color:var(--muted);font-size:14px;line-height:1.8">اخترت ${t?esc(t.full_name):'معلمك'} بالفعل، وجاري إنشاء حلقتك الخاصة. لو تأخر التواصل، سرّع الأمر عبر واتساب الإدارة.</p><a class="btn" style="margin-top:16px;background:#25D366;color:#fff" href="https://wa.me/${WHATSAPP}" target="_blank" rel="noopener">${mi('chat')} تواصل معنا واتساب</a></div>`;
+    return `<div class="card" style="text-align:center;padding:40px"><div class="empty-ic">${mi('mosque')}</div><h3 style="color:var(--navy-deep);margin-bottom:8px">معلمك سيتواصل معك قريباً</h3><p style="color:var(--muted);font-size:14px;line-height:1.8">اخترت ${t?esc(t.full_name):'معلمك'} بالفعل، وجاري إنشاء حلقتك الخاصة. لو تأخر التواصل، سرّع الأمر عبر واتساب الإدارة.</p><a class="btn" style="margin-top:16px;background:#25D366;color:#fff;display:inline-flex;align-items:center;justify-content:center;gap:8px" href="https://wa.me/${WHATSAPP}" target="_blank" rel="noopener">${mi('chat')} تواصل معنا واتساب</a></div>`;
   }
   return `<div class="card" style="text-align:center;padding:40px"><div class="empty-ic">${mi('mosque')}</div><h3 style="color:var(--navy-deep);margin-bottom:8px">لم تبدأ حلقتك الخاصة بعد</h3><p style="color:var(--muted);font-size:14px;line-height:1.8">${needsTeacher?'اشتراكك مفعّل، وباقي خطوة: اختر معلمك الآن ليضع لك خطتك ويبدأ التواصل معك على مواعيد حلقتك.':'بعد اختيارك معلماً والتواصل معه على المواعيد، سينشئ حلقتك الخاصة وتظهر هنا بكل تفاصيلها: المحادثة، الحصص، والتقارير.'}</p>${needsTeacher?`<button class="btn" style="margin-top:16px" onclick="navigate('choose')">${mi('chooseTeacher')} اختر معلمك</button>`:''}</div>`;
 }
@@ -5394,7 +5425,7 @@ async function noPlanYetCard(s){
   }
   const { data:t }=await sb.from('profiles').select('id,full_name').eq('id',s.chosen_teacher_id).maybeSingle();
   if(!s.group_id){
-    return `<div class="qnoplan"><div class="nei">🕋</div><h3>معلمك سيتواصل معك قريباً</h3><p>اخترت ${t?esc(t.full_name):'معلمك'} بالفعل، وجاري إنشاء حلقتك الخاصة قبل وضع خطتك.</p><a class="btn" style="margin-top:14px;background:#25D366;color:#fff" href="https://wa.me/${WHATSAPP}" target="_blank" rel="noopener">${mi('chat')} تواصل معنا واتساب</a></div>`;
+    return `<div class="qnoplan"><div class="nei">🕋</div><h3>معلمك سيتواصل معك قريباً</h3><p>اخترت ${t?esc(t.full_name):'معلمك'} بالفعل، وجاري إنشاء حلقتك الخاصة قبل وضع خطتك.</p><a class="btn" style="margin-top:14px;background:#25D366;color:#fff;display:inline-flex;align-items:center;justify-content:center;gap:8px" href="https://wa.me/${WHATSAPP}" target="_blank" rel="noopener">${mi('chat')} تواصل معنا واتساب</a></div>`;
   }
   return `<div class="qnoplan"><div class="nei">🕋</div><h3>تواصل مع معلمك ${t?esc(t.full_name):''}</h3><p>حلقتك جاهزة، وباقي إن معلمك ينشئ خطتك القرآنية حتى تظهر لك هنا.</p>${t?`<button class="btn" style="margin-top:14px" onclick="startChatWith('${t.id}','${escJs(t.full_name)}')">${mi('chat')} محادثة معلمي</button>`:''}</div>`;
 }
@@ -7796,12 +7827,16 @@ function renderStep2(){
   }).join('');
 
   const surahOpts=(sel)=>QURAN_SURAHS.map(s=>`<option value="${s.no}" ${s.no===sel?'selected':''}>${s.no}. ${esc(s.name)}</option>`).join('');
+  // نحتفظ بآخر نطاق اختاره المعلم بدل ما يرجع كل مرة للنطاق الكامل (الفاتحة→الناس)،
+  // لأن الرجوع للكامل كان بيسبب تحديد كل السور بالغلط لو ضغط "تحديد" أكتر من مرة
+  if(d._memRangeFrom==null) d._memRangeFrom=1;
+  if(d._memRangeTo==null) d._memRangeTo=114;
   return `<p style="color:var(--muted);font-size:13.5px;line-height:1.9;margin-bottom:14px">اختر السور التي حفظها الطالب سابقاً بالكامل. ستُستخدم في حصن «المراجعة البعيدة».</p>
   <div class="qform" style="background:var(--cream);border-radius:12px;padding:12px;margin-bottom:14px">
     <label style="font-weight:700;font-size:13px;color:var(--navy-deep);display:block;margin-bottom:8px">تحديد سريع بنطاق (من سورة إلى سورة)</label>
     <div class="qrow">
-      <div><label>من سورة</label><select id="qMemRangeFrom">${surahOpts(1)}</select></div>
-      <div><label>إلى سورة</label><select id="qMemRangeTo">${surahOpts(114)}</select></div>
+      <div><label>من سورة</label><select id="qMemRangeFrom" onchange="QPLAN_STATE.data._memRangeFrom=+this.value">${surahOpts(d._memRangeFrom)}</select></div>
+      <div><label>إلى سورة</label><select id="qMemRangeTo" onchange="QPLAN_STATE.data._memRangeTo=+this.value">${surahOpts(d._memRangeTo)}</select></div>
     </div>
     <button class="btn-sm" style="margin-top:8px" onclick="qApplyMemRange()">${mi('check')} حدّد النطاق كمحفوظ</button>
   </div>
@@ -7817,6 +7852,7 @@ function renderStep2(){
 function qApplyMemRange(){
   const d = QPLAN_STATE.data;
   const from=+$('#qMemRangeFrom').value, to=+$('#qMemRangeTo').value;
+  d._memRangeFrom=from; d._memRangeTo=to;
   const lo=Math.min(from,to), hi=Math.max(from,to);
   if(!d.prior_memorized) d.prior_memorized=[];
   for(let no=lo; no<=hi; no++){
@@ -8989,6 +9025,15 @@ function qCellText(w, progMap){
   const mark = p&&p.status==='done' ? '✓' : '☐';
   return `${w.amount_label||'—'} ${mark}`;
 }
+// نسخة HTML لجدول الـ PDF بس: بتكبّر رمز المربع/العلامة شوية عن باقي نص الخلية
+// (كان صغير جداً وصعب التمييز في الطباعة)، من غير ما تغيّر حجم بقية الجدول
+function qCellHtml(w, progMap){
+  if(!w) return '—';
+  const p=progMap[w.id];
+  const isDone = p&&p.status==='done';
+  const mark = isDone ? '✓' : '☐';
+  return `${esc(w.amount_label||'—')} <span style="font-size:15px;font-weight:700;${isDone?'color:#1B4D3E':''}">${mark}</span>`;
+}
 
 /* ─── التصدير إلى Excel — جدول محوري (يوم واحد = صف واحد) يتابع فيه الطالب نفسه، بألوان متبادلة لكل يوم ─── */
 async function qExportPlanExcel(planId){
@@ -9021,7 +9066,7 @@ async function qExportPlanPDF(planId){
   const doneCount = wards.filter(w=>progMap[w.id]?.status==='done').length;
   const days = qBuildPivotDays(wards, progMap);
   const rowsHtml = days.map((d,i)=>{
-    const cells = QFORDER.map(code=>`<td>${esc(qCellText(d.forts[code], progMap))}</td>`).join('');
+    const cells = QFORDER.map(code=>`<td>${qCellHtml(d.forts[code], progMap)}</td>`).join('');
     return `<tr><td>${i+1}</td><td>${esc(d.date)}</td>${cells}</tr>`;
   }).join('');
   let host=document.getElementById('printPlanArea');
