@@ -7425,6 +7425,12 @@ async function generatePlanSchedule(planId){
   // معقول (نفس الرقم المُعَدّ +حد أقصى) عشان لا يستمر الحساب للأبد لو حصل خطأ بيانات.
   const hasNewHifz = forts.some(f=>f.code==='new_hifz' && (cfgMap[f.id]?.is_enabled!==false));
   const days = configuredDays;
+
+  // 4) Generate wards array
+  const wards = [];
+  let dayIdx = 0;
+  let dt = new Date(startDate);
+  let studyDayCount = 0;
   const maxIter = Math.max(days,30)*3 + 60; // سقف أمان أعلى يسمح للخطة تطول أو تقصر فعلياً حسب المعدّل
   for(let i=0; i<maxIter; i++){
     const dow = dt.getDay(); // 0=Sun
