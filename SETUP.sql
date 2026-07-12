@@ -17,6 +17,25 @@ create extension if not exists pgcrypto with schema extensions;
 alter table payments add column if not exists currency_code text default 'EGP';
 
 -- ------------------------------------------------------------
+-- ٠-و) حدود المحطة كبيانات حقيقية بدل نص حر — كانت quran_stations معتمدة
+--      بالكامل على entry_conditions/exit_conditions (نص حر يكتبه المدير
+--      بحرّية، زي "حفظ جزء عمّ")، فمحرك توليد الخطة (generatePlanSchedule)
+--      ما كانش يعرف أصلاً حدود المحطة الفعلية، وكان بيكمّل الحفظ الجديد
+--      لحد ما تنفد أيام الخطة المُعدّة أو يوصل لسورة الفاتحة، حتى لو
+--      المحطة نفسها المفروض تقف عند سورة معيّنة (زي جزء عمّ يقف عند النبأ).
+--      station_kind بيميّز محطة "حفظ" عن محطة "مراجعة بحتة" (اللي مفيهاش
+--      حفظ جديد ولا مراجعة قريبة خالص — بس مراجعة بعيدة + سماع/قراءة).
+-- ------------------------------------------------------------
+alter table quran_stations add column if not exists station_kind text default 'hifz';
+alter table quran_stations add column if not exists boundary_surah_from int;
+alter table quran_stations add column if not exists boundary_surah_to int;
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname='quran_stations_kind_check') then
+    alter table quran_stations add constraint quran_stations_kind_check check (station_kind in ('hifz','review'));
+  end if;
+end $$;
+
+-- ------------------------------------------------------------
 -- ٠-د) sub_start/sub_end كانت من نوع date بس (بدون وقت)، فلحظة تفعيل
 --      الاشتراك الحقيقية (بالساعة والدقيقة) كانت بتتقطع لتاريخ بس، وبعد كده
 --      لما تتقرأ في المتصفح كـ "منتصف الليل UTC" بتترجم لمنطقة القاهرة/الرياض
@@ -1326,6 +1345,33 @@ with check (
     join quran_student_plans p on p.id = w.plan_id
     where w.id = quran_ward_progress.ward_id
     and (p.teacher_id = auth.uid() or exists (select 1 from profiles where id = auth.uid() and role = 'supervisor'))
+  )
+);
+
+-- ------------------------------------------------------------
+-- ثغرة/فجوة مكتشفة: quran_plan_wards معاها سياسة قراءة بس (wards scoped
+-- read)، ومفيش أي سياسة insert/update/delete خالص — عكس الجدولين الشقيقين
+-- quran_student_plans وquran_ward_progress اللي كل واحد فيهم عنده سياسة
+-- "for all". فكل تعديل مباشر على الورد نفسه (تعديل ورد يوم واحد، توليد
+-- الخطة الأولي، الترحيل بسبب غياب، إعادة الجدولة، الاستدراك، الانتقال
+-- لمحطة تالية) كان بيفشل بصمت (Supabase بترجع نجاح بدون خطأ وبدون أي صف
+-- متأثر لو الـ RLS رفضت الشرط) — وهو بالظبط سبب "تعديل ورد اليوم عند
+-- المعلم مبيعملش حاجة".
+-- ------------------------------------------------------------
+drop policy if exists "qwards_teacher" on quran_plan_wards;
+create policy "qwards_teacher" on quran_plan_wards for all to public
+using (
+  exists (
+    select 1 from quran_student_plans p
+    where p.id = quran_plan_wards.plan_id
+    and (p.teacher_id = auth.uid() or exists (select 1 from profiles where id = auth.uid() and role = 'supervisor'))
+  )
+)
+with check (
+  exists (
+    select 1 from quran_student_plans p
+    where p.id = quran_plan_wards.plan_id
+    and (p.teacher_id = auth.uid() or exists (select 1 from profiles where id = auth.uid() and role in ('supervisor','admin','executive')))
   )
 );
 
