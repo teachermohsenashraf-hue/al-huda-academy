@@ -920,6 +920,10 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 .auth-btn{width:100%;padding:14px;border:none;border-radius:8px;background:var(--emerald);color:#fff;font-family:'Cairo';font-weight:600;font-size:15px;cursor:pointer;margin-top:8px;transition:.2s}
 .auth-btn:hover{background:var(--emerald-deep)}
 .auth-alt{text-align:center;font-size:13.5px;color:var(--muted);margin-top:16px}
+/* حاوية ودجت Turnstile — لازم direction:ltr صريح لأن iframe الودجت بيتصرف
+   بشكل غريب (بيتزحلق يمين/شمال ويتقطع) جوه أب بـ direction:rtl زي شاشات
+   الدخول عندنا، وlazy width:100%+overflow:hidden يمنعه يكسر عرض الفورم على الموبايل */
+.turnstile-wrap{width:100%;overflow:hidden;display:flex;justify-content:center;margin:6px 0 14px;direction:ltr}
 .auth-alt a{color:var(--emerald);font-weight:700;cursor:pointer}
 .side .foot .home-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.85);border-radius:12px;padding:9px;font-family:'Cairo';font-weight:600;font-size:13px;cursor:pointer;margin-bottom:8px}
 .side .foot .home-btn:hover{background:rgba(255,255,255,0.12)}
@@ -2238,11 +2242,14 @@ function renderAuthBody(){
   else body=loginForm();
   $('#authBody').innerHTML = body;
   // Turnstile بيكتشف عناصر cf-turnstile الموجودة وقت تحميل سكريبته بس — نموذج
-  // التسجيل بيتحقن ديناميكياً بعد كده، فلازم نستدعي render() يدوياً في كل مرة
-  if(AUTH_MODE==='signup'){
+  // الدخول/التسجيل بيتحقن ديناميكياً بعد كده، فلازم نستدعي render() يدوياً في كل مرة.
+  // مطلوب في شاشتي الدخول والتسجيل معاً، لأن حماية الكابتشا في Supabase بتتطبّق
+  // على كل عمليات المصادقة (مش التسجيل بس) — من غيرها الدخول العادي بيترفض بالكامل.
+  const turnstileId = {signup:'suTurnstile', login:'lgTurnstile', forgot:'fgTurnstile'}[AUTH_MODE] || null;
+  if(turnstileId){
     _turnstileToken=null;
     const tryRender=()=>{
-      if(window.turnstile && $('#suTurnstile')) turnstile.render('#suTurnstile');
+      if(window.turnstile && $('#'+turnstileId)) turnstile.render('#'+turnstileId);
       else if(!window.turnstile) setTimeout(tryRender,300);
     };
     tryRender();
@@ -2251,11 +2258,12 @@ function renderAuthBody(){
 async function doForgot(){
   const email=$('#fgEmail').value.trim();
   if(!email){ toast('أدخل بريدك الإلكتروني'); $('#fgEmail').focus(); return; }
+  if(!_turnstileToken){ toast('أكمل التحقق "أنا لست روبوت" أولاً'); return; }
   $('#fgBtn').disabled=true; $('#fgBtn').textContent='جارٍ الإرسال...';
   // إرسال كود OTP للبريد (Supabase يضع الكود تلقائياً في رسالة OTP)
   let result;
   try{
-    result=await sb.auth.signInWithOtp({ email, options:{ shouldCreateUser:false } });
+    result=await sb.auth.signInWithOtp({ email, options:{ shouldCreateUser:false, captchaToken:_turnstileToken } });
   }catch(ex){
     $('#fgBtn').disabled=false; $('#fgBtn').textContent='إرسال الكود';
     alert('خطأ في الاتصال: '+(ex.message||ex.toString())); return;
@@ -2317,12 +2325,14 @@ function loginForm(){
   return `<div class="afield"><label>البريد الإلكتروني</label><input id="lgEmail" type="email" value="${LOGIN_PREFILL||''}" placeholder="example@mail.com"></div>
   <div class="afield"><label>كلمة المرور</label><input id="lgPass" type="password" placeholder="••••••••"></div>
   <div style="text-align:left;margin-bottom:14px"><a onclick="switchAuth('forgot')" style="font-size:13px;color:var(--emerald);cursor:pointer">نسيت كلمة المرور؟</a></div>
+  <div class="turnstile-wrap"><div id="lgTurnstile" class="cf-turnstile" data-sitekey="${TURNSTILE_SITE_KEY}" data-callback="onTurnstileOk"></div></div>
   <button class="auth-btn" id="lgBtn" onclick="doLogin()">دخول</button>
   <div class="auth-alt">ليس لديك حساب؟ <a onclick="switchAuth('signup')">أنشئ حساباً جديداً</a></div>`;
 }
 function forgotForm(){
   return `<div style="text-align:center;margin-bottom:18px"><div class="empty-ic">${mi('key')}</div><h3 style="color:var(--navy-deep);margin-bottom:6px">استعادة كلمة المرور</h3><p style="font-size:14px;color:var(--muted);line-height:1.8">أدخل بريدك المسجّل، وسنرسل لك كود تحقق لإعادة تعيين كلمة المرور.</p></div>
   <div class="afield"><label>البريد الإلكتروني <span class="req">*</span></label><input id="fgEmail" type="email" placeholder="example@mail.com"></div>
+  <div class="turnstile-wrap"><div id="fgTurnstile" class="cf-turnstile" data-sitekey="${TURNSTILE_SITE_KEY}" data-callback="onTurnstileOk"></div></div>
   <button class="auth-btn" id="fgBtn" onclick="doForgot()">إرسال الكود</button>
   <div class="auth-alt"><a onclick="switchAuth('login')">← العودة لتسجيل الدخول</a></div>
   <div style="margin-top:18px;padding:14px;background:var(--cream);border-radius:12px;font-size:12.5px;color:var(--muted);line-height:1.8">💡 إن لم تجد الرسالة، تحقّق من مجلد <b>الرسائل غير المرغوبة (Spam)</b>. الكود صالح لمدة ساعة.<br><br>لو الكود اتأخر أو محصلش، تواصل مع إدارة المنصة وهيعيدوا تعيين كلمة سرّك مباشرة.
@@ -2364,7 +2374,7 @@ function signupForm(){
     <div class="afield"><label>تأكيد كلمة المرور <span class="req">*</span></label><input id="suPass4" type="password" placeholder="أعد كتابتها"></div>
   </div>
   <div style="font-size:12px;color:var(--muted);margin-bottom:12px">الحقول المعلّمة بـ <span class="req">*</span> مطلوبة.</div>
-  <div id="suTurnstile" class="cf-turnstile" data-sitekey="${TURNSTILE_SITE_KEY}" data-callback="onTurnstileOk" style="margin-bottom:14px"></div>
+  <div class="turnstile-wrap"><div id="suTurnstile" class="cf-turnstile" data-sitekey="${TURNSTILE_SITE_KEY}" data-callback="onTurnstileOk"></div></div>
   <button class="auth-btn" id="suBtn2" onclick="doSignup()">إنشاء الحساب</button>
   <div class="auth-alt">لديك حساب بالفعل؟ <a onclick="switchAuth('login')">سجّل الدخول</a></div>`;
 }
@@ -2375,14 +2385,18 @@ function pickSignupRole(r){ SIGNUP_ROLE=r; document.querySelectorAll('.rc').forE
 async function doLogin(){
   const email=$('#lgEmail').value.trim(), pass=$('#lgPass').value;
   if(!email||!pass){ toast('أدخل البريد وكلمة المرور'); return; }
+  if(!_turnstileToken){ toast('أكمل التحقق "أنا لست روبوت" أولاً'); return; }
   $('#lgBtn').disabled=true; $('#lgBtn').textContent='جارٍ الدخول...';
-  const { error } = await sb.auth.signInWithPassword({ email, password:pass });
+  const { error } = await sb.auth.signInWithPassword({ email, password:pass, options:{ captchaToken:_turnstileToken } });
   $('#lgBtn').disabled=false; $('#lgBtn').textContent='دخول';
   if(error){
     let m=error.message;
     if(m.includes('Invalid')) m='البريد أو كلمة المرور غير صحيحة. تأكّد منهما، أو اضغط «نسيت كلمة المرور».';
     else if(m.includes('confirm')||m.includes('not confirmed')) m='هذا الحساب يحتاج تأكيداً. اضغط «نسيت كلمة المرور» لاستلام كود وتفعيل دخولك.';
-    toast(m); return;
+    toast(m);
+    try{ if(window.turnstile) turnstile.reset('#lgTurnstile'); }catch(e){}
+    _turnstileToken=null;
+    return;
   }
   await afterAuth();
 }
