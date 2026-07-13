@@ -7715,6 +7715,18 @@ async function generatePlanSchedule(planId){
     boundLo = Math.min(station.boundary_surah_from, station.boundary_surah_to);
     boundHi = Math.max(station.boundary_surah_from, station.boundary_surah_to);
   }
+  // بعض المحطات (زي "الزهراوان" داخل مسار مرتّب عكسياً بالكامل) لازم تُحفَظ
+  // دائماً بالترتيب الطبيعي (البقرة قبل آل عمران) بصرف النظر عن اتجاه باقي
+  // المسار — force_forward يتجاوز اتجاه المسار العام لهذه المحطة تحديداً
+  const stationReversed = station.force_forward ? false : isReversedOrder;
+  // حدود على مستوى الآية داخل نفس السورة (لتقسيم "بداية/إتمام" السورة الواحدة
+  // إلى محطتين منفصلتين فعلياً) — لا تُستخدَم إلا لو المحطة محصورة في سورة
+  // واحدة بالضبط (boundLo===boundHi)، وإلا فحدود السورة الكاملة هي المرجع
+  let ayahLo=null, ayahHi=null;
+  if(boundLo!=null && boundLo===boundHi && station.boundary_ayah_from && station.boundary_ayah_to){
+    ayahLo = Math.min(station.boundary_ayah_from, station.boundary_ayah_to);
+    ayahHi = Math.max(station.boundary_ayah_from, station.boundary_ayah_to);
+  }
   // في محطة المراجعة البحتة: نستبعد حصنَي "الحفظ الجديد" و"المراجعة القريبة" تمامًا
   // من التوليد (حتى لو مفعّلين في إعدادات النظام العامة)، لأن مفهومهما أصلاً
   // مبني على وجود حفظ جديد يحصل — وده مش موجود في محطة مراجعة بحتة
@@ -7730,15 +7742,23 @@ async function generatePlanSchedule(planId){
   // الافتراضي بدون تقييم مسبق: لو المحطة عندها حدود سور محددة، نبدأ من طرف
   // الحدود اللي يطابق اتجاه الحفظ (الطرف الأعلى في الترتيب العكسي، أو الأدنى
   // في الترتيب الطبيعي) — وإلا نرجع للافتراضي العام (الناس ١١٤ / البقرة ٢)
-  const stationDefaultStart = boundLo!=null ? (isReversedOrder ? boundHi : boundLo) : (isReversedOrder ? 114 : 2);
+  const stationDefaultStart = boundLo!=null ? (stationReversed ? boundHi : boundLo) : (stationReversed ? 114 : 2);
+  // نقطة بداية الآية الافتراضية: أول آية بعد حد الآية السفلي لو المحطة محصورة
+  // داخل نفس السورة (زي "إتمام البقرة" اللي تبدأ من الآية ١٤٢ مش من الصفر)
+  const stationDefaultAyah = ayahLo!=null ? (ayahLo-1) : 0;
   let curSurah = (assess && assess.current_surah_no) || stationDefaultStart;
-  let curAyah  = (assess && assess.current_ayah_no) || 0;
+  let curAyah  = (assess && assess.current_ayah_no) || stationDefaultAyah;
   // لو التقييم محفوظ من محطة سابقة وموقعه الحالي خارج حدود المحطة المختارة دلوقتي
   // (مثلاً المعلم غيّر المحطة لـ"جزء تبارك" لكن آخر تقييم كان جوه نطاق جزء عمّ)،
   // نُثبّته على أقرب طرف من حدود المحطة الجديدة بدل ما يبدأ من نقطة خارج نطاقها
   if(boundLo!=null && (curSurah<boundLo || curSurah>boundHi)){
     curSurah = stationDefaultStart;
-    curAyah = 0;
+    curAyah = stationDefaultAyah;
+  }
+  // أو لو نفس السورة لكن موقعه الحالي قبل حد الآية السفلي لهذه المحطة تحديداً
+  // (مثلاً كان في "بداية البقرة" وانتقل لمحطة "إتمام البقرة" بنفس السورة)
+  if(ayahLo!=null && curSurah===boundLo && curAyah < ayahLo-1){
+    curAyah = stationDefaultAyah;
   }
   let curRead  = (assess && assess.current_read_page) || 1;
   let curLisn  = (assess && assess.current_listen_page) || 1;
@@ -7786,20 +7806,26 @@ async function generatePlanSchedule(planId){
         if(f.code==='new_hifz'){
           const s = surahByNo(curSurah);
           if(!s){ continue; }
+          // سقف الآيات الفعلي لهذه المحطة: حد الآية العلوي لو محطة مقسّمة داخل
+          // نفس السورة (بداية/إتمام)، وإلا نهاية السورة كاملة كالمعتاد
+          const ayahCap = (ayahHi!=null && curSurah===boundHi) ? ayahHi : s.ayat;
           let from = curAyah+1;
-          let to = Math.min(curAyah+amount, s.ayat);
+          let to = Math.min(curAyah+amount, ayahCap);
           w.surah_no = s.no; w.surah_name = s.name;
           w.ayah_from = from; w.ayah_to = to;
           w.amount_label = `${s.name} • ${ltrRange(from,to)}`;
           curAyah = to;
-          if(curAyah >= s.ayat){
+          if(curAyah >= ayahCap){
             // الانتقال للسورة التالية في تسلسل الحفظ الفعلي: عكسي (الناس→الفاتحة) لكل
-            // المسارات ما عدا الزهراوين اللي بترتيبها الطبيعي (البقرة→آل عمران)
-            const next = isReversedOrder ? curSurah-1 : curSurah+1;
+            // المسارات ما عدا الزهراوين اللي بترتيبها الطبيعي (البقرة→آل عمران)، إلا لو
+            // المحطة نفسها مفروض عليها الترتيب الطبيعي رغم اتجاه المسار (force_forward)
+            const next = stationReversed ? curSurah-1 : curSurah+1;
             // الوقوف عند حدود المحطة الفعلية (لو محددة) هو الأساس، مش فقط حدود
             // المصحف (1-114) — كده "جزء عمّ" يقف عند النبأ فعلاً بدل ما يكمّل
-            // لجزء تبارك، وأي محطة تانية تلتزم بنطاقها المحدد بالظبط
-            const withinBounds = boundLo==null || (next>=boundLo && next<=boundHi);
+            // لجزء تبارك، وأي محطة تانية تلتزم بنطاقها المحدد بالظبط. محطة محصورة
+            // في سورة واحدة (boundLo===boundHi، زي "بداية البقرة") ما تنتقلش لسورة
+            // تانية إطلاقاً — اكتمال الآيات المحدَّدة يعني اكتمال المحطة كلها
+            const withinBounds = boundLo==null ? true : (boundLo!==boundHi && next>=boundLo && next<=boundHi);
             if(next>=1 && next<=114 && withinBounds){ curSurah=next; curAyah=0; }
             else { curSurah=null; }
           }
@@ -8825,11 +8851,18 @@ async function qRenderFullPlan(planId, role='student'){
     const kindLabel = isReview ? '🔄 محطة مراجعة بحتة' : '📖 محطة حفظ';
     let rangeHtml = '';
     if(!isReview && station.boundary_surah_from && station.boundary_surah_to){
+      const bLo = Math.min(station.boundary_surah_from, station.boundary_surah_to);
+      const bHi = Math.max(station.boundary_surah_from, station.boundary_surah_to);
       const sFrom = surahByNo(station.boundary_surah_from), sTo = surahByNo(station.boundary_surah_to);
+      // محطة محصورة داخل نفس السورة (بداية/إتمام): نعرض مدى الآيات بدل تكرار
+      // نفس اسم السورة مرتين بلا فائدة (زي "البقرة ← البقرة")
+      const rangeLabel = (bLo===bHi && station.boundary_ayah_from && station.boundary_ayah_to)
+        ? `${esc(sFrom?.name||'—')} (من الآية ${ar(station.boundary_ayah_from)} إلى ${ar(station.boundary_ayah_to)})`
+        : `${esc(sFrom?.name||'—')} ← ${esc(sTo?.name||'—')}`;
       const hifzWards = (wards||[]).filter(w=>w.fortress_code==='new_hifz' && w.surah_no!=null);
       const lastHifz = hifzWards.length ? hifzWards[hifzWards.length-1] : null;
       const finished = hasStationBoundaryFinished(hifzWards, station);
-      rangeHtml = `<div class="qpvrow"><span>حدود الحفظ الجديد</span><b>${esc(sFrom?.name||'—')} ← ${esc(sTo?.name||'—')}</b></div>
+      rangeHtml = `<div class="qpvrow"><span>حدود الحفظ الجديد</span><b>${rangeLabel}</b></div>
         <div class="qpvrow"><span>آخر موقف في الخطة</span><b>${lastHifz?esc(lastHifz.surah_name)+' • '+esc(lastHifz.amount_label||''):'لم يبدأ بعد'}</b></div>
         <div class="qpvrow"><span>حالة الحد</span><b style="color:${finished?'var(--emerald)':'var(--gold)'}">${finished?'✅ وصلت الخطة لحد المحطة':'⏳ لسه جاري داخل الحدود'}</b></div>`;
     } else if(!isReview){
@@ -8950,7 +8983,10 @@ function hasStationBoundaryFinished(hifzWards, station){
   const s = surahByNo(last.surah_no);
   if(!s) return false;
   const atEdge = last.surah_no===boundLo || last.surah_no===boundHi;
-  const fullyDone = (last.ayah_to||0) >= s.ayat;
+  // محطة محصورة داخل نفس السورة (بداية/إتمام) عندها سقف آية مختلف عن نهاية
+  // السورة كاملة — اكتمالها الفعلي يُقاس بالوصول لحد الآية العلوي المحدَّد لها
+  const ayahCap = (boundLo===boundHi && station.boundary_ayah_to) ? station.boundary_ayah_to : s.ayat;
+  const fullyDone = (last.ayah_to||0) >= ayahCap;
   return atEdge && fullyDone;
 }
 

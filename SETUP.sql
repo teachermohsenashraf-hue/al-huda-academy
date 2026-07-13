@@ -139,6 +139,35 @@ from quran_systems qs, (values
 where st.system_id = qs.id and qs.path_key = b.path_key and st.order_index = b.order_index;
 
 -- ------------------------------------------------------------
+-- ٠-ك) 🔴 إصلاح محطة الزهراوين: كانت لها قيدان معماريان تركا أثراً في التوليد:
+--      (أ) تقسيم "بداية/إتمام" نفس السورة لم يكن ممكناً بحدود سورة→سورة فقط،
+--      فمحطتا "بداية البقرة" و"إتمام البقرة" كانتا بنفس الحدود (٢-٢) بلا أي
+--      فارق بينهما فعلياً. الحل: boundary_ayah_from/to يحصران المدى داخل
+--      نفس السورة (يُستخدَمان فقط لما تكون السورة من/إلى واحدة).
+--      (ب) محطة "الزهراوان" داخل مسار "القرآن كامل" (ترتيبه عكسي بالكامل) كانت
+--      سترث نفس اتجاه الحفظ العكسي فتبدأ بآل عمران وتنزل للبقرة، بينما
+--      التقليد الثابت للزهراوين محفوظ دائماً بالترتيب الطبيعي (البقرة ثم آل
+--      عمران) بصرف النظر عن اتجاه بقية المسار. force_forward يفرض الترتيب
+--      الطبيعي لمحطة بعينها متجاوزاً اتجاه المسار العام.
+-- ------------------------------------------------------------
+alter table quran_stations add column if not exists boundary_ayah_from int;
+alter table quran_stations add column if not exists boundary_ayah_to int;
+alter table quran_stations add column if not exists force_forward boolean default false;
+
+update quran_stations st set boundary_ayah_from=b.afrom, boundary_ayah_to=b.ato
+from quran_systems qs, (values
+  ('zahrawan'::text, 1, 1, 141),    -- بداية البقرة
+  ('zahrawan', 2, 142, 286),        -- إتمام البقرة
+  ('zahrawan', 4, 1, 92),           -- بداية آل عمران
+  ('zahrawan', 5, 93, 200)          -- إتمام آل عمران
+) as b(path_key, order_index, afrom, ato)
+where st.system_id = qs.id and qs.path_key = b.path_key and st.order_index = b.order_index;
+
+update quran_stations st set force_forward=true
+from quran_systems qs
+where st.system_id = qs.id and qs.path_key='full' and st.order_index=2;
+
+-- ------------------------------------------------------------
 -- ٠-د) sub_start/sub_end كانت من نوع date بس (بدون وقت)، فلحظة تفعيل
 --      الاشتراك الحقيقية (بالساعة والدقيقة) كانت بتتقطع لتاريخ بس، وبعد كده
 --      لما تتقرأ في المتصفح كـ "منتصف الليل UTC" بتترجم لمنطقة القاهرة/الرياض
