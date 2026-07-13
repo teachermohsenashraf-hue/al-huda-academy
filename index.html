@@ -2314,12 +2314,12 @@ function renderAuthBody(){
 async function doForgot(){
   const email=$('#fgEmail').value.trim();
   if(!email){ toast('أدخل بريدك الإلكتروني'); $('#fgEmail').focus(); return; }
-  if(!_turnstileToken){ toast('أكمل التحقق "أنا لست روبوت" أولاً'); return; }
   $('#fgBtn').disabled=true; $('#fgBtn').textContent='جارٍ الإرسال...';
   // إرسال كود OTP للبريد (Supabase يضع الكود تلقائياً في رسالة OTP)
   let result;
   try{
-    result=await sb.auth.signInWithOtp({ email, options:{ shouldCreateUser:false, captchaToken:_turnstileToken } });
+    const fgOpts = _turnstileToken ? { shouldCreateUser:false, captchaToken:_turnstileToken } : { shouldCreateUser:false };
+    result=await sb.auth.signInWithOtp({ email, options:fgOpts });
   }catch(ex){
     $('#fgBtn').disabled=false; $('#fgBtn').textContent='إرسال الكود';
     alert('خطأ في الاتصال: '+(ex.message||ex.toString())); return;
@@ -2441,9 +2441,9 @@ function pickSignupRole(r){ SIGNUP_ROLE=r; document.querySelectorAll('.rc').forE
 async function doLogin(){
   const email=$('#lgEmail').value.trim(), pass=$('#lgPass').value;
   if(!email||!pass){ toast('أدخل البريد وكلمة المرور'); return; }
-  if(!_turnstileToken){ toast('أكمل التحقق "أنا لست روبوت" أولاً'); return; }
   $('#lgBtn').disabled=true; $('#lgBtn').textContent='جارٍ الدخول...';
-  const { error } = await sb.auth.signInWithPassword({ email, password:pass, options:{ captchaToken:_turnstileToken } });
+  const opts = _turnstileToken ? { captchaToken:_turnstileToken } : {};
+  const { error } = await sb.auth.signInWithPassword({ email, password:pass, options:opts });
   $('#lgBtn').disabled=false; $('#lgBtn').textContent='دخول';
   if(error){
     let m=error.message;
@@ -2472,14 +2472,14 @@ async function doSignup(){
   if(p1.length<6){ toast('كلمة المرور ٦ أحرف على الأقل'); return; }
   if(p1!==p2){ toast('كلمتا المرور غير متطابقتين'); $('#suPass4').focus(); return; }
   if(SIGNUP_ROLE==='student' && !$('#suTrack').value){ toast('اختر المسار'); return; }
-  if(!_turnstileToken){ toast('أكمل التحقق "أنا لست روبوت" أولاً'); return; }
   const fullPhone=($('#suDial')?$('#suDial').value:'')+' '+phone;
   const meta={ role:SIGNUP_ROLE, full_name:name, initials:name.slice(0,2),
     age:age, phone:fullPhone.trim(), gender:$('#suGender').value,
     country:$('#suCountry').value, governorate:gov, residence:$('#suResidence').value };
   if(SIGNUP_ROLE==='student'){ meta.chosen_track=$('#suTrack').value; meta.parent_email=$('#suParentEmail').value.trim(); }
   $('#suBtn2').disabled=true; $('#suBtn2').textContent='جارٍ الإنشاء...';
-  const { data:suData, error } = await sb.auth.signUp({ email:e1, password:p1, options:{ data:meta, captchaToken:_turnstileToken } });
+  const suOpts = _turnstileToken ? { data:meta, captchaToken:_turnstileToken } : { data:meta };
+  const { data:suData, error } = await sb.auth.signUp({ email:e1, password:p1, options:suOpts });
   $('#suBtn2').disabled=false; $('#suBtn2').textContent='إنشاء الحساب';
   if(error){
     if(error.message.includes('already')){ alert('هذا البريد مسجّل بالفعل، سجّل الدخول مباشرة'); switchAuth('login'); }
