@@ -9645,25 +9645,36 @@ async function qHandleImport(input){
 async function qDoImport(rows){ toast('تحت التطوير — استيراد '+ar(rows.length)+' سجل سيتوفر قريباً'); }
 
 /* ─── نظام التنبيهات ─── */
+// 🔴 إصلاح حرج في الأداء: كانت هذه الدالة تُعاد بالكامل في كل مرة يفتح فيها
+// الطالب صفحة "التنبيهات" (بلا أي تحقّق من تكرار)، وكانت تجلب كل أوراد الخطة
+// كاملة (مئات الصفوف لخطة طويلة) ثم تُدرج إشعاراً جديداً بلا أي تحقّق من
+// وجود إشعار مماثل بالفعل — فكل زيارة للصفحة تزيد جدول quran_notifications
+// بصفوف مكرَّرة، وطول قائمة المعرّفات في .in() كان ينمو مع الوقت حتى يصل لبطء
+// شديد أو تعليق الاستعلام تمامًا (بالضبط أعراض الصفحة اللي بطُلعت "انتهت المهلة").
+// الحل: (أ) لا نُعيد الفحص إلا إذا لم يوجد إشعار مماثل خلال آخر ٦ ساعات، (ب)
+// نستخدم استعلامات عدّ (count) بدل جلب كل الصفوف وتحميلها في الذاكرة.
 async function qCheckAndFireNotifications(planId){
+  const sixHoursAgo = new Date(Date.now()-6*3600*1000).toISOString();
+  const { count: recentCount } = await sb.from('quran_notifications').select('id',{count:'exact',head:true})
+    .eq('user_id',ME.id).in('kind',['late_wards','near_station_end','station_complete']).gte('created_at',sixHoursAgo);
+  if(recentCount) return; // اتفحصت مؤخراً — لا داعي لإعادة الحساب الثقيل الآن
   const { data: plan } = await sb.from('quran_student_plans').select('*').eq('id',planId).maybeSingle();
   if(!plan) return;
   const today = qTodayStr();
-  // Check if student has late wards
-  const { data: lateW } = await sb.from('quran_plan_wards').select('id').eq('plan_id',planId).lt('planned_date',today);
-  if(lateW?.length){
-    await qFireNotif(plan.login_id,'late_wards',{ count:lateW.length });
-    if(plan.teacher_id) await qFireNotif(plan.teacher_id,'student_late',{ plan_id:planId, count:lateW.length });
+  // عدّ فقط (بلا تحميل الصفوف نفسها) — أسرع بكثير من جلب كل الأوراد
+  const { count: lateCount } = await sb.from('quran_plan_wards').select('id',{count:'exact',head:true}).eq('plan_id',planId).lt('planned_date',today);
+  if(lateCount){
+    await qFireNotif(plan.login_id,'late_wards',{ count:lateCount });
+    if(plan.teacher_id) await qFireNotif(plan.teacher_id,'student_late',{ plan_id:planId, count:lateCount });
   }
-  // Check station near completion
   const { data: allW } = await sb.from('quran_plan_wards').select('id').eq('plan_id',planId);
   const wIds = (allW||[]).map(w=>w.id);
-  // .in() بمصفوفة فاضية كان بيعلّق الاستعلام بلا نهاية (بخلاف كل استخدامات .in()
-  // التانية في الملف اللي بتتأكد من طول القائمة الأول) — لو مفيش أوراد أصلاً، نتخطى الاستعلام
-  const { data: doneW } = wIds.length ? await sb.from('quran_ward_progress').select('id').in('ward_id',wIds).eq('status','done') : { data:[] };
-  const pct = (allW||[]).length ? Math.round((doneW||[]).length/(allW||[]).length*100) : 0;
-  if(pct>=90) await qFireNotif(plan.login_id,'near_station_end',{ pct });
-  if(pct>=100) await qFireNotif(plan.login_id,'station_complete',{ pct });
+  if(wIds.length){
+    const { count: doneCount } = await sb.from('quran_ward_progress').select('id',{count:'exact',head:true}).in('ward_id',wIds).eq('status','done');
+    const pct = Math.round((doneCount||0)/wIds.length*100);
+    if(pct>=90) await qFireNotif(plan.login_id,'near_station_end',{ pct });
+    if(pct>=100) await qFireNotif(plan.login_id,'station_complete',{ pct });
+  }
 }
 async function qFireNotif(userId, kind, payload){
   if(!userId) return;

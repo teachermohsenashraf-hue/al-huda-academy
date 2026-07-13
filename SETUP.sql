@@ -10,6 +10,20 @@
 create extension if not exists pgcrypto with schema extensions;
 
 -- ------------------------------------------------------------
+-- ٠-ل) 🔴 إصلاح حرج في الأداء: qCheckAndFireNotifications كانت تُدرج إشعاراً
+--      جديداً في quran_notifications في كل مرة تُفتح فيها صفحة "التنبيهات"
+--      بلا أي تحقّق من التكرار، فتراكمت صفوف مكرَّرة لنفس الحالة (late_wards
+--      خصوصاً، لأنها شائعة) مع كل استخدام — وهو ما كان يجعل الصفحة تزداد بطئاً
+--      تدريجياً حتى تتجاوز مهلة التحميل. ننظّف التكرار المتراكم فعلاً هنا،
+--      ونضيف فهرساً يسرّع فحص "هل فُحص هذا مؤخراً؟" الجديد في الكود.
+-- ------------------------------------------------------------
+delete from quran_notifications a using quran_notifications b
+where a.id < b.id and a.user_id=b.user_id and a.kind=b.kind
+  and a.kind in ('late_wards','near_station_end','station_complete')
+  and a.created_at < now() - interval '1 hour';
+create index if not exists idx_quran_notifications_user_kind_created on quran_notifications(user_id, kind, created_at);
+
+-- ------------------------------------------------------------
 -- ٠-ي) تخفيض الرسوم: كان المبلغ مقفولاً على "نصف السعر" بلا أي هامش لتقدير
 --      المشرف الفعلي لحالة كل أسرة، وبدون حقل "دخل الأسرة الشهري" في الاستبيان.
 --      approved_fee على الطالب يخزّن المبلغ الفعلي الذي وافق عليه المشرف (قد
