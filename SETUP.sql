@@ -36,6 +36,81 @@ do $$ begin
 end $$;
 
 -- ------------------------------------------------------------
+-- ٠-ز) 🔴 إصلاح حرج: تعبئة station_kind/boundary_surah_from/to الفعلية لكل
+--      محطات المسارات الستة المزروعة مسبقاً (قسم "تعبئة المحطات الحقيقية"
+--      بالأسفل في هذا الملف). الأعمدة أُضيفت بعد إدخال هذه المحطات، فبقيت
+--      كل محطة موجودة فعلاً على القيم الافتراضية: station_kind='hifz'
+--      وحدود NULL — وهو السبب الحقيقي وراء تجاهل محرك توليد الخطة لنوع/حدود
+--      المحطة عمليًا رغم صحة كود generatePlanSchedule نفسه: البيانات نفسها
+--      لم تكن معبّأة قط. الحدود هنا مستخرجة حرفيًا من اسم كل محطة (نفس
+--      الأسماء المُدخلة أعلاه)، ومطابقة بمفتاح (مسار + ترتيب المحطة) للدقة
+--      بدل مطابقة نصية هشة. أرقام السور حسب ترتيبها في القرآن (١=الفاتحة
+--      ... ١١٤=الناس)، راجع QURAN_SURAHS في index.html لو احتجت التأكد.
+--      ملحوظة: محطات الزهراوين (تقسيم نصف/نصف داخل نفس السورة) لا يملك
+--      النطاق الحالي (سورة→سورة) دقة على مستوى الآية، فمحطتا "بداية/إتمام"
+--      لنفس السورة يُسجَّلان بنفس حدود السورة الواحدة؛ الفصل بينهما لسه
+--      معتمد على تقييم المعلم (current_ayah_no) عند اعتماد الانتقال بينهما.
+-- ------------------------------------------------------------
+update quran_stations st set
+  station_kind = b.kind,
+  boundary_surah_from = b.lo,
+  boundary_surah_to = b.hi
+from quran_systems qs, (values
+  -- جزء عمّ وتبارك (amma)
+  ('amma'::text, 1, 'hifz'::text, 78, 114),
+  ('amma', 2, 'hifz', 67, 77),
+  ('amma', 3, 'review', 67, 114),
+  -- المفصّل (mufassal)
+  ('mufassal', 1, 'hifz', 67, 114),
+  ('mufassal', 2, 'hifz', 58, 66),
+  ('mufassal', 3, 'hifz', 50, 57),
+  ('mufassal', 4, 'review', 50, 114),
+  -- ربع القرآن (quarter)
+  ('quarter', 1, 'hifz', 67, 114),
+  ('quarter', 2, 'hifz', 50, 66),
+  ('quarter', 3, 'hifz', 46, 49),
+  ('quarter', 4, 'hifz', 42, 45),
+  ('quarter', 5, 'hifz', 39, 41),
+  ('quarter', 6, 'hifz', 36, 38),
+  ('quarter', 7, 'review', 50, 114),
+  ('quarter', 8, 'review', 36, 49),
+  ('quarter', 9, 'review', 36, 114),
+  -- نصف القرآن (half)
+  ('half', 1, 'hifz', 50, 114),
+  ('half', 2, 'hifz', 36, 49),
+  ('half', 3, 'hifz', 29, 36),
+  ('half', 4, 'hifz', 25, 28),
+  ('half', 5, 'hifz', 21, 24),
+  ('half', 6, 'hifz', 18, 20),
+  ('half', 7, 'review', 36, 114),
+  ('half', 8, 'review', 18, 35),
+  ('half', 9, 'review', 18, 114),
+  -- الزهراوان (zahrawan) — ترتيب طبيعي (غير عكسي)
+  ('zahrawan', 1, 'hifz', 2, 2),
+  ('zahrawan', 2, 'hifz', 2, 2),
+  ('zahrawan', 3, 'review', 2, 2),
+  ('zahrawan', 4, 'hifz', 3, 3),
+  ('zahrawan', 5, 'hifz', 3, 3),
+  ('zahrawan', 6, 'review', 3, 3),
+  ('zahrawan', 7, 'review', 2, 3),
+  -- القرآن كامل (full)
+  ('full', 1, 'hifz', 50, 114),
+  ('full', 2, 'hifz', 2, 3),
+  ('full', 3, 'hifz', 36, 49),
+  ('full', 4, 'hifz', 25, 35),
+  ('full', 5, 'hifz', 18, 24),
+  ('full', 6, 'hifz', 10, 17),
+  ('full', 7, 'hifz', 6, 9),
+  ('full', 8, 'hifz', 1, 5),
+  ('full', 9, 'review', 36, 114),
+  ('full', 10, 'review', 18, 35),
+  ('full', 11, 'review', 8, 17),
+  ('full', 12, 'review', 2, 6),
+  ('full', 13, 'review', 1, 114)
+) as b(path_key, order_index, kind, lo, hi)
+where st.system_id = qs.id and qs.path_key = b.path_key and st.order_index = b.order_index;
+
+-- ------------------------------------------------------------
 -- ٠-د) sub_start/sub_end كانت من نوع date بس (بدون وقت)، فلحظة تفعيل
 --      الاشتراك الحقيقية (بالساعة والدقيقة) كانت بتتقطع لتاريخ بس، وبعد كده
 --      لما تتقرأ في المتصفح كـ "منتصف الليل UTC" بتترجم لمنطقة القاهرة/الرياض
@@ -1943,7 +2018,8 @@ create policy "messages sender update" on messages for update to authenticated
 -- صلاحية نشر عبر Supabase CLI.)
 -- ------------------------------------------------------------
 create or replace function create_linked_account(
-  p_email text, p_password text, p_name text, p_role text, p_student_id bigint
+  p_email text, p_password text, p_name text, p_role text, p_student_id bigint,
+  p_gender text default null
 )
 returns jsonb
 language plpgsql
@@ -1988,13 +2064,17 @@ begin
   insert into auth.users (
     id, instance_id, aud, role, email, encrypted_password,
     email_confirmed_at, created_at, updated_at,
-    raw_app_meta_data, raw_user_meta_data, is_super_admin, confirmation_token
+    raw_app_meta_data, raw_user_meta_data, is_super_admin,
+    confirmation_token, recovery_token, email_change,
+    email_change_token_new, email_change_token_current,
+    phone_change, phone_change_token, reauthentication_token
   ) values (
     new_user_id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
     p_email, crypt(p_password, gen_salt('bf')),
     now(), now(), now(),
     '{"provider":"email","providers":["email"]}', jsonb_build_object('full_name', p_name, 'role', p_role),
-    false, ''
+    false,
+    '', '', '', '', '', '', '', ''
   );
 
   insert into auth.identities (
@@ -2005,12 +2085,12 @@ begin
     'email', now(), now(), now()
   );
 
-  insert into profiles (id, role, full_name, email)
-  values (new_user_id, p_role::user_role, p_name, p_email)
-  on conflict (id) do update set role=excluded.role, full_name=excluded.full_name, email=excluded.email;
+  insert into profiles (id, role, full_name, email, gender)
+  values (new_user_id, p_role::user_role, p_name, p_email, p_gender)
+  on conflict (id) do update set role=excluded.role, full_name=excluded.full_name, email=excluded.email, gender=coalesce(excluded.gender, profiles.gender);
 
   if p_role = 'student' and p_student_id is not null then
-    update students set login_id = new_user_id where id = p_student_id;
+    update students set login_id = new_user_id, gender = coalesce(p_gender, gender) where id = p_student_id;
   elsif p_role = 'parent' and p_student_id is not null then
     update students set parent_id = new_user_id where id = p_student_id;
   end if;
@@ -2021,4 +2101,26 @@ exception
     return jsonb_build_object('ok', false, 'error', 'هذا البريد مستخدم بالفعل');
 end;
 $$;
-grant execute on function create_linked_account(text, text, text, text, bigint) to authenticated;
+-- الدالة تغيّر توقيعها (أُضيف p_gender)، فنُسقط أي نسخة قديمة بتوقيع ٥ معاملات
+-- باقية من تشغيلات سابقة للملف قبل إضافة هذا المعامل، لمنع ازدواج الدالة
+drop function if exists create_linked_account(text, text, text, text, bigint);
+grant execute on function create_linked_account(text, text, text, text, bigint, text) to authenticated;
+
+-- ------------------------------------------------------------
+-- 🔴 إصلاح حرج: حسابات أُنشئت سابقاً عبر create_linked_account (قبل هذا
+-- الإصلاح) بقيت بأعمدة NULL في recovery_token/email_change/... مما يُسقط
+-- تسجيل الدخول بخطأ "Database error querying schema" من خادم المصادقة —
+-- هذا التحديث يُصلح كل الحسابات المتأثرة الموجودة فعلاً بأثر رجعي.
+-- ------------------------------------------------------------
+update auth.users set
+  confirmation_token = coalesce(confirmation_token, ''),
+  recovery_token = coalesce(recovery_token, ''),
+  email_change = coalesce(email_change, ''),
+  email_change_token_new = coalesce(email_change_token_new, ''),
+  email_change_token_current = coalesce(email_change_token_current, ''),
+  phone_change = coalesce(phone_change, ''),
+  phone_change_token = coalesce(phone_change_token, ''),
+  reauthentication_token = coalesce(reauthentication_token, '')
+where confirmation_token is null or recovery_token is null or email_change is null
+   or email_change_token_new is null or email_change_token_current is null
+   or phone_change is null or phone_change_token is null or reauthentication_token is null;

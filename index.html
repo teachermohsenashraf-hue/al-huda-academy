@@ -323,7 +323,7 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 .chat-item:hover,.chat-item.on{background:var(--cream)}
 .chat-item .cav{width:42px;height:42px;border-radius:50%;background:linear-gradient(140deg,var(--emerald),var(--emerald-deep));display:grid;place-items:center;color:#fff;font-family:'Amiri';flex:none}
 .chat-item .cmeta{flex:1;min-width:0}
-.chat-item .cmeta b{font-size:14px;color:var(--navy-deep);display:block}
+.chat-item .cmeta b{font-size:14px;color:var(--navy-deep);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .chat-item .cmeta span{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
 .chat-main{display:flex;flex-direction:column}
 .chat-head{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px}
@@ -1921,6 +1921,14 @@ async function enrollSurvey(pathId, type, p, childId){
       ${(isParent && isNew)||!isParent?`
       <div class="field"><label>اسم ${isParent?'الابن':'الطالب'} <span class="req">*</span></label><input id="enName" value="${nameVal}" placeholder="الاسم الكامل"></div>
       <div class="field"><label>السن <span class="req">*</span></label><input id="enAge" type="number" value="${childData?childData.age||'':''}" placeholder="٩"></div>
+      <div class="field"><label>النوع <span class="req">*</span></label>
+        <select id="enGender">
+          <option value="">اختر النوع</option>
+          <option value="male" ${childData?.gender==='male'?'selected':''}>ذكر</option>
+          <option value="female" ${childData?.gender==='female'?'selected':''}>أنثى</option>
+        </select>
+        <small style="color:var(--muted);font-size:11.5px">يُحدّد المعلمين والمشرفين المناسبين ${isParent?'لابنك':'لك'}.</small>
+      </div>
       ${isParent?`<div class="field"><label>بريد الابن (اختياري — ليدخل بحسابه)</label><input id="enEmail" type="email" placeholder="اتركه فارغاً للأطفال الصغار" oninput="document.getElementById('enPassWrap').style.display=this.value.trim()?'block':'none'"></div>
       <div class="field" id="enPassWrap" style="display:none"><label>كلمة سر دخول الابن</label><input id="enPass" placeholder="كلمة سر يدخل بها الابن"><small style="color:var(--muted);font-size:11.5px">يدخل الابن ببريده وهذه الكلمة على صفحته الخاصة.</small></div>`:''}
       `:`<input type="hidden" id="enName" value="${nameVal}"><input type="hidden" id="enAge" value="${childData?childData.age||9:9}">`}
@@ -1999,7 +2007,9 @@ async function sbUpdateWithFallback(table, payload, matchCol, matchVal){
 async function submitEnrollment(pathId, type, childId){
   const name=$('#enName')?.value.trim();
   const exp=$('#enExp')?.value.trim();
+  const gender=$('#enGender')?.value||null;
   if(!name){ toast('أدخل الاسم'); return; }
+  if($('#enGender') && !gender){ toast('اختر النوع (ذكر/أنثى)'); return; }
   if(!exp){ toast('أجب عن سؤال الخبرة السابقة'); return; }
   if(type==='subsidy' && (!$('#enFamily')?.value.trim()||!$('#enFather')?.value.trim())){ toast('أكمل بيانات طلب التخفيض'); return; }
   if(type==='subsidy' && (!$('#enPledgeData')?.checked||!$('#enPledgeDeserve')?.checked)){ toast('لازم توافق على التعهّدين قبل إرسال الطلب'); return; }
@@ -2013,7 +2023,7 @@ async function submitEnrollment(pathId, type, childId){
       if(childId==='new'||!childId||childId==='null'){
         const email=$('#enEmail')?.value.trim()||null;
         const { data:ns, error:e1 }=await sbInsertWithFallback('students',{
-          full_name:name, initials:name.slice(0,2), age,
+          full_name:name, initials:name.slice(0,2), age, gender,
           parent_id:ME.id, quran_path:pathId, ...planFields,
           enrollment_status:(type==='subsidy'?'awaiting_subsidy':'awaiting_payment'), is_subsidized:type==='subsidy'
         });
@@ -2022,28 +2032,28 @@ async function submitEnrollment(pathId, type, childId){
         if(email){
           const childPass=$('#enPass')?.value.trim();
           if(childPass&&childPass.length>=6){
-            try{ await sb.rpc('create_linked_account',{ p_email:email, p_password:childPass, p_name:name, p_role:'student', p_student_id:ns.id }); }catch(e){}
+            try{ await sb.rpc('create_linked_account',{ p_email:email, p_password:childPass, p_name:name, p_role:'student', p_student_id:ns.id, p_gender:gender }); }catch(e){}
           } else {
             await sb.from('link_invites').insert({ inviter_id:ME.id, inviter_role:'parent', invite_name:name, invite_email:email, student_id:ns.id });
           }
         }
       } else {
         studentId=+childId;
-        const { error:eu }=await sbUpdateWithFallback('students',{ quran_path:pathId, ...planFields, enrollment_status:(type==='subsidy'?'awaiting_subsidy':'awaiting_payment'), is_subsidized:type==='subsidy' }, 'id', studentId);
+        const { error:eu }=await sbUpdateWithFallback('students',{ quran_path:pathId, gender:gender||undefined, ...planFields, enrollment_status:(type==='subsidy'?'awaiting_subsidy':'awaiting_payment'), is_subsidized:type==='subsidy' }, 'id', studentId);
         if(eu) throw new Error('خطأ في تحديث بيانات الطالب: '+eu.message);
       }
     } else {
       let s=await myStudentRow();
       if(!s){
         const { data:ns, error:ei }=await sbInsertWithFallback('students',{
-          full_name:ME.full_name, initials:ME.full_name.slice(0,2), age,
+          full_name:ME.full_name, initials:ME.full_name.slice(0,2), age, gender,
           login_id:ME.id, quran_path:pathId, ...planFields,
           enrollment_status:(type==='subsidy'?'awaiting_subsidy':'awaiting_payment'), is_subsidized:type==='subsidy'
         });
         if(ei) throw new Error('خطأ في إنشاء ملف الطالب: '+ei.message);
         s=ns;
       } else {
-        const { error:eu }=await sbUpdateWithFallback('students',{ quran_path:pathId, ...planFields, enrollment_status:(type==='subsidy'?'awaiting_subsidy':'awaiting_payment'), is_subsidized:type==='subsidy' }, 'id', s.id);
+        const { error:eu }=await sbUpdateWithFallback('students',{ quran_path:pathId, gender:gender||undefined, ...planFields, enrollment_status:(type==='subsidy'?'awaiting_subsidy':'awaiting_payment'), is_subsidized:type==='subsidy' }, 'id', s.id);
         if(eu) throw new Error('خطأ في تحديث بيانات الطالب: '+eu.message);
       }
       studentId=s.id;
@@ -3221,6 +3231,12 @@ PAGES.student_renewal=async function(){ setTop('تجديد اشتراكي','');
   return pageHead('تجديد اشتراكي','متابعة الاشتراك الشهري')+
   renewalBox(s)+
   `<div class="stats">${statCard(mi('check'),'g',ar(paidTotal)+' ج','إجمالي المدفوع')}${statCard(mi('calendar'),'n',fmtExactMoment(s.sub_end),'موعد انتهاء الاشتراك بالضبط')}</div>
+  <div class="card" style="margin-top:18px"><div class="ch"><h3>${mi('card')} طريقة الدفع</h3></div>
+    <div class="pay-guide"><div class="pg-item"><div class="pg-icon">${mi('phone')}</div><div class="pg-info"><b>فودافون كاش</b><span>حوّل على رقم: <b style="color:var(--emerald)">01055747958</b></span></div></div></div>
+    <div style="margin-top:14px;text-align:center"><span style="color:var(--muted);font-size:13px">لو حابب تدفع بوسيلة أخرى</span><br>
+      <a href="https://wa.me/${WHATSAPP}" target="_blank" style="display:inline-flex;align-items:center;gap:8px;margin-top:8px;background:#25D366;color:#fff;padding:10px 20px;border-radius:24px;text-decoration:none;font-weight:700;font-size:14px"><svg width="18" height="18" viewBox="0 0 24 24" fill="#fff"><path d="M17.5 14.4c-.3-.1-1.7-.8-1.9-.9-.3-.1-.5-.1-.7.1-.2.3-.7.9-.9 1.1-.2.2-.3.2-.6.1-.3-.1-1.2-.5-2.3-1.4-.9-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6.1-.1.3-.3.4-.5.1-.1.2-.2.2-.4.1-.2 0-.3 0-.5-.1-.1-.7-1.6-.9-2.2-.2-.6-.5-.5-.7-.5h-.5c-.2 0-.5.1-.7.3-.3.3-1 .9-1 2.3s1 2.7 1.2 2.9c.1.2 2 3.1 4.9 4.3.7.3 1.2.5 1.6.6.7.2 1.3.2 1.8.1.5-.1 1.7-.7 1.9-1.4.2-.7.2-1.2.2-1.4-.1-.1-.3-.2-.6-.3zM12 2a10 10 0 00-8.6 15l-1.4 5 5.2-1.4A10 10 0 1012 2z"/></svg>تواصل واتساب</a>
+    </div>
+  </div>
   <div class="card"><div class="ch"><h3>سجل مدفوعاتي</h3></div><div class="up-list">${p.length?p.map(x=>`<div class="up"><div class="ui">${x.payment_method==='vodafone'?'📱':x.payment_method==='instapay'?'💳':x.payment_method==='fawry'?'🧾':'💵'}</div><div class="utxt"><b>${ar(x.amount||0)} ج — ${x.note||'اشتراك'}</b><span>${x.paid_at||x.created_at?.slice(0,10)||'—'}</span></div><span class="chip ${x.status==='paid'?'g':x.status==='rejected'?'':'gold'}">${x.status==='paid'?'مؤكّد':x.status==='rejected'?'مرفوض':'بانتظار'}</span></div>`).join(''):'<p style="color:var(--muted)">لا مدفوعات بعد.</p>'}</div></div>`;
 };
 
@@ -3666,7 +3682,6 @@ async function addToGroupModal(studentId, name){
       <div class="qdays">${QURAN_DAY_NAMES.map((d,i)=>`<label><input type="checkbox" class="pgDay" value="${i+1}" onchange="onPgDayToggle(this)"> ${d}</label>`).join('')}</div>
     </div>
     <div class="field" id="pgDayTimesWrap" style="display:none"><label>وقت كل يوم <span class="req">*</span></label><div id="pgDayTimesList" style="display:flex;flex-direction:column;gap:8px"></div></div>
-    <div class="field"><label>وقت الحصة الموحّد (اختياري إن اخترت وقتاً مختلفاً لكل يوم أعلاه)</label><input id="pgTime" type="time"></div>
     <div class="field"><label>مدة الحصة</label><select id="pgDur"><option value="30">٣٠ دقيقة</option><option value="45">٤٥ دقيقة</option><option value="90">٩٠ دقيقة (ساعة ونصف)</option></select></div>
     <div class="field"><label>ملاحظات (اختياري)</label><textarea id="pgNotes" rows="2" placeholder="أي تفاصيل عن خطة الحفظ..."></textarea></div>
     <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إلغاء</button><button class="btn" id="pgBtn" onclick="createPrivateGroup(${studentId},'${(st?.quran_path||'').replace(/'/g,'')}')">${mi('check')} إنشاء الحلقة</button></div>
@@ -3692,8 +3707,7 @@ function onPgDayToggle(cb){
   if(!checkedDays.length){ wrap.style.display='none'; list.innerHTML=''; return; }
   wrap.style.display='';
   const existing={}; list.querySelectorAll('input[data-day]').forEach(i=>existing[i.dataset.day]=i.value);
-  const globalTime=$('#pgTime')?.value||'';
-  list.innerHTML=checkedDays.map(d=>`<div style="display:flex;align-items:center;gap:10px"><span style="min-width:70px;font-size:13px;font-weight:700">${QURAN_DAY_NAMES[d-1]}</span><input type="time" class="pgDayTime" data-day="${d}" value="${existing[d]||globalTime||''}" style="padding:8px;border:1px solid var(--line);border-radius:8px"></div>`).join('');
+  list.innerHTML=checkedDays.map(d=>`<div style="display:flex;align-items:center;gap:10px"><span style="min-width:70px;font-size:13px;font-weight:700">${QURAN_DAY_NAMES[d-1]}</span><input type="time" class="pgDayTime" data-day="${d}" value="${existing[d]||''}" style="padding:8px;border:1px solid var(--line);border-radius:8px"></div>`).join('');
 }
 function collectPgSchedule(){
   const times={};
@@ -3937,6 +3951,10 @@ PAGES.student_myparent=async function(){ setTop('ولي أمري','اربط ول
     <div class="ch"><h3>دعوة ولي أمر</h3></div>
     <p style="color:var(--muted);font-size:14px;margin-bottom:16px">أدخل بيانات ولي أمرك وكلمة سر يدخل بها. عندما يسجّل بهذا البريد وكلمة السر، سيرتبط بك تلقائياً ويتابع كل تقدّمك من صفحته.</p>
     <div class="field"><label>اسم ولي الأمر <span class="req">*</span></label><input id="lpName" placeholder="الاسم الكامل"></div>
+    <div class="field"><label>نوع ولي الأمر <span class="req">*</span></label>
+      <select id="lpGender"><option value="">اختر النوع</option><option value="male">ذكر (الأب)</option><option value="female">أنثى (الأم)</option></select>
+      <small style="color:var(--muted);font-size:11.5px">يُحدّد المشرف المناسب لتواصل ولي أمرك مع الإدارة.</small>
+    </div>
     <div class="field"><label>بريد ولي الأمر <span class="req">*</span></label><input id="lpEmail" type="email" placeholder="parent@mail.com"></div>
     <div class="field"><label>كلمة سر لولي الأمر <span class="req">*</span></label><input id="lpPass" placeholder="كلمة سر يدخل بها (٦ أحرف على الأقل)"><small style="color:var(--muted);font-size:11.5px">أبلغ ولي أمرك بالبريد وكلمة السر ليدخل بهما.</small></div>
     <div class="field"><label>رقم الهاتف (اختياري)</label><input id="lpPhone" placeholder="01xxxxxxxxx"></div>
@@ -3945,12 +3963,13 @@ PAGES.student_myparent=async function(){ setTop('ولي أمري','اربط ول
   ${inv.length?`<div class="card" style="margin-top:16px"><div class="ch"><h3>دعوات أرسلتها</h3></div>${inv.map(i=>`<div class="up"><div class="ui">📨</div><div class="utxt"><b>${esc(i.invite_name)}</b><span>${esc(i.invite_email)}</span></div><span class="chip ${i.status==='linked'?'g':'gold'}">${i.status==='linked'?'مرتبط ✓':'بانتظار التسجيل'}</span></div>`).join('')}</div>`:''}`);
 };
 async function inviteParent(studentId){
-  const name=$('#lpName').value.trim(), email=$('#lpEmail').value.trim(), pass=$('#lpPass').value.trim();
+  const name=$('#lpName').value.trim(), email=$('#lpEmail').value.trim(), pass=$('#lpPass').value.trim(), gender=$('#lpGender').value;
   if(!name||!email){ toast('أدخل الاسم والبريد'); return; }
+  if(!gender){ toast('اختر نوع ولي الأمر'); return; }
   if(!pass||pass.length<6){ toast('أدخل كلمة سر (٦ أحرف على الأقل)'); return; }
   $('#lpBtn').disabled=true; $('#lpBtn').textContent='جارٍ الإنشاء...';
   // ننشئ حساباً فعلياً لولي الأمر (يستطيع الدخول مباشرة)
-  const { data, error }=await sb.rpc('create_linked_account',{ p_email:email, p_password:pass, p_name:name, p_role:'parent', p_student_id:studentId });
+  const { data, error }=await sb.rpc('create_linked_account',{ p_email:email, p_password:pass, p_name:name, p_role:'parent', p_student_id:studentId, p_gender:gender });
   $('#lpBtn').disabled=false; $('#lpBtn').textContent='إرسال الدعوة';
   if(error){ alert('تعذّر: '+error.message+'\n\nتأكّد من تشغيل سكربت إنشاء الحسابات في Supabase.'); return; }
   if(data&&data.ok===false){ alert('تعذّر: '+data.error); return; }
@@ -4004,7 +4023,7 @@ async function saveChild(){
     const pass=$('#ckPass')?.value.trim()||null;
     if(pass&&pass.length>=6){
       // ننشئ حساباً فعلياً للابن (يدخل بنفسه كطالب)
-      const { data:acc, error:ae }=await sb.rpc('create_linked_account',{ p_email:email, p_password:pass, p_name:name, p_role:'student', p_student_id:ns.id });
+      const { data:acc, error:ae }=await sb.rpc('create_linked_account',{ p_email:email, p_password:pass, p_name:name, p_role:'student', p_student_id:ns.id, p_gender:gender });
       if(ae||(acc&&acc.ok===false)){ closeModal(); await navigate('children'); toast('أُضيف الابن، لكن تعذّر إنشاء حسابه: '+((acc&&acc.error)||ae?.message||'')); return; }
       closeModal(); await navigate('children');
       $('#modalHost').innerHTML=`<div class="modal-bg show"><div class="modal" style="text-align:center"><div class="empty-ic">${mi('check')}</div><h3 style="color:var(--navy-deep)">تمت إضافة ابنك وإنشاء حسابه</h3><p style="color:var(--muted);font-size:14px">يدخل ابنك بهذه البيانات:</p><div style="background:var(--cream);padding:14px;border-radius:12px;margin:14px 0;text-align:right"><div style="font-size:13px;color:var(--muted)">البريد:</div><b>${esc(email)}</b><div style="font-size:13px;color:var(--muted);margin-top:8px">كلمة السر:</div><b style="color:var(--emerald)">${esc(pass)}</b></div><button class="btn" onclick="closeModal()">تمام</button></div></div>`;
@@ -5246,9 +5265,9 @@ async function chatPage(){ setTop('الرسائل','تواصل مباشر');
   return pageHead('الرسائل','محادثاتك')+
   `<div style="margin-bottom:14px"><button class="btn" onclick="newChatModal()">+ محادثة جديدة</button></div>
   <div class="chat-wrap">
-    <div class="chat-list">${list.length?list.map(c=>{ const nm=chatName(c); return `<div class="chat-item ${active&&c.id===active.id?'on':''}" onclick="openChat(${c.id})"><div class="cav">${esc(nm.slice(0,2))}</div><div class="cmeta"><b>${esc(nm)}${chatBadge(c)}</b><span>اضغط للفتح</span></div></div>`; }).join(''):'<p style="color:var(--muted);padding:14px;font-size:13.5px">لا محادثات. ابدأ واحدة جديدة.</p>'}</div>
+    <div class="chat-list">${list.length?list.map(c=>{ const nm=chatName(c); return `<div class="chat-item ${active&&c.id===active.id?'on':''}" onclick="openChat(${c.id})"><div class="cav">${esc(nm.slice(0,2))}</div><div class="cmeta"><b>${esc(nm)} ${chatBadge(c)}</b><span>اضغط للفتح</span></div></div>`; }).join(''):'<p style="color:var(--muted);padding:14px;font-size:13.5px">لا محادثات. ابدأ واحدة جديدة.</p>'}</div>
     <div class="chat-main">${active?`
-      <div class="chat-head"><div class="cav">${esc(chatName(active).slice(0,2))}</div><div><b>${esc(chatName(active))}${chatBadge(active)}</b><small>محادثة</small></div></div>
+      <div class="chat-head"><div class="cav">${esc(chatName(active).slice(0,2))}</div><div><b>${esc(chatName(active))} ${chatBadge(active)}</b><small>محادثة</small></div></div>
       <div class="chat-body" id="chatBody">${msgs.length?msgs.map(renderMainBubble).join(''):'<p style="color:var(--muted);text-align:center;margin-top:30px">ابدأ المحادثة بأول رسالة 👋</p>'}</div>
       <div class="chat-input"><input id="chatInput" placeholder="اكتب رسالتك..." onkeydown="if(event.key==='Enter')sendMsg()"><button onclick="sendMsg()">${mi('arrowRight')}</button></div>
     `:'<div style="display:grid;place-items:center;height:100%;color:var(--muted)">اختر محادثة أو ابدأ واحدة جديدة</div>'}</div>
@@ -5531,7 +5550,16 @@ async function renderHalqaPage(g, student, isTeacher){
   if(sesIds.length){ const { data:rs }=await sb.from('session_ratings').select('session_id').in('session_id',sesIds); (rs||[]).forEach(r=>ratedIds.add(r.session_id)); }
   const upcoming=sessions.filter(s=>{ const st=privSessionStatus(s); return st.upcoming||st.live; }); // تصاعدي: الأقرب أولاً
   const past=sessions.filter(s=>privSessionStatus(s).t==='انتهت').reverse(); // الأحدث أولاً
-  return pageHead(g.name, isTeacher?('طالب: '+student.full_name):('معلمك: '+(g.teacher?g.teacher.full_name:'—')))+
+  // اسم نظام خطة الطالب (رسوخ/المرن) ليظهر للمعلم مع اسم الطالب — بدل ما يعرف
+  // نوع النظام إلا لو فتح صفحة الخطة نفسها، فيوضّح له نوع الحلقة من أول نظرة
+  let sysLabel='';
+  if(isTeacher && student){
+    try{
+      const { data:plan }=await sb.from('quran_student_plans').select('system_id').eq('student_id',student.id).eq('status','active').maybeSingle();
+      if(plan?.system_id){ const { data:sys }=await sb.from('quran_systems').select('name').eq('id',plan.system_id).maybeSingle(); if(sys?.name) sysLabel=' — '+sys.name; }
+    }catch(e){}
+  }
+  return pageHead(g.name, isTeacher?('طالب: '+student.full_name+sysLabel):('معلمك: '+(g.teacher?g.teacher.full_name:'—')))+
   `<div class="card" style="margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
     <div style="display:flex;align-items:center;gap:8px;font-size:13.5px"><span style="font-size:18px">${mi('calendar')}</span><b>موعد الحلقة الثابت:</b> ${esc(g.meet_time||'لم يُحدَّد بعد')}</div>
     ${isTeacher?`<button class="btn-sm ghost" onclick="editHalqaSchedule(${g.id})">${mi('pencil')} تعديل الموعد</button>`:''}
@@ -8684,8 +8712,7 @@ async function qRenderFullPlan(planId, role='student'){
   // export + edit buttons
   const actBtns = `<div class="qexport-btns">
     <button onclick="qExportPlanPDF('${esc(planId)}')">${mi('printer')} طباعة PDF</button>
-    <button onclick="qExportPlanExcel('${esc(planId)}')">${mi('chart')} تصدير Excel</button>
-    ${role==='teacher'?`<button onclick="qShowEditPanel('${esc(planId)}')">${mi('gear')} تعديل الخطة</button>`:''}
+    ${role==='teacher'?`<button onclick="qExportPlanExcel('${esc(planId)}')">${mi('chart')} تصدير Excel</button><button onclick="qShowEditPanel('${esc(planId)}')">${mi('gear')} تعديل الخطة</button>`:''}
   </div>`;
   const editPanel = role==='teacher' ? `<div class="qedit-panel" id="qEditPanel_${esc(planId)}">
     <h4>⚙️ تعديل الخطة</h4>
@@ -8794,15 +8821,22 @@ async function qMarkWard(wardId, status, plannedDate){
   const today = qTodayStr();
   const pd = plannedDate||today;
   const isEarly = today < pd, isLate = today > pd;
+  // تحديث فوري للواجهة (Optimistic UI): نعرض رسالة النجاح ونعطّل بطاقة الورد
+  // لحظيًا قبل انتظار قاعدة البيانات، بدل ما يحس المستخدم بتجميد الصفحة لحين
+  // انتهاء استعلامَين متتاليَين (select ثم update/insert) وإعادة تحميل الصفحة كاملة
+  const msgs={ done:(isEarly?'🚀 تم الإنجاز مبكراً — بارك الله فيك!':'✓ تم تسجيل الإنجاز'), need_help:'🆘 تم إبلاغ معلمك بحاجتك للمساعدة', skipped:'تم تسجيل التخطي' };
+  toast(msgs[status]||'✅ تم الحفظ');
+  const card = document.querySelector(`[onclick*="qMarkWard('${wardId}'"]`)?.closest('.qcardward');
+  if(card){ card.style.transition='opacity .15s'; card.style.opacity='.55'; card.style.pointerEvents='none'; }
   const payload = { ward_id:wardId, student_login_id:ME.id, status, planned_for_date:pd,
     actual_date:today, is_early:isEarly, is_late:isLate,
     days_offset: Math.round((new Date(pd)-new Date(today))/86400000),
     updated_at: new Date().toISOString() };
-  const { data: ex } = await sb.from('quran_ward_progress').select('id').eq('ward_id',wardId).maybeSingle();
-  if(ex) await sb.from('quran_ward_progress').update(payload).eq('id',ex.id);
-  else await sb.from('quran_ward_progress').insert(payload);
-  const msgs={ done:(isEarly?'🚀 تم الإنجاز مبكراً — بارك الله فيك!':'✓ تم تسجيل الإنجاز'), need_help:'🆘 تم إبلاغ معلمك بحاجتك للمساعدة', skipped:'تم تسجيل التخطي' };
-  toast(msgs[status]||'✅ تم الحفظ');
+  try{
+    const { data: ex } = await sb.from('quran_ward_progress').select('id').eq('ward_id',wardId).maybeSingle();
+    if(ex) await sb.from('quran_ward_progress').update(payload).eq('id',ex.id);
+    else await sb.from('quran_ward_progress').insert(payload);
+  }catch(e){ console.error('qMarkWard failed:',e); toast('⚠️ تعذّر الحفظ، حاول مرة أخرى'); }
   navigate(SESSION.page);
 }
 /* ─── تسجيل الورد من الخطة الكاملة (مع دعم التقدم المبكر) ─── */
@@ -8810,15 +8844,18 @@ async function qMarkWardFromPlan(wardId, plannedDate){
   const today = qTodayStr();
   const isEarly = today < plannedDate;
   const isLate  = today > plannedDate;
-  const s = await myStudentRow();
+  toast(isEarly?'🚀 تم الإنجاز مبكراً - بارك الله فيك!':'✓ تم الإنجاز');
+  const btn = document.querySelector(`[onclick*="qMarkWardFromPlan('${wardId}'"]`);
+  if(btn){ btn.disabled=true; btn.style.opacity='.55'; }
   const payload = { ward_id:wardId, student_login_id:ME.id, status:'done', planned_for_date:plannedDate,
     actual_date:today, is_early:isEarly, is_late:isLate,
     days_offset: Math.round((new Date(plannedDate)-new Date(today))/86400000),
     updated_at: new Date().toISOString() };
-  const { data: ex } = await sb.from('quran_ward_progress').select('id').eq('ward_id',wardId).maybeSingle();
-  if(ex) await sb.from('quran_ward_progress').update(payload).eq('id',ex.id);
-  else await sb.from('quran_ward_progress').insert(payload);
-  toast(isEarly?'🚀 تم الإنجاز مبكراً - بارك الله فيك!':'✓ تم الإنجاز');
+  try{
+    const { data: ex } = await sb.from('quran_ward_progress').select('id').eq('ward_id',wardId).maybeSingle();
+    if(ex) await sb.from('quran_ward_progress').update(payload).eq('id',ex.id);
+    else await sb.from('quran_ward_progress').insert(payload);
+  }catch(e){ console.error('qMarkWardFromPlan failed:',e); toast('⚠️ تعذّر الحفظ، حاول مرة أخرى'); }
   navigate(SESSION.page);
 }
 
