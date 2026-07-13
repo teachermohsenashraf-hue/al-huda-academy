@@ -1967,8 +1967,9 @@ async function enrollSurvey(pathId, type, p, childId){
         <div class="field"><label>حالة الوالد <span class="req">*</span></label><input id="enFather" placeholder="متوفى / عاطل / دخل محدود"></div>
         <div class="arow">
           <div class="field"><label>عدد من يعولهم</label><input id="enDep" type="number" placeholder="٥"></div>
-          <div class="field"><label>ما يستطيع دفعه شهرياً</label><input id="enAfford" type="number" placeholder="٣٠٠"></div>
+          <div class="field"><label>دخل الأسرة الشهري (تقريبي)</label><input id="enIncome" type="number" placeholder="٢٠٠٠"></div>
         </div>
+        <div class="field"><label>ما يستطيع دفعه شهرياً</label><input id="enAfford" type="number" placeholder="٣٠٠"></div>
         <div class="field" style="margin-top:6px"><label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-weight:600"><input type="checkbox" id="enPledgeData" style="margin-top:3px"> <span>أتعهد بالله أنّ كل البيانات المذكورة صحيحة <span class="req">*</span></span></label></div>
         <div class="field"><label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-weight:600"><input type="checkbox" id="enPledgeDeserve" style="margin-top:3px"> <span>أتعهد بالله أنّني فعلاً أستحق التخفيض <span class="req">*</span></span></label></div>
       </div>`:''}
@@ -2023,7 +2024,7 @@ async function submitEnrollment(pathId, type, childId){
       if(childId==='new'||!childId||childId==='null'){
         const email=$('#enEmail')?.value.trim()||null;
         const { data:ns, error:e1 }=await sbInsertWithFallback('students',{
-          full_name:name, initials:name.slice(0,2), age, gender,
+          full_name:name, initials:name.slice(0,2), age, gender, track:'quran',
           parent_id:ME.id, quran_path:pathId, ...planFields,
           enrollment_status:(type==='subsidy'?'awaiting_subsidy':'awaiting_payment'), is_subsidized:type==='subsidy'
         });
@@ -2046,7 +2047,7 @@ async function submitEnrollment(pathId, type, childId){
       let s=await myStudentRow();
       if(!s){
         const { data:ns, error:ei }=await sbInsertWithFallback('students',{
-          full_name:ME.full_name, initials:ME.full_name.slice(0,2), age, gender,
+          full_name:ME.full_name, initials:ME.full_name.slice(0,2), age, gender, track:'quran',
           login_id:ME.id, quran_path:pathId, ...planFields,
           enrollment_status:(type==='subsidy'?'awaiting_subsidy':'awaiting_payment'), is_subsidized:type==='subsidy'
         });
@@ -2075,6 +2076,7 @@ async function submitEnrollment(pathId, type, childId){
       jr.family_status=$('#enFamily').value.trim();
       jr.father_status=$('#enFather').value.trim();
       jr.dependents=+($('#enDep')?.value)||null;
+      jr.monthly_income=+($('#enIncome')?.value)||null;
       jr.affordable=+($('#enAfford')?.value)||null;
     }
     const { data:jrRow, error:e2 }=await sbInsertWithFallback('join_requests', jr);
@@ -2083,9 +2085,10 @@ async function submitEnrollment(pathId, type, childId){
       closeModal();
       $('#modalHost').innerHTML=`<div class="modal-bg show"><div class="modal" style="text-align:center">
         <div class="empty-ic">${mi('handshake')}</div>
-        <h2 style="font-family:Amiri;color:var(--navy-deep);margin-bottom:10px">تم إرسال طلبك للمشرف</h2>
-        <p style="color:var(--muted);font-size:14.5px;line-height:1.9">سيراجع المشرف حالتك ويقرّر التخفيض المناسب.<br>ستظهر النتيجة في لوحتك، وعندها يمكنك إتمام الدفع.</p>
-        <button class="btn" style="margin-top:18px" onclick="closeModal();if(ME)enterDashboard()">حسناً، فهمت</button>
+        <h2 style="font-family:Amiri;color:var(--navy-deep);margin-bottom:10px">تم إرسال طلب التخفيض بنجاح</h2>
+        <p style="color:var(--muted);font-size:14.5px;line-height:1.9">سيراجع المشرف حالتك ويحدّد القيمة المناسبة، وسيتم الرد عليك في أقرب وقت إن شاء الله.<br>ستظهر النتيجة في لوحتك، وعندها يمكنك إتمام الدفع.</p>
+        <a href="https://wa.me/${WHATSAPP}" target="_blank" style="display:inline-flex;align-items:center;gap:8px;margin-top:14px;background:#25D366;color:#fff;padding:10px 20px;border-radius:24px;text-decoration:none;font-weight:700;font-size:14px"><svg width="18" height="18" viewBox="0 0 24 24" fill="#fff"><path d="M17.5 14.4c-.3-.1-1.7-.8-1.9-.9-.3-.1-.5-.1-.7.1-.2.3-.7.9-.9 1.1-.2.2-.3.2-.6.1-.3-.1-1.2-.5-2.3-1.4-.9-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6.1-.1.3-.3.4-.5.1-.1.2-.2.2-.4.1-.2 0-.3 0-.5-.1-.1-.7-1.6-.9-2.2-.2-.6-.5-.5-.7-.5h-.5c-.2 0-.5.1-.7.3-.3.3-1 .9-1 2.3s1 2.7 1.2 2.9c.1.2 2 3.1 4.9 4.3.7.3 1.2.5 1.6.6.7.2 1.3.2 1.8.1.5-.1 1.7-.7 1.9-1.4.2-.7.2-1.2.2-1.4-.1-.1-.3-.2-.6-.3zM12 2a10 10 0 00-8.6 15l-1.4 5 5.2-1.4A10 10 0 1012 2z"/></svg>تواصل مع الإدارة لتسريع القبول</a>
+        <button class="btn" style="margin-top:14px;display:block;width:100%" onclick="closeModal();if(ME)enterDashboard()">حسناً، فهمت</button>
       </div></div>`;
     } else {
       enrollPayment(studentId, jrRow.id, pathId, false);
@@ -2095,6 +2098,20 @@ async function submitEnrollment(pathId, type, childId){
     $('#enBtn').textContent=(type==='subsidy'?'إرسال الطلب للمشرف':'متابعة للدفع ←');
     alert('تعذّر الإرسال: '+err.message);
   }
+}
+// نقطة الدخول لزر "إكمال الدفع" من بطاقة حالة الطالب (بعد موافقة المشرف على
+// التخفيض، أو أي عودة لاستكمال دفع لم يكتمل). كانت تُمرِّر jrId=null دائماً،
+// فتُعامَل معاملة "تجديد" خطأً في submitReceipt وتتجاهل تحديث enrollment_status
+// إلى 'awaiting_confirm' — وهو تحديداً سبب بقاء الطالب عالقاً على نفس شاشة
+// "أكمل الدفع" حتى بعد رفع الإيصال بنجاح. نجلب هنا طلب الالتحاق الحقيقي المرتبط
+// بالطالب (لسه معلَّق) ونمرّر رقمه الفعلي بدل null.
+async function resumeEnrollPayment(studentId, pathId, subsidized){
+  let jrId=null;
+  try{
+    const { data:jr } = await sb.from('join_requests').select('id').eq('student_id',studentId).order('id',{ascending:false}).limit(1).maybeSingle();
+    jrId = jr?.id || null;
+  }catch(e){ console.error('resumeEnrollPayment: fetch join_request failed:',e); }
+  enrollPayment(studentId, jrId, pathId, subsidized);
 }
 function enrollPayment(studentId, jrId, pathId, subsidized){
   // بيتحسب دايماً من عملة الزائر الحالية وقت فتح شاشة الدفع (مش من SELECTED_PLAN.fee
@@ -2228,7 +2245,13 @@ async function submitReceipt(studentId, jrId, pathId, subsidized){
   }
   const isRenewal = !jrId;
   const fullFee = currentFee();
-  const dueFee = subsidized ? Math.round(fullFee/2) : fullFee;
+  // للمخفَّض: نقرأ القيمة الفعلية اللي اعتمدها المشرف (approved_fee) بدل افتراض
+  // نصف السعر دائماً — المشرف ممكن يكون حدّد قيمة مختلفة حسب حالة الأسرة
+  let dueFee = fullFee;
+  if(subsidized){
+    const { data:stF } = await sb.from('students').select('approved_fee').eq('id',studentId).maybeSingle();
+    dueFee = (stF?.approved_fee!=null) ? stF.approved_fee : Math.round(fullFee/2);
+  }
   // نسجّل عملة الدفع وقت إنشاء الدفعة نفسها (مش نستنتجها لاحقاً من بيانات قابلة للتغيير)،
   // عشان تقارير التحصيل حسب الدولة تفضل دقيقة تاريخياً حتى لو الطالب غيّر دولة إقامته بعدين.
   const { error }=await sb.from('payments').insert({
@@ -2775,7 +2798,7 @@ function buildShell(){
 }
 // خريطة نوع الإشعار غير المقروء ← الصفحة اللي تتأثر بيه في كل دور، لعرض نقطة "جديد" بجانب اسم الصفحة في القائمة الجانبية
 const NOTIF_PAGE_MAP = {
-  teacher:{message:'chat', enrollment:'newstudents'},
+  teacher:{message:'chat', enrollment:'newstudents', help_request:'qmonitor'},
   supervisor:{message:'chat', payment:'confirm'},
   admin:{message:'chat', enrollment:'leads'},
   executive:{message:'chat', enrollment:'leads'},
@@ -2928,10 +2951,6 @@ PAGES.student_dash = async function(){
   const { data:hus }=await sb.from('husoon_marks').select('*').eq('student_id',s.id).order('hisn_no');
   const done=hus.filter(h=>h.state==='done').length, part=hus.filter(h=>h.state==='part').length;
   const hp=Math.round((done+part*0.5)/(hus.length||1)*100);
-  // حفظ اليوم
-  const today=new Date().toISOString().slice(0,10);
-  let todayLog=null; try{ const r=await sb.from('daily_hifz').select('*').eq('student_id',s.id).eq('date',today).single(); todayLog=r.data; }catch(e){}
-  const hifzDone=todayLog?[todayLog.new_hifz_done,todayLog.review_near_done,todayLog.daily_read_done,todayLog.review_far_done,todayLog.listening_done].filter(Boolean).length:0;
   return `<div class="hero-band e"><div style="display:flex;align-items:center;justify-content:space-between;gap:24px;position:relative;z-index:2;flex-wrap:wrap"><div><h1 style="font-size:25px;margin-bottom:6px;color:#fff">أنت تسير في خير، فلا تقف 🌟</h1><p style="color:rgba(255,255,255,0.85);font-size:15px;max-width:440px">حافظت على وردك ${ar(s.streak)} يوماً متتالياً. كلّ صفحة تتعب فيها اليوم نورٌ لك غداً.</p><div class="quran" style="font-size:17px;color:var(--gold-light);margin-top:10px">﴿ ورتّل القرآن ترتيلاً ﴾</div></div><div style="background:rgba(255,255,255,0.12);border:1px solid rgba(217,184,77,0.4);border-radius:18px;padding:16px 26px;text-align:center"><div style="font-family:Amiri;font-size:38px;line-height:1;color:var(--gold-light)">${ar(s.streak)}</div><div style="font-size:12.5px;color:rgba(255,255,255,0.8);margin-top:4px">يوماً 🔥</div></div></div></div>
   ${studentLevelBadgesHTML(s)}
   <!-- بطاقة حفظ اليوم السريعة -->
@@ -3046,32 +3065,6 @@ PAGES.parent_mydata=async function(){ setTop('بياناتي','بيانات حس
 PAGES.student_challenge=async function(){ setTop('تحدي رجل الأسبوع',''); const s=await myStudentRow(); if(!s)return noStudentMsg(); if(s.enrollment_status!=='active')return enrollGateMsg(s.enrollment_status); return pageHead('تحدي رجل الأسبوع','عادات يومية')+`<div class="card"><div id="chalBox">${await challengeBox(s.id)}</div></div>`; };
 PAGES.student_worship=async function(){ setTop('متابعة العبادات',''); const s=await myStudentRow(); if(!s)return noStudentMsg(); if(s.enrollment_status!=='active')return enrollGateMsg(s.enrollment_status); return pageHead('متابعة العبادات','أسبوعك مع العبادة')+`<div class="card">${await worshipTable(s.id)}</div>`; };
 PAGES.student_rank=async function(){ setTop('الترتيب','تنافس شريف'); const s=await myStudentRow(); if(!s)return noStudentMsg(); if(s.enrollment_status!=='active')return enrollGateMsg(s.enrollment_status); return pageHead('ترتيب الحلقة','')+`<div class="card">${await leaderboard(s.group_id,s.id)}</div>`; };
-// حفظ حقل الحفظ اليومي (upsert) — يبقى مستخدماً من صفحة متابعة ولي الأمر
-let HIFZ_SAVE_TIMER={};
-async function saveHifzField(studentId, field, value){
-  clearTimeout(HIFZ_SAVE_TIMER[field]);
-  HIFZ_SAVE_TIMER[field]=setTimeout(async()=>{
-    const today=new Date().toISOString().slice(0,10);
-    const obj={student_id:studentId, date:today, [field]:value};
-    const { error }=await sb.from('daily_hifz').upsert(obj,{onConflict:'student_id,date'});
-    if(error){ console.error('hifz save:',error); toast('تعذّر الحفظ'); }
-    else { toast('✓ تم الحفظ'); updateHifzProgress(studentId); }
-  }, 600);
-}
-async function updateHifzProgress(studentId){
-  const today=new Date().toISOString().slice(0,10);
-  let data=null; try{ const r=await sb.from('daily_hifz').select('new_hifz_done,review_near_done,daily_read_done,review_far_done,listening_done').eq('student_id',studentId).eq('date',today).single(); data=r.data; }catch(e){}
-  if(!data) return;
-  const done=[data.new_hifz_done,data.review_near_done,data.daily_read_done,data.review_far_done,data.listening_done].filter(Boolean).length;
-  const fill=$('.hp-fill'); if(fill) fill.style.width=Math.round(done*100/5)+'%';
-  const topB=$('.hp-top b'); if(topB) topB.textContent=ar(done)+' من ٥ '+(done===5?'🏆 أكملت الجميع!':'');
-  // تحديث بطاقات الحصون
-  const names=['new_hifz_done','review_near_done','daily_read_done','review_far_done','listening_done'];
-  document.querySelectorAll('.hifz-castle').forEach((card,i)=>{
-    card.classList.toggle('done',!!(data[names[i]]));
-  });
-}
-
 // ════════ نظام الإشعارات الداخلية ════════
 let NOTIF_COUNT=0;
 async function loadNotifications(){
@@ -3204,7 +3197,7 @@ function studentStatusCard(s){
   const steps=[
     {k:'pending',icon:'map',title:'اختر مسارك',sub:'لم تلتحق بمسار بعد',btn:'<button class="btn" onclick="location.href=\'landing.html#systems\'">الصفحة الرئيسية</button>'},
     {k:'awaiting_subsidy',icon:'handshake',title:'بانتظار رد المشرف على التخفيض',sub:'أرسلنا طلب التخفيض للمشرف. سيراجع حالتك ويحدّد القيمة، وعندها يظهر لك زر الدفع.',btn:''},
-    {k:'awaiting_payment',icon:'card',title:'أكمل الدفع',sub:`${planName(s.plan_type||'rasokh')} • ${packageLabel(s.package_sessions||3)} — ارفع إيصال الدفع لتُفعَّل`,btn:`<button class="btn" onclick="SELECTED_PLAN={type:'${s.plan_type||'rasokh'}',sessions:${s.package_sessions||3},fee:${s.package_fee||currentFee()}};enrollPayment(${s.id},null,'${s.quran_path||''}',${s.is_subsidized?true:false})">إكمال الدفع</button>`},
+    {k:'awaiting_payment',icon:'card',title:'أكمل الدفع',sub:`${planName(s.plan_type||'rasokh')} • ${packageLabel(s.package_sessions||3)} — ارفع إيصال الدفع لتُفعَّل`,btn:`<button class="btn" onclick="SELECTED_PLAN={type:'${s.plan_type||'rasokh'}',sessions:${s.package_sessions||3},fee:${s.package_fee||currentFee()}};resumeEnrollPayment(${s.id},'${s.quran_path||''}',${s.is_subsidized?true:false})">إكمال الدفع</button>`},
     {k:'awaiting_confirm',icon:'mail',title:'بانتظار تأكيد المشرف',sub:'استلمنا إيصالك وسيتم التأكيد قريباً',btn:''},
     {k:'active',icon:'check',title:'الاشتراك مفعّل',sub:'يمكنك الآن اختيار معلمك',btn:''},
   ];
@@ -3304,33 +3297,80 @@ PAGES.parent_roadmap=async function(){
 function noChildMsg(){ return `<div class="card" style="text-align:center"><div class="empty-ic">${mi('family')}</div><h3 style="margin-bottom:8px">لا يوجد أبناء مرتبطون بحسابك بعد</h3><p style="color:var(--muted);font-size:14px;line-height:1.9">سجّل ابنك بحساب طالب جديد واربطه ببريدك، أو اطلب من المدير ربط ابنك بحسابك. ثم ستظهر هنا كل متابعته.</p><button class="btn" style="margin-top:14px" onclick="navigate('choose')">${mi('teacher')} اختيار معلم لابنك</button></div>`; }
 async function currentChild(){ const kids=await myChildren(); if(!SESSION.currentChild&&kids[0])SESSION.currentChild=kids[0].id; return kids.find(k=>k.id===SESSION.currentChild)||kids[0]; }
 // متابعة الحفظ اليومي (ولي الأمر يعلّم الحصون نيابةً عن الابن الصغير)
+// أُعيد بناء هذه الصفحة بالكامل: كانت تعتمد على جدول "daily_hifz" القديم بخمسة
+// حصون ثابتة لا علاقة لها بنظام المسارات/المحطات/الأوراد الفعلي، فكانت تعرض
+// لولي الأمر حصوناً وهمية لا تطابق خطة ابنه الحقيقية اللي وضعها المعلم إطلاقاً.
+// الآن تعرض بالضبط نفس أوراد اليوم الحقيقية من quran_plan_wards (نفس مصدر
+// صفحة "ورد اليوم" عند الطالب)، مع إبقاء إمكانية ولي الأمر بتعليمها نيابةً عن
+// ابنه الصغير الذي ليس له حساب دخول خاص.
 PAGES.parent_hifztrack=async function(){ setTop('متابعة الحفظ اليومي','تابع حصون أبنائك يومياً');
   const kids=await myChildren(); if(!kids.length) return noChildMsg();
   const k=await currentChild();
   if(k.enrollment_status!=='active') return enrollGateMsg(k.enrollment_status);
-  const today=new Date().toISOString().slice(0,10);
-  const todayLabel=new Date().toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long'});
-  let log={};
-  try{ const { data }=await sb.from('daily_hifz').select('*').eq('student_id',k.id).eq('date',today).maybeSingle(); log=data||{}; }catch(e){}
-  const husoon=[
-    ['new_hifz_done','١','الحفظ الجديد','المقدار اليومي بطريقة التغييب والربط','📖'],
-    ['review_near_done','٢','مراجعة القريب','آخر ما حُفِظ حتى ١٠ صفحات يومياً','🔁'],
-    ['daily_read_done','٣','القراءة اليومية','وجهان من المصحف لتليين الحفظ','📕'],
-    ['review_far_done','٤','مراجعة البعيد','تثبيت القديم موزّعاً على الأسبوع','🏛️'],
-    ['listening_done','٥','ورد السماع','وجهان سماعاً بصوت قارئ متقَن','🎧'],
-  ];
-  const doneCount=husoon.filter(h=>log[h[0]]).length;
-  return `<div style="display:flex;justify-content:flex-end;margin-bottom:16px">${kidSwitch(kids)}</div>`+
-  pageHead('متابعة حفظ '+k.full_name.split(' ')[0]+' · '+todayLabel,'أنجز '+ar(doneCount)+' من ٥ حصون اليوم — تتجدّد كل يوم')+
-  `<div style="background:var(--cream);padding:12px 16px;border-radius:12px;margin-bottom:16px;font-size:13px;color:var(--muted);line-height:1.7">💡 إن كان ابنك صغيراً وليس له حساب، تابع حصونه من هنا. أمّا إن أنشأت له حساباً ببريد، فيمكنه الدخول بنفسه ومتابعة حفظه، وتظل أنت تتابعه.</div>
-  <div class="husoon-grid">${husoon.map(h=>`<div class="hisn-card ${log[h[0]]?'done':''}">
-    <div class="hisn-icon">${h[4]}</div>
-    <div class="hisn-num">الحصن ${h[1]}</div>
-    <b>${h[2]}</b>
-    <span>${h[3]}</span>
-    <label class="hisn-check"><input type="checkbox" ${log[h[0]]?'checked':''} onchange="saveHifzField(${k.id},'${h[0]}',this.checked)"> ${log[h[0]]?'تمّ ✓':'علّم عند الإنجاز'}</label>
-  </div>`).join('')}</div>
-  <div style="margin-top:16px;padding:14px;background:var(--cream);border-radius:12px;font-size:13px;color:var(--muted);text-align:center">🌙 إنجاز اليوم يُسجَّل في تقارير ابنك ويصل للمعلم والمشرف والإدارة، وتبدأ صفحةً جديدةً كل يوم.</div>`;
+  const switcher=`<div style="display:flex;justify-content:flex-end;margin-bottom:16px">${kidSwitch(kids)}</div>`;
+  const { data:plan } = await sb.from('quran_student_plans').select('*').eq('student_id',k.id).eq('status','active').maybeSingle();
+  if(!plan) return switcher+await noPlanYetCard(k);
+  await applyAbsenceShift(plan);
+  const today = qTodayStr();
+  const { data: todayWards } = await sb.from('quran_plan_wards').select('*').eq('plan_id',plan.id).eq('planned_date',today).order('fortress_code');
+  const { data: overdueWards } = await sb.from('quran_plan_wards').select('*').eq('plan_id',plan.id).lt('planned_date',today);
+  const { data: forts } = await sb.from('quran_fortresses').select('*').eq('system_id',plan.system_id);
+  const fortMap = {}; (forts||[]).forEach(f=>{ fortMap[f.code]=f; });
+  const allWards = [...(overdueWards||[]).slice(-10), ...(todayWards||[])];
+  const wardIds = allWards.map(w=>w.id);
+  let progMap = {};
+  if(wardIds.length){
+    const { data: progs } = await sb.from('quran_ward_progress').select('*').in('ward_id',wardIds);
+    (progs||[]).forEach(p=>{ progMap[p.ward_id]=p; });
+  }
+  const total = (todayWards||[]).length;
+  const done = (todayWards||[]).filter(w=>{ const p=progMap[w.id]; return p&&p.status==='done'; }).length;
+  const pct = total ? Math.round(done/total*100) : 0;
+  const lateCount = (overdueWards||[]).filter(w=>{ const p=progMap[w.id]; return !p||p.status!=='done'; }).length;
+  const todayLabel = new Date().toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long'});
+
+  let html = `<div class="qtoday-hero">
+    <h2>${mi('book')} حصون ${esc(k.full_name.split(' ')[0])} اليوم</h2>
+    <p>${esc(todayLabel)}</p>
+    <div class="qtprog"><i style="width:${pct}%"></i></div>
+    <div class="qtstats"><span>أنجز ${ar(done)} من ${ar(total)} ورد</span><span>${ar(pct)}٪</span></div>
+  </div>
+  <div style="background:var(--cream);padding:12px 16px;border-radius:12px;margin:16px 0;font-size:13px;color:var(--muted);line-height:1.7">💡 إن كان ابنك صغيراً وليس له حساب، علِّم أوراده من هنا. أمّا إن أنشأت له حساباً، فيمكنه الدخول بنفسه ومتابعة حفظه، وتظل أنت تتابعه من هنا أيضاً.</div>`;
+
+  if(lateCount){
+    html += `<div style="background:rgba(231,76,60,0.08);border-inline-start:3px solid var(--rose);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13.5px;color:#7a2e2e">⏰ لدى ${esc(k.full_name.split(' ')[0])} <b>${ar(lateCount)}</b> ورد متأخر يظهر أدناه</div>`;
+  }
+
+  if(!allWards.length){
+    html += `<div class="qnoplan"><div class="nei">🌿</div><h3>يوم راحة</h3><p>لا ورد اليوم لـ${esc(k.full_name.split(' ')[0])}.</p></div>`;
+  } else {
+    html += allWards.map(w=>{
+      const f = fortMap[w.fortress_code]||{};
+      const color = f.color||qFortColor(w.fortress_code);
+      const icon = f.icon||qFortIcon(w.fortress_code);
+      const fname = f.name||w.fortress_code;
+      const p = progMap[w.id];
+      const isDone = p&&p.status==='done';
+      const isLate = w.planned_date < today;
+      const klass = isDone?'done':isLate?'late':'';
+      const bodyText = w.surah_name
+        ? `<div class="qcwsurah">${esc(w.surah_name)}</div><div class="qcwrange">${w.whole_surah?'كاملة':w.ayah_from?'من '+ar(w.ayah_from||0)+' إلى '+ar(w.ayah_to||0):''}<br><small style="color:var(--muted);font-size:12px">${esc(w.amount_label||'')}</small></div>`
+        : `<div class="qcwrange">${esc(w.amount_label||'—')}</div>`;
+      const actions = isDone
+        ? `<div style="margin-top:10px;font-size:12.5px;color:var(--emerald);font-weight:700">✅ تم الورد</div>`
+        : `<div class="qcwacts"><button class="qa-done" onclick="qMarkWard('${esc(w.id)}','done','${esc(w.planned_date)}')">${mi('check')} أتممت</button><button class="qa-skip" onclick="qMarkWard('${esc(w.id)}','skipped','${esc(w.planned_date)}')">${mi('x')} لم يتم</button></div>`;
+      return `<div class="qcardward ${klass}" style="--accent:${color}">
+        <div class="qcwh">
+          <div class="qcwic" style="background:${color}">${icon}</div>
+          <div class="qcwt"><b>${esc(fname)}</b><small>${isLate?'⏰ متأخر من '+esc(w.planned_date):'اليوم'}</small></div>
+          <div class="qcwstat">${qStatusLabel(p?p.status:'not_started')}</div>
+        </div>
+        <div class="qcwbody">${bodyText}</div>
+        ${actions}
+      </div>`;
+    }).join('');
+  }
+  return switcher+pageHead('متابعة الحفظ اليومي','')+html;
 };
 function kidSwitch(kids){ return `<div class="kidswitch">${kids.map(k=>`<button class="${k.id===SESSION.currentChild?'on':''}" onclick="switchKid(${k.id})"><span class="mini">${k.initials}</span> ${k.full_name.split(' ')[0]}</button>`).join('')}</div>`; }
 function switchKid(id){ SESSION.currentChild=id; navigate(SESSION.page); }
@@ -3343,15 +3383,22 @@ PAGES.parent_dash=async function(){
   const { data:att }=await sb.from('attendance').select('*').eq('student_id',k.id).order('day',{ascending:false}).limit(7);
   const attMap={present:'p',absent:'a',late:'l'};
   const attRows=(att||[]).slice().reverse();
+  // "الحضور" رقم يبدأ ١٠٠٪ افتراضياً ويُخصَم منه بمرور الوقت — عرضه كنسبة مئوية
+  // جاهزة لطالب لم تُسجَّل له ولا حصة واحدة بعد مضلِّل تماماً (يوهم بحضور مثالي
+  // لم يحدث أصلاً). نعرض حالة "لم تبدأ الحصص بعد" بدل الرقم في هذه الحالة فقط.
+  const hasAttendanceHistory = attRows.length>0;
   return `<div style="display:flex;justify-content:flex-end;margin-bottom:16px">${kidSwitch(kids)}</div>
-  <div class="kid-hero"><div class="kid-av">🧒</div><div class="kid-info"><h1>${esc(k.full_name)}</h1><div class="meta">${g?g.name:''} • ${g?g.age_range:''} • ${g&&g.teacher?g.teacher.full_name:''}</div><div>${k.track!=='tarbiya'?'<span class="kbadge">📖 الحفظ</span>':''}${k.track!=='quran'?'<span class="kbadge">🌿 التربية</span>':''}</div></div><div style="position:relative;z-index:2;display:flex;gap:10px;flex-wrap:wrap">${k.group_id?`<button class="btn gold" onclick="SESSION._activeHalqa=${k.group_id};navigate('myhalqa')">${mi('mosque')} دخول الحلقة</button><button class="btn ghost" onclick="navigate('chat')">${mi('chat')} راسل المعلم</button>`:(k.enrollment_status==='active'?`<button class="btn gold" onclick="navigate('choose')">${mi('chooseTeacher')} اختر معلماً لابنك</button>`:'')}</div></div>
+  <div class="kid-hero"><div class="kid-av">🧒</div><div class="kid-info"><h1>${esc(k.full_name)}</h1><div class="meta">${g?g.name:''} • ${g?g.age_range:''} • ${g&&g.teacher?g.teacher.full_name:''}</div><div>${k.track!=='tarbiya'?'<span class="kbadge">📖 الحفظ</span>':''}${k.track==='tarbiya'||k.track==='both'?'<span class="kbadge">🌿 التربية</span>':''}</div></div><div style="position:relative;z-index:2;display:flex;gap:10px;flex-wrap:wrap">${k.group_id?`<button class="btn gold" onclick="SESSION._activeHalqa=${k.group_id};navigate('myhalqa')">${mi('mosque')} دخول الحلقة</button><button class="btn ghost" onclick="navigate('chat')">${mi('chat')} راسل المعلم</button>`:(k.enrollment_status==='active'?`<button class="btn gold" onclick="navigate('choose')">${mi('chooseTeacher')} اختر معلماً لابنك</button>`:'')}</div></div>
   ${(!k.group_id&&k.enrollment_status==='active')?`<div style="background:var(--cream);padding:12px 16px;border-radius:12px;margin-bottom:16px;font-size:13px;color:var(--muted);line-height:1.7">💡 اشتراك ${esc(k.full_name.split(' ')[0])} مفعّل، وباقي خطوة: اختر له معلماً ليضع له خطته ويبدأ حلقته.</div>`:''}
-  <div class="stats">${statCard(mi('check'),'e',pct(k.attendance),'الحضور')}${statCard(mi('book'),'e',ar(k.pages),'صفحة')}${statCard(mi('medal'),'g',ar(k.points),'نقطة')}${statCard(mi('medal'),'n',k.rank===1?'الأول':'ال'+ar(k.rank),'الترتيب')}</div>
-  <div class="grid2"><div class="card"><div class="ch"><h3>تقرير الأداء</h3></div>${reportBars(k)}</div><div class="card"><div class="ch"><h3>ملاحظات المعلم</h3></div>${await notesBlock(k.id)}</div></div>
+  <div class="stats">${statCard(mi('check'),'e',hasAttendanceHistory?pct(k.attendance):'—','الحضور')}${statCard(mi('book'),'e',ar(k.pages),'صفحة')}${statCard(mi('medal'),'g',ar(k.points),'نقطة')}${statCard(mi('medal'),'n',k.rank===1?'الأول':'ال'+ar(k.rank),'الترتيب')}</div>
+  <div class="grid2"><div class="card"><div class="ch"><h3>تقرير الأداء</h3></div>${reportBars(k,hasAttendanceHistory)}</div><div class="card"><div class="ch"><h3>ملاحظات المعلم</h3></div>${await notesBlock(k.id)}</div></div>
   <div class="card" style="margin-top:18px"><div class="ch"><h3>${mi('calendar')} الحضور — آخر ٧ أيام</h3></div><div class="att">${attRows.length?attRows.map(a=>`<div class="aday"><div class="d">${new Date(a.day).toLocaleDateString('ar-EG',{weekday:'short'})}</div><div class="m ${attMap[a.status]||'f'}">${a.status==='present'?'✓':a.status==='absent'?'✕':'—'}</div></div>`).join(''):'<p style="color:var(--muted)">لا سجلّ بعد.</p>'}</div></div>`;
 };
-function reportBars(k){ const r=(lbl,v,cls)=>`<div class="rbar"><div class="l"><span>${lbl}</span><b>${pct(v)}</b></div><div class="rtrack"><div class="rfill ${cls}" style="width:${v}%"></div></div></div>`;
-  return `<div class="rbars">${r('إتقان الحفظ',k.mastery,'e')}${r('الحضور',k.attendance,'e')}${r('السلوك',k.behavior,'e')}${r('مراجعة البعيد',k.far_review,k.far_review<70?'r':'e')}</div>
+function reportBars(k, hasAttendanceHistory){ const r=(lbl,v,cls)=>`<div class="rbar"><div class="l"><span>${lbl}</span><b>${pct(v)}</b></div><div class="rtrack"><div class="rfill ${cls}" style="width:${v}%"></div></div></div>`;
+  const attBar = hasAttendanceHistory===false
+    ? `<div class="rbar"><div class="l"><span>الحضور</span><b style="color:var(--muted)">لم تبدأ الحصص بعد</b></div><div class="rtrack"><div class="rfill" style="width:0%"></div></div></div>`
+    : r('الحضور',k.attendance,'e');
+  return `<div class="rbars">${r('إتقان الحفظ',k.mastery,'e')}${attBar}${r('السلوك',k.behavior,'e')}${r('مراجعة البعيد',k.far_review,k.far_review<70?'r':'e')}</div>
   <div class="report-foot"><div class="rmini"><div class="v">${ar(k.points)}</div><div class="k">نقطة</div></div><div class="rmini"><div class="v">${ar(Math.round(k.pages/10))}</div><div class="k">صفحات</div></div><div class="rmini"><div class="v">${k.mastery>=90?'أ':'ب'}</div><div class="k">التقدير</div></div></div>`;
 }
 async function notesBlock(sid){ const { data:ns }=await sb.from('notes').select('*').eq('student_id',sid).order('created_at',{ascending:false});
@@ -3716,6 +3763,23 @@ function collectPgSchedule(){
 }
 // توليد حصص الأسابيع القادمة تلقائياً على مدى ٤ أسابيع حسب جدول كل يوم ووقته الخاص —
 // المعلم بعدها بس يضيف رابط الحصة، بدل ما ينشئ كل حصة يدوياً من الصفر
+// تثبيت بداية اشتراك الطالب على تاريخ أول حصة فعلية له بدل لحظة تأكيد الدفع —
+// يعمل مرة واحدة فقط (بمجرد أن sub_anchored=true تتوقف كل الاستدعاءات اللاحقة
+// عن تغيير أي شيء)، ويحافظ على نفس مدة الاشتراك الممنوحة (شهر) بإزاحتها بالكامل
+// لتبدأ من موعد أول حصة، بدل تقصير مدة الطالب بسبب أي تأخير في اختيار المعلم
+// أو إنشاء الحلقة بعد الدفع مباشرة.
+async function anchorSubStartToFirstSession(studentId, firstSessionIso){
+  if(!studentId || !firstSessionIso) return;
+  try{
+    const { data:s } = await sb.from('students').select('sub_anchored,sub_start,sub_end').eq('id',studentId).maybeSingle();
+    if(!s || s.sub_anchored || !s.sub_start || !s.sub_end) return;
+    const durationMs = new Date(s.sub_end).getTime() - new Date(s.sub_start).getTime();
+    if(durationMs<=0) return;
+    const newStart = new Date(firstSessionIso);
+    const newEnd = new Date(newStart.getTime()+durationMs);
+    await sb.from('students').update({ sub_start:newStart.toISOString(), sub_end:newEnd.toISOString(), sub_anchored:true }).eq('id',studentId);
+  }catch(e){ console.error('anchorSubStartToFirstSession failed:',e); }
+}
 async function generateWeeklySessions(groupId, studentId, halqaName, scheduleTimes, durMin, weeks=4){
   const days=Object.keys(scheduleTimes||{}).map(Number);
   if(!days.length) return;
@@ -3732,7 +3796,11 @@ async function generateWeeklySessions(groupId, studentId, halqaName, scheduleTim
       rows.push({ title:'حصة '+halqaName, session_date:dateStr, session_time:time, duration_min:durMin, group_id:groupId, student_id:studentId, teacher_id:ME.id, status:'scheduled', starts_at:startsAt });
     }
   }
-  if(rows.length) await sb.from('sessions').insert(rows);
+  if(rows.length){
+    await sb.from('sessions').insert(rows);
+    const earliest = rows.reduce((min,r)=>r.starts_at<min?r.starts_at:min, rows[0].starts_at);
+    if(studentId) await anchorSubStartToFirstSession(studentId, earliest);
+  }
 }
 async function createPrivateGroup(studentId, pathId){
   const name=$('#pgName').value.trim();
@@ -4017,7 +4085,7 @@ async function saveChild(){
   if(!gender){ toast('اختر نوع الابن (ذكر/أنثى)'); return; }
   $('#ckBtn').disabled=true;
   const email=$('#ckEmail').value.trim()||null;
-  const { data:ns, error }=await sb.from('students').insert({ full_name:name, initials:name.slice(0,2), age, gender, parent_id:ME.id, phone:$('#ckPhone').value.trim()||null, enrollment_status:'pending' }).select().single();
+  const { data:ns, error }=await sb.from('students').insert({ full_name:name, initials:name.slice(0,2), age, gender, track:'quran', parent_id:ME.id, phone:$('#ckPhone').value.trim()||null, enrollment_status:'pending' }).select().single();
   if(error){ $('#ckBtn').disabled=false; alert('تعذّر: '+error.message); return; }
   if(email){
     const pass=$('#ckPass')?.value.trim()||null;
@@ -4509,7 +4577,11 @@ async function confirmPay(payId, studentId, pathId){
   nextEnd.setMonth(nextEnd.getMonth()+1);
   const nextEndIso=nextEnd.toISOString();
   await sb.from('payments').update({ status:'paid', paid_at:nowIso, confirmed_by:ME.id }).eq('id',payId);
-  await sb.from('students').update({ enrollment_status:'active', sub_start:isRenewal?(st.sub_end||nowIso):nowIso, sub_end:nextEndIso }).eq('id',studentId);
+  // للالتحاق الأول (مش تجديد): نُفعّل الاشتراك بتاريخ مؤقّت من الآن، لكن نتركه "غير مثبَّت"
+  // (sub_anchored:false) لحين إنشاء أول حصة فعلية له — فمرور الوقت أثناء انتظار اختيار
+  // المعلم/إنشاء الحلقة (اللي ممكن ياخد أيام) ميقتطعش من أيام اشتراكه الحقيقية.
+  // التجديد مختلف: نقطة البداية أصلاً امتداد لاشتراك سابق مثبَّت فعلاً، فيبقى مثبَّتاً كما هو.
+  await sb.from('students').update({ enrollment_status:'active', sub_start:isRenewal?(st.sub_end||nowIso):nowIso, sub_end:nextEndIso, sub_anchored:isRenewal }).eq('id',studentId);
   // إشعار فوري لصاحب الحساب (الطالب أو ولي أمره) بالتفعيل، مع توجيهه لاختيار المعلم
   try{
     const title = isRenewal? '✅ تم تجديد الاشتراك' : '🎉 تم تفعيل اشتراكك';
@@ -4536,30 +4608,34 @@ PAGES.supervisor_subsidy=async function(){ setTop('طلبات التخفيض','�
   // نجيب النظام والباقة من طلب الالتحاق نفسه (plan_type/package_sessions محفوظة عليه وقت الإرسال)
   reqs=await filterByMyGender(reqs, x=>x.s?.gender);
   const r=reqs||[];
-  return pageHead('طلبات التخفيض','حالات تحتاج مراجعتك — اقبل لتُفعّل الدفع بنصف القيمة')+
-  (r.length?`<div class="subsidy-grid">${r.map(x=>`<div class="subsidy-req">
+  return pageHead('طلبات التخفيض','حالات تحتاج مراجعتك — راجع البيانات وحدّد القيمة المناسبة')+
+  (r.length?`<div class="subsidy-grid">${r.map(x=>{ const fullFee=x.package_fee||currentFee(); const half=Math.round(fullFee/2); return `<div class="subsidy-req">
     <div class="sr-head"><b>${esc(x.full_name)}</b><span class="cc-path">${pathName(x.quran_path)} — ${planName(x.plan_type||'rasokh')} • ${packageLabel(x.package_sessions||3)} ${x.age?'• '+ar(x.age)+' سنة':''}</span></div>
     <div class="sr-body">
       <div class="sr-row"><span>الحالة المعيشية:</span> ${x.family_status||'—'}</div>
       <div class="sr-row"><span>حالة الوالد:</span> ${x.father_status||'—'}</div>
       <div class="sr-row"><span>عدد من يعولهم:</span> ${x.dependents?ar(x.dependents):'—'}</div>
+      <div class="sr-row"><span>دخل الأسرة الشهري:</span> ${x.monthly_income?ar(x.monthly_income)+' ج':'—'}</div>
       <div class="sr-row"><span>يستطيع دفع:</span> ${x.affordable?ar(x.affordable)+' ج':'—'} شهرياً</div>
       ${x.motivation?`<div class="sr-row"><span>دافعه:</span> ${x.motivation}</div>`:''}
     </div>
-    <div class="cc-actions"><button class="btn" onclick="approveSubsidy(${x.id},${x.s?.id})">${mi('check')} قبول التخفيض (نصف القيمة)</button><button class="btn ghost" style="color:#E74C3C" onclick="rejectSubsidy(${x.id})">رفض</button></div>
-  </div>`).join('')}</div>`
+    <div class="field"><label>القيمة المعتمَدة بعد التخفيض (السعر الكامل: ${ar(fullFee)} ج)</label><input type="number" id="subFee_${x.id}" value="${half}" min="0"></div>
+    <div class="cc-actions"><button class="btn" onclick="approveSubsidy(${x.id},${x.s?.id})">${mi('check')} قبول التخفيض بهذه القيمة</button><button class="btn ghost" style="color:#E74C3C" onclick="rejectSubsidy(${x.id})">رفض</button></div>
+  </div>`; }).join('')}</div>`
   :`<div class="card" style="text-align:center;padding:40px"><div class="empty-ic">${mi('handshake')}</div><h3 style="color:var(--navy-deep)">لا طلبات تخفيض حالياً</h3><p style="color:var(--muted);font-size:14px">ستظهر هنا طلبات الطلاب المتعسّرين لمراجعتها.</p></div>`);
 };
 async function approveSubsidy(reqId, studentId){
   const lockKey='subsidy:'+reqId; if(_inFlightActions.has(lockKey)) return; _inFlightActions.add(lockKey);
   try{
-  if(!confirm('قبول التخفيض؟ سيتمكّن الطالب من الدفع بنصف القيمة.')) return;
+  const feeInput=$('#subFee_'+reqId);
+  const approvedFee=feeInput?Math.max(0,+feeInput.value||0):null;
+  if(!confirm('قبول التخفيض بقيمة '+ar(approvedFee||0)+' ج؟ سيتمكّن الطالب من الدفع بهذه القيمة.')) return;
   await sb.from('join_requests').update({ status:'approved', reviewed_by:ME.id }).eq('id',reqId);
-  await sb.from('students').update({ enrollment_status:'awaiting_payment', is_subsidized:true }).eq('id',studentId);
+  await sb.from('students').update({ enrollment_status:'awaiting_payment', is_subsidized:true, approved_fee:approvedFee }).eq('id',studentId);
   // إشعار الطالب وولي الأمر
   try{ const { data:stu }=await sb.from('students').select('login_id,parent_id,full_name').eq('id',studentId).single();
-    if(stu?.login_id) await pushNotif(stu.login_id,'✅ تمت الموافقة على التخفيض','يمكنك الآن إكمال الدفع بالقيمة المخفّضة من «خطة مساري».','enrollment',studentId);
-    if(stu?.parent_id) await pushNotif(stu.parent_id,'✅ تمت الموافقة على تخفيض '+stu.full_name,'يمكنكم الآن إكمال الدفع بالقيمة المخفّضة.','enrollment',studentId);
+    if(stu?.login_id) await pushNotif(stu.login_id,'✅ تمت الموافقة على التخفيض','يمكنك الآن إكمال الدفع بالقيمة المخفّضة ('+ar(approvedFee||0)+' ج) من «خطة مساري».','enrollment',studentId);
+    if(stu?.parent_id) await pushNotif(stu.parent_id,'✅ تمت الموافقة على تخفيض '+stu.full_name,'يمكنكم الآن إكمال الدفع بالقيمة المخفّضة ('+ar(approvedFee||0)+' ج).','enrollment',studentId);
   }catch(e){}
   toast('✅ تم قبول التخفيض'); await navigate('subsidy');
   } finally { _inFlightActions.delete(lockKey); }
@@ -5641,13 +5717,27 @@ async function halqaReports(g, student, ratedIds, sessions){
   let asgs=[];
   try{ const { data:aa }=await sb.from('assignments').select('*').eq('student_id',student.id).order('created_at',{ascending:false}); asgs=aa||[]; }catch(e){}
   const asgDone=asgs.filter(a=>a.status==='done').length;
-  // الحصون الخمسة — آخر ٧ أيام
+  // متابعة الحصون: كانت معتمدة على جدول "daily_hifz" القديم (٥ حصون ثابتة يعلّمها
+  // الطالب يدوياً بلا علاقة بخطته الفعلية)، فكانت تظهر "لا توجد بيانات" دائماً
+  // لأي طالب يسجّل أوراده من نظام المسارات الفعلي بدل الصفحة القديمة. الآن نبني
+  // نفس الجدول من quran_plan_wards/quran_ward_progress الحقيقيَين، بأعمدة الحصون
+  // الفعلية المفعّلة في خطة الطالب (تختلف حسب النظام والمحطة — حفظ أو مراجعة).
   const since=new Date(Date.now()-6*86400000).toISOString().slice(0,10);
-  const { data:hifz }=await sb.from('daily_hifz').select('*').eq('student_id',student.id).gte('date',since).order('date',{ascending:false});
-  const hifzDays=hifz||[];
-  // هل عنده أي سجل حصون قبل كده أصلاً؟ (لو لأ، فالمشكلة إنه لسه ما بدأش، مش إنه مقصّر في آخر ٧ أيام)
-  let hasAnyHifzEver=hifzDays.length>0;
-  if(!hasAnyHifzEver){ const { count }=await sb.from('daily_hifz').select('id',{count:'exact',head:true}).eq('student_id',student.id); hasAnyHifzEver=!!count; }
+  let hifzFortCols=[], hifzDays=[], hasAnyHifzEver=false;
+  const { data:hifzPlan } = await sb.from('quran_student_plans').select('id,system_id').eq('student_id',student.id).eq('status','active').maybeSingle();
+  if(hifzPlan){
+    const { data:hifzForts } = await sb.from('quran_fortresses').select('*').eq('system_id',hifzPlan.system_id).order('order_index');
+    hifzFortCols = hifzForts||[];
+    const { data:hifzWards } = await sb.from('quran_plan_wards').select('id,fortress_code,planned_date').eq('plan_id',hifzPlan.id).gte('planned_date',since).order('planned_date',{ascending:false});
+    const wIds=(hifzWards||[]).map(w=>w.id);
+    let hifzProgMap={};
+    if(wIds.length){ const { data:hp }=await sb.from('quran_ward_progress').select('ward_id,status').in('ward_id',wIds); (hp||[]).forEach(p=>hifzProgMap[p.ward_id]=p.status); }
+    const byDate={};
+    (hifzWards||[]).forEach(w=>{ if(!byDate[w.planned_date]) byDate[w.planned_date]={ date:w.planned_date }; byDate[w.planned_date][w.fortress_code]=hifzProgMap[w.id]==='done'; });
+    hifzDays=Object.values(byDate).sort((a,b)=>b.date.localeCompare(a.date));
+    hasAnyHifzEver = hifzDays.length>0;
+    if(!hasAnyHifzEver){ const { count }=await sb.from('quran_plan_wards').select('id',{count:'exact',head:true}).eq('plan_id',hifzPlan.id); hasAnyHifzEver=!!count; }
+  }
   // متوسطات التقييمات
   const scoreMap={excellent:3,good:2,weak:1,done:3,partial:2,none:1,present:3,late:2,absent:1};
   const avg=(field)=>{ const vals=r.map(x=>scoreMap[x[field]]).filter(Boolean); return vals.length?(vals.reduce((a,b)=>a+b,0)/vals.length):0; };
@@ -5666,15 +5756,14 @@ async function halqaReports(g, student, ratedIds, sessions){
       return `<div class="hw-card ${a.status}"><div class="hw-head"><div class="hw-icon">${k[0]}</div><div class="hw-info"><b>${esc(a.title)}</b><span>${k[1]}${dateStr?' • '+dateStr:''}${a.done_at?' • أُنجز '+new Date(a.done_at).toLocaleDateString('ar-EG'):''}</span></div>${stChip}</div></div>`;
     }).join('')}</div>
   </div>`:''}
-  <!-- متابعة الحصون الخمسة اليومية -->
-  <div class="card" style="margin-bottom:16px"><div class="ch"><h3>${mi('fortress')} متابعة الحصون الخمسة (آخر ٧ أيام)</h3></div>
-    ${hifzDays.length?`<div style="overflow-x:auto"><table class="dtable husoon-track"><thead><tr><th>اليوم</th><th>الحفظ</th><th>م.القريب</th><th>القراءة</th><th>م.البعيد</th><th>السماع</th><th>الإنجاز</th></tr></thead><tbody>
-    ${hifzDays.map(d=>{ const done=[d.new_hifz_done,d.review_near_done,d.daily_read_done,d.review_far_done,d.listening_done].filter(Boolean).length;
+  <!-- متابعة الحصون اليومية (حسب خطة الطالب الفعلية) -->
+  <div class="card" style="margin-bottom:16px"><div class="ch"><h3>${mi('fortress')} متابعة الحصون (آخر ٧ أيام)</h3></div>
+    ${hifzDays.length?`<div style="overflow-x:auto"><table class="dtable husoon-track"><thead><tr><th>اليوم</th>${hifzFortCols.map(f=>`<th>${esc(f.name)}</th>`).join('')}<th>الإنجاز</th></tr></thead><tbody>
+    ${hifzDays.map(d=>{ const doneCols=hifzFortCols.filter(f=>d[f.code]); const total=hifzFortCols.filter(f=>d[f.code]!==undefined).length||hifzFortCols.length;
       const ic=v=>v?'<span class="hk-yes">✓</span>':'<span class="hk-no">·</span>';
-      return `<tr><td>${new Date(d.date).toLocaleDateString('ar-EG',{weekday:'short',day:'numeric'})}</td><td>${ic(d.new_hifz_done)}</td><td>${ic(d.review_near_done)}</td><td>${ic(d.daily_read_done)}</td><td>${ic(d.review_far_done)}</td><td>${ic(d.listening_done)}</td><td><span class="chip ${done===5?'g':done>=3?'gold':'r'}">${ar(done)}/٥</span></td></tr>`;
-    }).join('')}</tbody></table></div>
-    ${hifzDays.some(d=>d.general_note)?`<div style="margin-top:12px;padding:12px;background:var(--cream);border-radius:10px;font-size:13px"><b>📝 ملاحظات الطالب:</b><br>${hifzDays.filter(d=>d.general_note).map(d=>`«${esc(d.general_note)}» <span style="color:var(--muted);font-size:11px">(${new Date(d.date).toLocaleDateString('ar-EG')})</span>`).join('<br>')}</div>`:''}`
-    :`<p style="color:var(--muted);text-align:center;padding:16px">${hasAnyHifzEver?'لم يسجّل الطالب حصونه الخمسة في آخر ٧ أيام.':'لا توجد بيانات بعد — لم يبدأ الطالب تسجيل حصونه اليومية.'}</p>`}
+      return `<tr><td>${new Date(d.date).toLocaleDateString('ar-EG',{weekday:'short',day:'numeric'})}</td>${hifzFortCols.map(f=>`<td>${ic(d[f.code])}</td>`).join('')}<td><span class="chip ${doneCols.length===total?'g':doneCols.length>0?'gold':'r'}">${ar(doneCols.length)}/${ar(total)}</span></td></tr>`;
+    }).join('')}</tbody></table></div>`
+    :`<p style="color:var(--muted);text-align:center;padding:16px">${hasAnyHifzEver?'لا أوراد في آخر ٧ أيام.':'لا توجد خطة نشطة بعد لهذا الطالب.'}</p>`}
   </div>
   ${r.length?`<div class="card" style="margin-bottom:16px"><div class="ch"><h3>متوسط الأداء في الحصص</h3></div><div class="rbars">
     <div class="rbar"><div class="l"><span>الحفظ</span><b>${pct(pctOf(avg('memorization')))}</b></div><div class="rtrack"><div class="rfill e" style="width:${pctOf(avg('memorization'))}%"></div></div></div>
@@ -5856,7 +5945,9 @@ async function savePrivSession(groupId, studentId, editId){
   const { error }=editId?await sb.from('sessions').update(rec).eq('id',editId):await sb.from('sessions').insert(rec);
   if(error){ $('#psBtn').disabled=false; $('#psBtn').textContent='إنشاء الحصة'; alert('تعذّر: '+error.message); return; }
   // إشعار الطالب
-  if(!editId){ const { data:stu }=await sb.from('students').select('login_id,parent_id,full_name').eq('id',studentId).single();
+  if(!editId){
+    await anchorSubStartToFirstSession(studentId, startsAt);
+    const { data:stu }=await sb.from('students').select('login_id,parent_id,full_name').eq('id',studentId).single();
     const dateAr=new Date(date).toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long'});
     if(stu?.login_id) await pushNotif(stu.login_id,'🎥 حصة جديدة','حصة «'+title+'» يوم '+dateAr+' الساعة '+time,'session',groupId);
     if(stu?.parent_id) await pushNotif(stu.parent_id,'🎥 حصة جديدة لـ'+stu.full_name,'حصة «'+title+'» يوم '+dateAr,'session',groupId);
@@ -8836,6 +8927,20 @@ async function qMarkWard(wardId, status, plannedDate){
     const { data: ex } = await sb.from('quran_ward_progress').select('id').eq('ward_id',wardId).maybeSingle();
     if(ex) await sb.from('quran_ward_progress').update(payload).eq('id',ex.id);
     else await sb.from('quran_ward_progress').insert(payload);
+    // زر "مساعدة" كان لا يصل فعلياً لمعلم رغم رسالة النجاح المضلِّلة "تم إبلاغ معلمك" —
+    // الآن نرسل إشعاراً حقيقياً لمعلم الخطة بالورد المحدَّد الذي يحتاج الطالب مساعدة فيه
+    if(status==='need_help'){
+      try{
+        const { data: w } = await sb.from('quran_plan_wards').select('plan_id, amount_label, surah_name').eq('id',wardId).maybeSingle();
+        if(w?.plan_id){
+          const { data: plan } = await sb.from('quran_student_plans').select('teacher_id, student_id').eq('id',w.plan_id).maybeSingle();
+          if(plan?.teacher_id){
+            const studentName = ME.role==='student' ? ME.full_name : (await sb.from('students').select('full_name').eq('id',plan.student_id).maybeSingle()).data?.full_name;
+            await pushNotif(plan.teacher_id, '🆘 طالب يحتاج مساعدة', `${studentName||'طالبك'} يحتاج مساعدتك في: ${w.surah_name||w.amount_label||'ورد اليوم'}`, 'help_request', wardId);
+          }
+        }
+      }catch(e){ console.error('help notif failed:',e); }
+    }
   }catch(e){ console.error('qMarkWard failed:',e); toast('⚠️ تعذّر الحفظ، حاول مرة أخرى'); }
   navigate(SESSION.page);
 }
