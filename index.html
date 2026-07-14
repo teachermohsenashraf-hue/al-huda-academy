@@ -2888,6 +2888,10 @@ async function navigate(page){
   qUnsubscribePlanRealtime(); // ننهي أي اشتراك تحديث لحظي من الصفحة السابقة قبل رسم الجديدة
   SESSION.page=page;
   document.querySelectorAll('#sidebar a').forEach(a=>a.classList.toggle('active',a.dataset.page===page));
+  // نغلق قائمة الجوال فوراً عند الضغط على أي رابط — بدل ما ننتظر تحميل الصفحة
+  // كاملاً، كانت القائمة تفضل ظاهرة فوق المحتوى لثواني لو الصفحة بطيئة، فيبدو
+  // وكأن الضغطة ما استجابتش
+  $('#sidebar').classList.remove('open');
   const host=$('#pageHost'); host.innerHTML='<div class="card" style="text-align:center;color:var(--muted)">جارٍ التحميل…</div>';
   const fn=PAGES[ME.role+'_'+page];
   // لا نضع مهلة زمنية تقطع الصفحة برسالة خطأ — الصفحات نفسها مسؤولة عن جلب بياناتها
@@ -2898,7 +2902,7 @@ async function navigate(page){
   // رسالة "فاضي" لما ما فيش بيانات فعلاً (بدون استثناء)، فلما نوصل هنا فده يعني
   // فشل حقيقي (شبكة/صلاحيات/كود) ولازم نقوله كده صراحة بدل ما نوهمه إنها حالة طبيعية
   catch(e){ console.error('Page error:',e); host.innerHTML=`<div class="card" style="text-align:center"><div style="font-size:36px;margin-bottom:10px">⚠️</div><h3 style="margin-bottom:8px;color:#a33">تعذّر تحميل الصفحة</h3><p style="color:var(--muted);font-size:14px;margin-bottom:14px">حدث خطأ غير متوقع: ${esc(e.message||'خطأ غير معروف')}</p><button class="btn ghost" onclick="navigate('${page}')">${mi('refresh')} أعد المحاولة</button></div>`; }
-  $('#sidebar').classList.remove('open'); window.scrollTo(0,0);
+  window.scrollTo(0,0);
   refreshMenuDots();
 }
 function setTop(t,s){ $('#topTitle').textContent=t; $('#topSub').textContent=s||''; }
