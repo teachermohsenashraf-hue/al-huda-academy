@@ -8938,13 +8938,17 @@ PAGES.student_qmyplan = async function(){
 // زرّا "عرض كل الأيام السابقة/القادمة" يحمّلان الباقي عند الطلب فقط — مفيش أي
 // ميزة اتحذفت، بس البيانات بقت تتحمّل عند الحاجة الفعلية بدل كل مرة.
 const QPLAN_WINDOW_PAST_DAYS = 21, QPLAN_WINDOW_FUTURE_DAYS = 45;
+// عام (لا داخل qRenderFullPlan) لأن qBuildPlanDaysHtml/qLoadMoreDays دوال منفصلة
+// تستخدمه أيضاً — كان مُعرَّفاً محلياً جوه qRenderFullPlan فقط فسبّب
+// "DAYS is not defined" عند استدعاء الدالتين التانيتين
+const QPLAN_DAY_NAMES = ['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
 // مستخرجة من qRenderFullPlan لتُستخدم أيضاً في qLoadMoreDays (تحميل أيام إضافية عند
 // الطلب) دون تكرار منطق بناء بطاقة اليوم — نفس الشكل بالضبط في الحالتين
 function qBuildPlanDaysHtml(dates, byDate, progMap, fortMap, today, plan, role){
   return dates.map(dt=>{
     const cards = byDate[dt];
     const dayObj = new Date(dt);
-    const dn = DAYS[dayObj.getDay()];
+    const dn = QPLAN_DAY_NAMES[dayObj.getDay()];
     const isToday = dt===today;
     const isPast = dt<today;
     const isFuture = dt>today;
@@ -9091,7 +9095,6 @@ async function qRenderFullPlan(planId, role='student'){
   const byDate = {};
   (wards||[]).forEach(w=>{ if(!byDate[w.planned_date]) byDate[w.planned_date]=[]; byDate[w.planned_date].push(w); });
   const dates = Object.keys(byDate).sort();
-  const DAYS = ['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
 
   const statsRow = `<div class="qreport-grid" style="margin-bottom:18px">
     <div class="qrstat"><span class="qrsv">${ar(totalDays)}</span><div class="qrsl">إجمالي الأيام</div></div>
