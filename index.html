@@ -9764,7 +9764,9 @@ async function qRenderReport(planId){
     const wStart = new Date(); wStart.setDate(wStart.getDate()-((i+1)*7));
     const wEnd   = new Date(); wEnd.setDate(wEnd.getDate()-(i*7));
     const ws = wStart.toISOString().slice(0,10); const we = wEnd.toISOString().slice(0,10);
-    const weekWards = (recentWards||[]).filter(w=>w.planned_date>=ws&&w.planned_date<we);
+    // الأسبوع الحالي (i=0) طرفه الأعلى هو تاريخ اليوم نفسه — لازم يكون شاملاً
+    // (<=) وليس حصرياً (<)، وإلا أي ورد أُنجز اليوم يختفي تماماً من الرسم البياني
+    const weekWards = (recentWards||[]).filter(w=> i===0 ? (w.planned_date>=ws && w.planned_date<=we) : (w.planned_date>=ws && w.planned_date<we));
     const wDone = weekWards.filter(w=>recentDoneSet.has(w.id)).length;
     const wPct = weekWards.length ? Math.round(wDone/weekWards.length*100) : 0;
     weekData.push({ label:`أسبوع -${ar(i+1)}`, pct:wPct });
