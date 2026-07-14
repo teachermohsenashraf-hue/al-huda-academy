@@ -31,7 +31,7 @@ create index if not exists idx_quran_notifications_user_kind_created on quran_no
 --      مكرَّر (denormalized) من quran_plan_wards.plan_id يسمح بجلب تقدّم الخطة
 --      كلها باستعلام واحد بسيط (eq بدل in بقائمة ضخمة)، ومفهرس لسرعة فورية.
 -- ------------------------------------------------------------
-alter table quran_ward_progress add column if not exists plan_id bigint;
+alter table quran_ward_progress add column if not exists plan_id uuid;
 update quran_ward_progress p set plan_id = w.plan_id
 from quran_plan_wards w where p.ward_id = w.id and p.plan_id is null;
 create index if not exists idx_qwp_plan_id on quran_ward_progress(plan_id);
