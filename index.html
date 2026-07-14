@@ -8795,6 +8795,7 @@ PAGES.student_qtoday = async function(){
     }
   }
   SESSION._qWardMap = {}; todayWards.forEach(w=>{ SESSION._qWardMap[w.id]=w; });
+  SESSION._qProgMap = progMap; // يتيح لـ qMarkWard تحديث البطاقة فورياً من الذاكرة بدل استعلام إضافي بطيء
   const total = todayWards.length;
   const done = todayWards.filter(w=>{ const p=progMap[w.id]; return p&&p.status==='done'; }).length;
   const pct = total ? Math.round(done/total*100) : 0;
@@ -8841,6 +8842,7 @@ PAGES.student_qlate = async function(){
   SESSION._qWardMap = {}; (overdueWards||[]).forEach(w=>{ SESSION._qWardMap[w.id]=w; });
   const progs = await qFetchProgress((overdueWards||[]).map(w=>w.id));
   const progMap = {}; (progs||[]).forEach(p=>{ progMap[p.ward_id]=p; });
+  SESSION._qProgMap = progMap; // يتيح لـ qMarkWard تحديث البطاقة فورياً من الذاكرة بدل استعلام إضافي بطيء
   // نعرض غير المنجَز فقط (المتأخر الفعلي)
   const pending = (overdueWards||[]).filter(w=>{ const p=progMap[w.id]; return !(p&&p.status==='done'); });
   qSubscribePlanRealtime(plan.id); // تحديث لحظي
@@ -9243,15 +9245,17 @@ async function qMarkWard(wardId, status, plannedDate){
   toast(status==='done' ? (isEarly?'🚀 تم الإنجاز مبكراً — بارك الله فيك!':'✓ تم تسجيل الإنجاز') : 'تم تسجيل التخطي');
   if(!card) return;
   card.style.opacity='1';
-  // بطاقات ورد اليوم/المتأخرات (data-ward + خريطة الحصون مخزّنة): إعادة رسم غنية
-  // بالحالة الجديدة. غير ذلك (بطاقة ولي الأمر): تحويل موضعي بسيط دون إعادة تحميل.
+  // بطاقات ورد اليوم/المتأخرات (data-ward + خريطة الحصون مخزّنة): إعادة رسم فورية
+  // من الحالة المعروفة محلياً — كنا نعيد جلب الصف من القاعدة بعد الحفظ مباشرة
+  // (رحلة شبكة إضافية)، وهو بالضبط ما كان يؤخر ظهور "تم الورد" وتحديث الشريط
+  // الأخضر فوق الصفحة رغم أن التسجيل نفسه نجح فوراً. بما أننا نعرف بالضبط ما
+  // كتبناه لتونا، لا داعي لانتظار قراءته من جديد.
   if(card.hasAttribute('data-ward') && SESSION._qFortMap){
-    try{
-      const { data:pr } = await sb.from('quran_ward_progress').select('*').eq('ward_id',wardId).order('id',{ascending:false}).limit(1);
-      const w = { ...(SESSION._qWardMap&&SESSION._qWardMap[wardId]||{}) };
-      if(!w.id){ const r=await sb.from('quran_plan_wards').select('*').eq('id',wardId).maybeSingle(); Object.assign(w, r.data||{}); }
-      if(w.id) card.outerHTML = qTodayCardHtml(w, (pr&&pr[0])||null, SESSION._qFortMap);
-    }catch(e){}
+    const prevP = (SESSION._qProgMap && SESSION._qProgMap[wardId]) || {};
+    const newP = { ...prevP, status, planned_for_date:pd, actual_date:today, is_early:isEarly, is_late:isLate };
+    if(SESSION._qProgMap) SESSION._qProgMap[wardId] = newP;
+    const w = { ...(SESSION._qWardMap&&SESSION._qWardMap[wardId]||{}) };
+    if(w.id) card.outerHTML = qTodayCardHtml(w, newP, SESSION._qFortMap);
   } else {
     const acts = card.querySelector('.qcwacts'); if(acts) acts.remove();
     card.classList.add('done');
