@@ -2352,6 +2352,86 @@ drop function if exists create_linked_account(text, text, text, text, bigint);
 grant execute on function create_linked_account(text, text, text, text, bigint, text) to authenticated;
 
 -- ------------------------------------------------------------
+-- 🔴 إصلاح حرج: لوحة "الطاقم والإدارة" كانت تنشئ حساب الموظف الجديد عبر
+-- sb.auth.signUp() العادي (نفس نقطة التسجيل العامة للزوّار) ثم تحفظ جلسة
+-- المدير وتستعيدها بعد كده — حيلة هشة، ومع تفعيل حماية Turnstile CAPTCHA على
+-- مشروع Supabase صار signUp يرفض الطلب تماماً برسالة "no captcha_token found"
+-- لأن نموذج المدير أصلاً ما بيعرضش أي ودجت captcha. الحل الصحيح: دالة مخصّصة
+-- بصلاحية security definer (زي create_linked_account تماماً) تتحقق إن
+-- المستدعي "admin" فعلاً قبل الإنشاء، وتُدرج في auth.users مباشرة — فتتجاوز
+-- نقطة signUp العامة وحماية الـ captcha الخاصة بها كلياً (مثلما الأمر بالضبط
+-- بالنسبة لحسابات الطالب/ولي الأمر المُنشأة من الموظفين).
+create or replace function create_staff_account(
+  p_email text, p_password text, p_name text, p_role text, p_gender text default null,
+  p_title text default null, p_department text default null, p_specialty text default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  new_user_id uuid;
+  existing_id uuid;
+begin
+  if not is_admin() then
+    return jsonb_build_object('ok', false, 'error', 'هذا الإجراء مقصور على المدير فقط');
+  end if;
+  if p_role not in ('admin','executive','supervisor','teacher') then
+    return jsonb_build_object('ok', false, 'error', 'دور غير صالح');
+  end if;
+
+  perform pg_advisory_xact_lock(hashtext(lower(p_email)));
+
+  select id into existing_id from auth.users where email = p_email;
+  if existing_id is not null then
+    return jsonb_build_object('ok', false, 'error', 'هذا البريد مستخدم بالفعل');
+  end if;
+
+  new_user_id := gen_random_uuid();
+
+  insert into auth.users (
+    id, instance_id, aud, role, email, encrypted_password,
+    email_confirmed_at, created_at, updated_at,
+    raw_app_meta_data, raw_user_meta_data, is_super_admin,
+    confirmation_token, recovery_token, email_change,
+    email_change_token_new, email_change_token_current,
+    phone_change, phone_change_token, reauthentication_token
+  ) values (
+    new_user_id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+    p_email, crypt(p_password, gen_salt('bf')),
+    now(), now(), now(),
+    '{"provider":"email","providers":["email"]}', jsonb_build_object('full_name', p_name, 'role', p_role),
+    false,
+    '', '', '', '', '', '', '', ''
+  );
+
+  insert into auth.identities (
+    id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at
+  ) values (
+    gen_random_uuid(), new_user_id, new_user_id::text,
+    jsonb_build_object('sub', new_user_id::text, 'email', p_email),
+    'email', now(), now(), now()
+  );
+
+  insert into profiles (id, role, full_name, email, gender, reports_to, title, department, specialty, is_available)
+  values (new_user_id, p_role::user_role, p_name, p_email, p_gender, auth.uid(), p_title, p_department, p_specialty,
+          case when p_role='teacher' then true else null end)
+  on conflict (id) do update set
+    role=excluded.role, full_name=excluded.full_name, email=excluded.email,
+    gender=coalesce(excluded.gender, profiles.gender), reports_to=excluded.reports_to,
+    title=excluded.title, department=excluded.department, specialty=excluded.specialty,
+    is_available=coalesce(excluded.is_available, profiles.is_available);
+
+  return jsonb_build_object('ok', true, 'user_id', new_user_id);
+exception
+  when unique_violation then
+    return jsonb_build_object('ok', false, 'error', 'هذا البريد مستخدم بالفعل');
+end;
+$$;
+grant execute on function create_staff_account(text, text, text, text, text, text, text, text) to authenticated;
+
+-- ------------------------------------------------------------
 -- 🔴 إصلاح حرج: حسابات أُنشئت سابقاً عبر create_linked_account (قبل هذا
 -- الإصلاح) بقيت بأعمدة NULL في recovery_token/email_change/... مما يُسقط
 -- تسجيل الدخول بخطأ "Database error querying schema" من خادم المصادقة —

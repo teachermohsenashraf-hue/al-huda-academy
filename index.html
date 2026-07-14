@@ -5244,22 +5244,21 @@ async function saveStaff(){
   if(!name||!email||!pass){ toast('أكمل البيانات المطلوبة'); return; }
   if(pass.length<6){ toast('كلمة المرور ٦ أحرف على الأقل'); return; }
   $('#stBtn').disabled=true; $('#stBtn').textContent='جارٍ الإنشاء...';
-  const meta={ role, full_name:name, initials:name.slice(0,2) };
-  // نحفظ جلسة المدير الحالية لاستعادتها بعد signUp
-  const { data:sess }=await sb.auth.getSession();
-  const { data:signUpData, error }=await sb.auth.signUp({ email, password:pass, options:{ data:meta } });
-  if(error){ $('#stBtn').disabled=false; $('#stBtn').textContent='إنشاء الحساب'; alert('تعذّر: '+(error.message.includes('already')?'هذا البريد مسجّل بالفعل':error.message)); return; }
-  const newId=signUpData.user?.id;
-  // نستعيد جلسة المدير أولاً (لأن signUp بدّل الجلسة للعضو الجديد)
-  if(sess&&sess.session){ await sb.auth.setSession({ access_token:sess.session.access_token, refresh_token:sess.session.refresh_token }); }
-  // الآن نحن المدير مجدداً — نحدّث دور العضو وحقوله
-  if(newId){
-    const upd={ role, full_name:name, reports_to:ME.id, gender:$('#stGender').value };
-    if(role==='executive') upd.title=$('#stTitle')?.value.trim()||null;
-    if(role==='supervisor') upd.department=$('#stDept')?.value.trim()||null;
-    if(role==='teacher'){ upd.specialty=$('#stSpec')?.value.trim()||null; upd.is_available=true; }
-    const { error:upErr }=await sb.from('profiles').update(upd).eq('id',newId);
-    if(upErr){ console.error(upErr); }
+  // 🔴 إصلاح حرج: sb.auth.signUp() العادي بقى مرفوضاً بعد تفعيل حماية Turnstile
+  // CAPTCHA على المشروع ("no captcha_token found") لأن هذا النموذج لا يعرض أي
+  // ودجت captcha — وهو أصلاً إجراء إداري موثّق (المدير منشئ الحساب)، لا زائر
+  // مجهول. الحل: دالة قاعدة بيانات مخصّصة (create_staff_account) تتجاوز نقطة
+  // signUp العامة بالكامل مثل ما فعلنا تماماً لحسابات الطالب/ولي الأمر.
+  const { data, error } = await sb.rpc('create_staff_account', {
+    p_email:email, p_password:pass, p_name:name, p_role:role, p_gender:$('#stGender').value,
+    p_title: role==='executive' ? ($('#stTitle')?.value.trim()||null) : null,
+    p_department: role==='supervisor' ? ($('#stDept')?.value.trim()||null) : null,
+    p_specialty: role==='teacher' ? ($('#stSpec')?.value.trim()||null) : null,
+  });
+  if(error || !data?.ok){
+    $('#stBtn').disabled=false; $('#stBtn').textContent='إنشاء الحساب';
+    alert('تعذّر: '+(error?.message || data?.error || 'خطأ غير معروف'));
+    return;
   }
   closeModal(); await navigate('staff'); toast('✅ تم إنشاء حساب '+name+' كـ'+roleAr(role));
 }
