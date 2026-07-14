@@ -8669,8 +8669,12 @@ async function applyAbsenceShift(plan){
   const sinceDate = plan.last_absence_check || '2000-01-01';
   const { data: pastWards } = await sb.from('quran_plan_wards').select('id,planned_date').eq('plan_id',plan.id).gt('planned_date',sinceDate).lt('planned_date',todayStr);
   if(!pastWards || !pastWards.length){ await sb.from('quran_student_plans').update({ last_absence_check:todayStr }).eq('id',plan.id); return; }
-  const wardIds = pastWards.map(w=>w.id);
-  const { data: progs } = await sb.from('quran_ward_progress').select('ward_id').in('ward_id',wardIds);
+  // 🔴 إصلاح حرج في الأداء: كانت هذه تبني قائمة .in() بمعرّفات كل الأوراد
+  // الفائتة منذ آخر فحص (ممكن تصل لمئات لخطة لم تُفتح منذ فترة)، وطول رابط
+  // الاستعلام الناتج كان يتجاوز حدود البنية التحتية ويرجّع خطأ 500 متكرراً —
+  // بالضبط سبب تعليق كل صفحات قسم القرآن. الفلترة بـ plan_id مباشرة (بدل قائمة
+  // ward_id) تعطي نفس النتيجة الدقيقة بروابط عادية قصيرة الطول دائماً
+  const { data: progs } = await sb.from('quran_ward_progress').select('ward_id').eq('plan_id',plan.id);
   const doneSet = new Set((progs||[]).map(p=>p.ward_id));
   const byDate = {}; pastWards.forEach(w=>{ (byDate[w.planned_date]=byDate[w.planned_date]||[]).push(w); });
   const missedDates = Object.keys(byDate).filter(d=>byDate[d].every(w=>!doneSet.has(w.id))).sort();
