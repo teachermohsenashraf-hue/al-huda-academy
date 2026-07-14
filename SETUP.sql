@@ -44,6 +44,21 @@ where a.ward_id = b.ward_id and a.id < b.id;
 create index if not exists idx_qwp_ward_id on quran_ward_progress(ward_id);
 create index if not exists idx_qward_planned_date on quran_plan_wards(plan_id, planned_date);
 
+-- 🔴 إصلاح جذري لتكرار صفوف التقدّم: التنظيف أعلاه كان يحذف المكرر "مرة واحدة"،
+-- لكن بدون قيد UNIQUE كان بإمكان صفوف مكررة جديدة أن تتكوّن مرة أخرى (نقرتين
+-- سريعتين، أو قراءة/كتابة من صفحتين مختلفتين في نفس اللحظة) — وهو بالضبط ما كان
+-- يجعل صفحة "ورد اليوم" تُظهر الورد "مُنجَزاً" بينما "خطتي الكاملة" تُظهره ما
+-- زال بلا إنجاز: كل صفحة تقرأ الصفوف بدون ترتيب، فتُبقي أي صف عشوائي منها في
+-- الذاكرة. القيد هنا يمنع تكوّن أي تكرار جديد من جذره بدل معالجة أثره لاحقاً.
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'quran_ward_progress_ward_id_key'
+  ) then
+    alter table quran_ward_progress add constraint quran_ward_progress_ward_id_key unique (ward_id);
+  end if;
+end $$;
+
 -- ------------------------------------------------------------
 -- 🔴 تحسين أداء جذري: صفحتا "تقريري القرآني" و"ورد اليوم" كانتا تجلبان كل
 -- أوراد الخطة وكل صفوف تقدّمها إلى المتصفح (مئات الصفوف) فقط لحساب أرقام
@@ -2379,7 +2394,6 @@ as $$
 declare
   v_is_owner boolean;
   v_is_staff boolean;
-  v_rows int;
 begin
   select exists(
     select 1 from quran_plan_wards w
@@ -2402,44 +2416,40 @@ begin
     return jsonb_build_object('error','forbidden');
   end if;
 
-  with target as (
-    select id from quran_ward_progress where ward_id = p_ward_id order by id asc limit 1
+  -- 🔴 INSERT ... ON CONFLICT بدل "اقرأ ثم حدّث أو أدرج" اليدوي: العملية القديمة
+  -- كانت عرضة لسباق (Race Condition) بين نقرتين متزامنتين أو صفحتين مختلفتين،
+  -- فتتكوّن صفوف مكررة لنفس الورد رغم كل الحمايات — وهو ما كان يجعل صفحة تُظهر
+  -- الورد "منجَزاً" بينما صفحة أخرى تقرأ صفاً مختلفاً وتُظهره غير منجَز. مع قيد
+  -- UNIQUE(ward_id) أعلاه، هذه العبارة الواحدة ذرّية (atomic) تماماً على مستوى
+  -- قاعدة البيانات، فمستحيل يتكوّن تكرار مهما تزامنت الطلبات.
+  insert into quran_ward_progress(
+    ward_id, student_login_id, status, planned_for_date, actual_date,
+    is_early, is_late, days_offset, student_mastery, student_note,
+    teacher_note, teacher_id, teacher_approved_at, updated_at
+  ) values (
+    p_ward_id,
+    case when v_is_owner then auth.uid() else null end,
+    coalesce(p_status,'not_started'), p_planned_for_date, p_actual_date,
+    coalesce(p_is_early,false), coalesce(p_is_late,false), p_days_offset,
+    p_student_mastery, p_student_note,
+    p_teacher_note,
+    case when p_touch_teacher or p_teacher_approve then auth.uid() else null end,
+    case when p_teacher_approve then now() else null end,
+    now()
   )
-  update quran_ward_progress q set
-    status = coalesce(p_status, q.status),
-    planned_for_date = coalesce(p_planned_for_date, q.planned_for_date),
-    actual_date = coalesce(p_actual_date, q.actual_date),
-    is_early = coalesce(p_is_early, q.is_early),
-    is_late = coalesce(p_is_late, q.is_late),
-    days_offset = coalesce(p_days_offset, q.days_offset),
-    student_mastery = coalesce(p_student_mastery, q.student_mastery),
-    student_note = coalesce(p_student_note, q.student_note),
-    teacher_note = case when p_clear_teacher_note then null else coalesce(p_teacher_note, q.teacher_note) end,
-    teacher_id = case when p_touch_teacher or p_teacher_approve then auth.uid() else q.teacher_id end,
-    teacher_approved_at = case when p_teacher_approve then now() else q.teacher_approved_at end,
-    updated_at = now()
-  from target t
-  where q.id = t.id;
-
-  get diagnostics v_rows = row_count;
-
-  if v_rows = 0 then
-    insert into quran_ward_progress(
-      ward_id, student_login_id, status, planned_for_date, actual_date,
-      is_early, is_late, days_offset, student_mastery, student_note,
-      teacher_note, teacher_id, teacher_approved_at, updated_at
-    ) values (
-      p_ward_id,
-      case when v_is_owner then auth.uid() else null end,
-      coalesce(p_status,'not_started'), p_planned_for_date, p_actual_date,
-      coalesce(p_is_early,false), coalesce(p_is_late,false), p_days_offset,
-      p_student_mastery, p_student_note,
-      p_teacher_note,
-      case when p_touch_teacher or p_teacher_approve then auth.uid() else null end,
-      case when p_teacher_approve then now() else null end,
-      now()
-    );
-  end if;
+  on conflict (ward_id) do update set
+    status = coalesce(p_status, quran_ward_progress.status),
+    planned_for_date = coalesce(p_planned_for_date, quran_ward_progress.planned_for_date),
+    actual_date = coalesce(p_actual_date, quran_ward_progress.actual_date),
+    is_early = coalesce(p_is_early, quran_ward_progress.is_early),
+    is_late = coalesce(p_is_late, quran_ward_progress.is_late),
+    days_offset = coalesce(p_days_offset, quran_ward_progress.days_offset),
+    student_mastery = coalesce(p_student_mastery, quran_ward_progress.student_mastery),
+    student_note = coalesce(p_student_note, quran_ward_progress.student_note),
+    teacher_note = case when p_clear_teacher_note then null else coalesce(p_teacher_note, quran_ward_progress.teacher_note) end,
+    teacher_id = case when p_touch_teacher or p_teacher_approve then auth.uid() else quran_ward_progress.teacher_id end,
+    teacher_approved_at = case when p_teacher_approve then now() else quran_ward_progress.teacher_approved_at end,
+    updated_at = now();
 
   return jsonb_build_object('ok', true);
 end;
