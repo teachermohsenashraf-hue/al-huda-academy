@@ -1,6 +1,6 @@
 // Service Worker لإشعارات الأكاديمية — يعمل حتى لو المتصفح مقفول تماماً
 // + كاش حقيقي لهيكل التطبيق (App Shell) يسمح بفتحه بدون إنترنت
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const CACHE_NAME = 'huda-shell-' + CACHE_VERSION;
 const SHELL_ASSETS = [
   '/',
