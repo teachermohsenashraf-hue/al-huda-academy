@@ -2343,3 +2343,189 @@ update auth.users set
 where confirmation_token is null or recovery_token is null or email_change is null
    or email_change_token_new is null or email_change_token_current is null
    or phone_change is null or phone_change_token is null or reauthentication_token is null;
+
+-- ══════════════════════════════════════════════════════════════════════════
+-- إعادة بناء هيكلية دائمة لقسم القرآن — بدل الاعتماد على سياسات RLS منفصلة
+-- قابلة للنسيان عند تشغيل الملف جزئياً (وهو بالضبط ما كان يسبب "تعذّر الحفظ"
+-- المتكرر)، كل عمليات الكتابة على تقدّم الأوراد تمر الآن عبر دالة واحدة محصّنة
+-- (security definer) تتحقق من الصلاحية بنفسها وتُرجع نجاحاً أو خطأ صريحاً —
+-- مستحيل ترفض بصمت. وكل صفحات "ورد اليوم/الأوراد المتأخرة" تجيب بياناتها
+-- (أوراد اليوم + حالتها + عدد المتأخرات + الإحصائيات + آخر ورد حفظ) برحلة
+-- شبكة واحدة بدل ٥-٧ رحلات منفصلة.
+-- ══════════════════════════════════════════════════════════════════════════
+
+-- كتابة موحّدة لتقدّم الورد (طالب/ولي أمر/معلم/مشرف) — بديل عن الاعتماد على
+-- تطابق سياستي RLS "qprog_owner_write"/"qprog_teacher" في كل مرة؛ الدالة
+-- تكرر بالضبط نفس شرطي الصلاحية الموجودين فيهما، فلا صلاحية جديدة أُضيفت.
+create or replace function quran_mark_ward(
+  p_ward_id uuid,
+  p_status text default null,
+  p_planned_for_date date default null,
+  p_actual_date date default null,
+  p_is_early boolean default null,
+  p_is_late boolean default null,
+  p_days_offset int default null,
+  p_student_mastery int default null,
+  p_student_note text default null,
+  p_teacher_note text default null,
+  p_clear_teacher_note boolean default false,
+  p_touch_teacher boolean default false,
+  p_teacher_approve boolean default false
+) returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_is_owner boolean;
+  v_is_staff boolean;
+  v_rows int;
+begin
+  select exists(
+    select 1 from quran_plan_wards w
+    join quran_student_plans qp on qp.id = w.plan_id
+    where w.id = p_ward_id
+      and (qp.login_id = auth.uid()
+           or exists (select 1 from students s where s.id = qp.student_id
+                      and (s.login_id = auth.uid() or s.parent_id = auth.uid())))
+  ) into v_is_owner;
+
+  select exists(
+    select 1 from quran_plan_wards w
+    join quran_student_plans qp on qp.id = w.plan_id
+    where w.id = p_ward_id
+      and (qp.teacher_id = auth.uid() or is_admin()
+           or my_role() = any(array['executive','supervisor']::user_role[]))
+  ) into v_is_staff;
+
+  if not (v_is_owner or v_is_staff) then
+    return jsonb_build_object('error','forbidden');
+  end if;
+
+  with target as (
+    select id from quran_ward_progress where ward_id = p_ward_id order by id asc limit 1
+  )
+  update quran_ward_progress q set
+    status = coalesce(p_status, q.status),
+    planned_for_date = coalesce(p_planned_for_date, q.planned_for_date),
+    actual_date = coalesce(p_actual_date, q.actual_date),
+    is_early = coalesce(p_is_early, q.is_early),
+    is_late = coalesce(p_is_late, q.is_late),
+    days_offset = coalesce(p_days_offset, q.days_offset),
+    student_mastery = coalesce(p_student_mastery, q.student_mastery),
+    student_note = coalesce(p_student_note, q.student_note),
+    teacher_note = case when p_clear_teacher_note then null else coalesce(p_teacher_note, q.teacher_note) end,
+    teacher_id = case when p_touch_teacher or p_teacher_approve then auth.uid() else q.teacher_id end,
+    teacher_approved_at = case when p_teacher_approve then now() else q.teacher_approved_at end,
+    updated_at = now()
+  from target t
+  where q.id = t.id;
+
+  get diagnostics v_rows = row_count;
+
+  if v_rows = 0 then
+    insert into quran_ward_progress(
+      ward_id, student_login_id, status, planned_for_date, actual_date,
+      is_early, is_late, days_offset, student_mastery, student_note,
+      teacher_note, teacher_id, teacher_approved_at, updated_at
+    ) values (
+      p_ward_id,
+      case when v_is_owner then auth.uid() else null end,
+      coalesce(p_status,'not_started'), p_planned_for_date, p_actual_date,
+      coalesce(p_is_early,false), coalesce(p_is_late,false), p_days_offset,
+      p_student_mastery, p_student_note,
+      p_teacher_note,
+      case when p_touch_teacher or p_teacher_approve then auth.uid() else null end,
+      case when p_teacher_approve then now() else null end,
+      now()
+    );
+  end if;
+
+  return jsonb_build_object('ok', true);
+end;
+$$;
+grant execute on function quran_mark_ward(uuid,text,date,date,boolean,boolean,int,int,text,text,boolean,boolean,boolean) to authenticated;
+
+-- لوحة بيانات موحّدة لـ"ورد اليوم" — كل ما تحتاجه الصفحة (أوراد اليوم بحالتها،
+-- عدد المتأخرات، الإحصائيات الإجمالية) في رحلة شبكة واحدة بدل استعلامات متفرقة
+create or replace function quran_plan_dashboard(p_plan_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  result jsonb;
+  has_access boolean;
+  v_today date := current_date;
+begin
+  select exists(
+    select 1 from quran_student_plans qp
+    where qp.id = p_plan_id and (
+      is_admin() or my_role() = any(array['executive','supervisor']::user_role[])
+      or qp.teacher_id = auth.uid() or qp.login_id = auth.uid()
+      or exists (select 1 from students s where s.id = qp.student_id
+                 and (s.login_id = auth.uid() or s.parent_id = auth.uid()))
+    )
+  ) into has_access;
+  if not has_access then
+    return jsonb_build_object('error','forbidden');
+  end if;
+
+  select jsonb_build_object(
+    'today_wards', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'id', w.id, 'fortress_code', w.fortress_code, 'surah_no', w.surah_no,
+        'surah_name', w.surah_name, 'ayah_from', w.ayah_from, 'ayah_to', w.ayah_to,
+        'whole_surah', w.whole_surah, 'amount_label', w.amount_label,
+        'planned_date', w.planned_date, 'teacher_note', w.teacher_note,
+        'progress', case when p.id is null then null else jsonb_build_object(
+          'status', p.status, 'student_mastery', p.student_mastery,
+          'teacher_mastery', p.teacher_mastery, 'student_note', p.student_note,
+          'teacher_approved_at', p.teacher_approved_at,
+          'is_early', p.is_early, 'is_late', p.is_late
+        ) end
+      ) order by w.fortress_code)
+      from quran_plan_wards w
+      left join quran_ward_progress p on p.ward_id = w.id
+      where w.plan_id = p_plan_id and w.planned_date = v_today
+    ), '[]'::jsonb),
+    'late_count', (
+      select count(*) from quran_plan_wards w
+      left join quran_ward_progress p on p.ward_id = w.id
+      where w.plan_id = p_plan_id and w.planned_date < v_today
+        and (p.status is null or p.status <> 'done')
+    ),
+    'stats', quran_plan_report_stats(p_plan_id)
+  ) into result;
+
+  return result;
+end;
+$$;
+grant execute on function quran_plan_dashboard(uuid) to authenticated;
+
+-- VIEW مرجعي يدمج الورد وتقدّمه في صف واحد (LEFT JOIN جاهز) — يقتل نمط
+-- "استعلامين ثم دمج في JavaScript" من جذره لأي استخدام إداري/تقريري مستقبلي
+create or replace view quran_ward_full as
+select
+  w.id as ward_id, w.plan_id, w.fortress_code, w.surah_no, w.surah_name,
+  w.ayah_from, w.ayah_to, w.whole_surah, w.amount_label, w.planned_date,
+  w.teacher_note as ward_teacher_note,
+  p.status, p.student_mastery, p.teacher_mastery, p.student_note,
+  p.teacher_approved_at, p.is_early, p.is_late, p.actual_date
+from quran_plan_wards w
+left join quran_ward_progress p on p.ward_id = w.id;
+grant select on quran_ward_full to authenticated;
+
+-- تفعيل التحديث اللحظي (Realtime) لهذا الجدول تحديداً — بدونه لن يصل أي حدث
+-- للمشتركين مهما كان كود العميل صحيحاً؛ محمي بفحص لتفادي خطأ "already member"
+-- لو الجدول كان مُضافاً بالفعل من تشغيل سابق للملف
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'quran_ward_progress'
+  ) then
+    alter publication supabase_realtime add table quran_ward_progress;
+  end if;
+end $$;
