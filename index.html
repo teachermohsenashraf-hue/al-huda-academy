@@ -1661,6 +1661,7 @@ function waFloat(){
 
 // تهيئة عند الإقلاع
 if('serviceWorker' in navigator){
+  let _hadControllerAtLoad = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.register('/sw.js').then(reg=>{
     // المتصفح افتراضياً ما بيتأكدش من وجود sw.js جديد إلا عند أول تحميل للصفحة (أو
     // مرة كل ~٢٤ ساعة تقريباً)، فلو المستخدم سايب التبويب مفتوح فترة طويلة (شائع
@@ -1670,16 +1671,27 @@ if('serviceWorker' in navigator){
     if(reg){
       setInterval(()=>{ reg.update().catch(()=>{}); }, 10*60*1000);
       document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) reg.update().catch(()=>{}); });
+      // 🔴 إصلاح: الاعتماد فقط على حدث controllerchange غير كافٍ — في تطبيقات PWA
+      // المثبَّتة على سطح المكتب، كروم أحياناً يعرض تنبيهه العام الخاص به ("A new
+      // version of this page is available") ولا يُفعّل تلقائياً السيطرة الجديدة
+      // (controllerchange) بنفس السرعة، فبانرنا المخصَّص كان لا يظهر إطلاقاً.
+      // الحل الأضمن (النمط القياسي لاكتشاف تحديثات service worker): مراقبة
+      // updatefound مباشرة، وبمجرد أن تصبح النسخة الجديدة "installed" ويوجد
+      // بالفعل متحكِّم سابق (يعني هذا تحديث حقيقي، مش أول تثبيت)، نعرض بانرنا
+      // فوراً بغضّ النظر عن توقيت استلام السيطرة الفعلية.
+      reg.addEventListener('updatefound', ()=>{
+        const nw = reg.installing; if(!nw) return;
+        nw.addEventListener('statechange', ()=>{
+          if(nw.state==='installed' && _hadControllerAtLoad) showUpdateBanner();
+        });
+      });
     }
   }).catch(()=>{});
   // إشعار تحديث المنصة: لما نسخة sw.js جديدة تاخد السيطرة على الصفحة المفتوحة
-  // (بعد نشر تحديث)، بيتغيّر الـ controller — ده أضمن إشارة إن فيه نسخة جديدة
-  // فعلاً اتنزّلت، فنوري بانر بهوية المنصة بدل ما نعمل reload تلقائي يقاطع المستخدم
-  let _swRefreshing=false;
+  // (بعد نشر تحديث)، بيتغيّر الـ controller — إشارة احتياطية إضافية (بعض
+  // المتصفحات تُفعّل السيطرة الجديدة قبل أن يكتمل حدث "installed" أعلاه)
   navigator.serviceWorker.addEventListener('controllerchange', ()=>{
-    if(_swRefreshing) return; // منع تكرار العرض لو الحدث اتطلق أكتر من مرة
-    _swRefreshing=true;
-    showUpdateBanner();
+    if(_hadControllerAtLoad) showUpdateBanner();
   });
 }
 function showUpdateBanner(){
@@ -8755,9 +8767,8 @@ PAGES.student_qtoday = async function(){
   // "ورد اليوم" يعرض أوراد اليوم فقط (بناءً على طلب صريح) — الأوراد المتأخرة
   // لها صفحتها المستقلة (qlate) ويُنبَّه عليها في "التنبيهات". نعدّ المتأخرات هنا
   // فقط لعرض مؤشّر صغير يوجّه الطالب لصفحتها، دون إظهار الأوراد نفسها هنا.
-  const [{ data: todayWards }, { data: overdueWards }, { data: forts }] = await Promise.all([
+  const [{ data: todayWards }, { data: forts }] = await Promise.all([
     sb.from('quran_plan_wards').select('*').eq('plan_id',plan.id).eq('planned_date',today).order('fortress_code'),
-    sb.from('quran_plan_wards').select('id').eq('plan_id',plan.id).lt('planned_date',today),
     sb.from('quran_fortresses').select('*').eq('system_id',plan.system_id),
   ]);
   const fortMap = {}; (forts||[]).forEach(f=>{ fortMap[f.code]=f; });
@@ -8767,11 +8778,18 @@ PAGES.student_qtoday = async function(){
   let progMap = {};
   const progs = await qFetchProgress(todayIds);
   (progs||[]).forEach(p=>{ progMap[p.ward_id]=p; });
-  // عدد المتأخرات: أوراد أيام سابقة لم تُسجَّل كـ"تم" (نجلب تقدّمها بالدفعات الصغيرة)
-  const overdueIds = (overdueWards||[]).map(w=>w.id);
-  const overdueProgs = await qFetchProgress(overdueIds, 'ward_id,status');
-  const overdueDoneSet = new Set((overdueProgs||[]).filter(p=>p.status==='done').map(p=>p.ward_id));
-  const lateCount = overdueIds.filter(id=>!overdueDoneSet.has(id)).length;
+  // 🚀 عدد المتأخرات يُحسَب داخل قاعدة البيانات (COUNT بسيط) بدل جلب كل الأوراد
+  // المتأخرة وتقدّمها إلى المتصفح فقط لعدّها — نفس المؤشر بالضبط، لكن فوري
+  let lateCount = 0;
+  const { data: lateRpc, error: lateErr } = await sb.rpc('quran_late_ward_count', { p_plan_id: plan.id });
+  if(!lateErr && lateRpc!=null){ lateCount = lateRpc; }
+  else {
+    const { data: overdueWards } = await sb.from('quran_plan_wards').select('id').eq('plan_id',plan.id).lt('planned_date',today);
+    const overdueIds = (overdueWards||[]).map(w=>w.id);
+    const overdueProgs = await qFetchProgress(overdueIds, 'ward_id,status');
+    const overdueDoneSet = new Set((overdueProgs||[]).filter(p=>p.status==='done').map(p=>p.ward_id));
+    lateCount = overdueIds.filter(id=>!overdueDoneSet.has(id)).length;
+  }
   const total = (todayWards||[]).length;
   const done = (todayWards||[]).filter(w=>{ const p=progMap[w.id]; return p&&p.status==='done'; }).length;
   const pct = total ? Math.round(done/total*100) : 0;
@@ -9543,29 +9561,39 @@ PAGES.teacher_qreport = async function(){
 };
 
 async function qRenderReport(planId){
-  // الخطة وأورادها بالتوازي، ثم تقدّم الأوراد عبر الدفعات الصغيرة المقاومة للفشل
-  const [{ data: plan }, { data: wards }] = await Promise.all([
-    sb.from('quran_student_plans').select('*').eq('id',planId).maybeSingle(),
-    sb.from('quran_plan_wards').select('*').eq('plan_id',planId),
-  ]);
+  const { data: plan } = await sb.from('quran_student_plans').select('*').eq('id',planId).maybeSingle();
   if(!plan) return '<div class="card">الخطة غير موجودة</div>';
-  const progs = await qFetchProgress((wards||[]).map(w=>w.id));
   const { data: sys } = await sb.from('quran_systems').select('name').eq('id',plan.system_id).maybeSingle();
-  const progMap = {}; (progs||[]).forEach(p=>{ progMap[p.ward_id]=p; });
-  const byFort = {};
-  (wards||[]).forEach(w=>{
-    if(!byFort[w.fortress_code]) byFort[w.fortress_code]={total:0,done:0};
-    byFort[w.fortress_code].total++;
-    const p = progMap[w.id];
-    if(p&&p.status==='done') byFort[w.fortress_code].done++;
-  });
-  const today = qTodayStr();
-  const totalW = (wards||[]).length;
-  const doneW  = (progs||[]).filter(p=>p.status==='done').length;
-  const lateW  = (wards||[]).filter(w=>w.planned_date<today&&(!progMap[w.id]||progMap[w.id].status!=='done')).length;
-  const earlyW = (progs||[]).filter(p=>p.is_early&&p.status==='done').length;
-  const masterySamples = (progs||[]).filter(p=>p.student_mastery).map(p=>p.student_mastery);
-  const avgMastery = masterySamples.length ? (masterySamples.reduce((a,b)=>a+parseFloat(b),0)/masterySamples.length).toFixed(1) : '—';
+  // 🚀 الأرقام الإجمالية (إجمالي/منجز/متأخر/مبكر/متوسط الإتقان/نسبة كل حصن) تُحسَب
+  // الآن داخل قاعدة البيانات برحلة شبكة واحدة (quran_plan_report_stats)، بدل ما
+  // كنا نجلب كل صفوف الخطة (مئات الصفوف لخطة طويلة) ونعدّها في المتصفح — نفس
+  // الأرقام بالضبط، لكن فورية مهما طالت الخطة. نرجع للحساب اليدوي فقط لو الدالة
+  // غير موجودة بعد في القاعدة (لم يُشغَّل SETUP.sql الجديد).
+  let totalW=0, doneW=0, lateW=0, earlyW=0, avgMastery='—', byFort={};
+  const { data: statsRpc, error: statsErr } = await sb.rpc('quran_plan_report_stats', { p_plan_id: planId });
+  if(!statsErr && statsRpc && !statsRpc.error){
+    totalW = statsRpc.total||0; doneW = statsRpc.done||0; lateW = statsRpc.late||0; earlyW = statsRpc.early||0;
+    avgMastery = statsRpc.avg_mastery!=null ? statsRpc.avg_mastery : '—';
+    byFort = statsRpc.by_fortress || {};
+    Object.keys(byFort).forEach(k=>{ byFort[k] = { total:byFort[k].total, done:byFort[k].done }; });
+  } else {
+    // احتياط متوافق مع النسخة القديمة قبل تشغيل SETUP.sql
+    const { data: wards } = await sb.from('quran_plan_wards').select('id,planned_date,fortress_code').eq('plan_id',planId);
+    const progs = await qFetchProgress((wards||[]).map(w=>w.id));
+    const progMap = {}; (progs||[]).forEach(p=>{ progMap[p.ward_id]=p; });
+    (wards||[]).forEach(w=>{
+      if(!byFort[w.fortress_code]) byFort[w.fortress_code]={total:0,done:0};
+      byFort[w.fortress_code].total++;
+      if(progMap[w.id]&&progMap[w.id].status==='done') byFort[w.fortress_code].done++;
+    });
+    const today = qTodayStr();
+    totalW = (wards||[]).length;
+    doneW  = (progs||[]).filter(p=>p.status==='done').length;
+    lateW  = (wards||[]).filter(w=>w.planned_date<today&&(!progMap[w.id]||progMap[w.id].status!=='done')).length;
+    earlyW = (progs||[]).filter(p=>p.is_early&&p.status==='done').length;
+    const masterySamples = (progs||[]).filter(p=>p.student_mastery).map(p=>p.student_mastery);
+    avgMastery = masterySamples.length ? (masterySamples.reduce((a,b)=>a+parseFloat(b),0)/masterySamples.length).toFixed(1) : '—';
+  }
   const overallPct = totalW ? Math.round(doneW/totalW*100) : 0;
   const FORTNAMES = { new_hifz:'الحفظ الجديد', review_near:'المراجعة القريبة', review_far:'المراجعة البعيدة', reading:'ورد القراءة', listening:'ورد السماع' };
 
@@ -9588,14 +9616,19 @@ async function qRenderReport(planId){
       </div>`;
     }).join('')}</div></div>`;
 
-  // Weekly commitment (last 4 weeks)
+  // الالتزام الأسبوعي (آخر ٤ أسابيع): نجلب فقط أوراد آخر ٢٨ يوماً (بيانات محدودة
+  // دائماً، بصرف النظر عن طول الخطة) بدل الاعتماد على كل أوراد الخطة
   const weekData = [];
+  const since28 = new Date(); since28.setDate(since28.getDate()-28);
+  const { data: recentWards } = await sb.from('quran_plan_wards').select('id,planned_date').eq('plan_id',planId).gte('planned_date',since28.toISOString().slice(0,10));
+  const recentProgs = await qFetchProgress((recentWards||[]).map(w=>w.id), 'ward_id,status');
+  const recentDoneSet = new Set((recentProgs||[]).filter(p=>p.status==='done').map(p=>p.ward_id));
   for(let i=3;i>=0;i--){
     const wStart = new Date(); wStart.setDate(wStart.getDate()-((i+1)*7));
     const wEnd   = new Date(); wEnd.setDate(wEnd.getDate()-(i*7));
     const ws = wStart.toISOString().slice(0,10); const we = wEnd.toISOString().slice(0,10);
-    const weekWards = (wards||[]).filter(w=>w.planned_date>=ws&&w.planned_date<we);
-    const wDone = weekWards.filter(w=>progMap[w.id]&&progMap[w.id].status==='done').length;
+    const weekWards = (recentWards||[]).filter(w=>w.planned_date>=ws&&w.planned_date<we);
+    const wDone = weekWards.filter(w=>recentDoneSet.has(w.id)).length;
     const wPct = weekWards.length ? Math.round(wDone/weekWards.length*100) : 0;
     weekData.push({ label:`أسبوع -${ar(i+1)}`, pct:wPct });
   }

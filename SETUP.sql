@@ -42,6 +42,99 @@ create index if not exists idx_qwp_plan_id on quran_ward_progress(plan_id);
 delete from quran_ward_progress a using quran_ward_progress b
 where a.ward_id = b.ward_id and a.id < b.id;
 create index if not exists idx_qwp_ward_id on quran_ward_progress(ward_id);
+create index if not exists idx_qward_planned_date on quran_plan_wards(plan_id, planned_date);
+
+-- ------------------------------------------------------------
+-- 🔴 تحسين أداء جذري: صفحتا "تقريري القرآني" و"ورد اليوم" كانتا تجلبان كل
+-- أوراد الخطة وكل صفوف تقدّمها إلى المتصفح (مئات الصفوف) فقط لحساب أرقام
+-- إجمالية (عدد منجَز/متأخر/نسبة). الحساب أصلاً وظيفة قاعدة البيانات (COUNT
+-- بديهي لها)، لا داعي لسحب الصفوف كلها عبر الشبكة ثم عدّها في JavaScript.
+-- الدالتان هنا تحسبان الأرقام داخل Postgres وترجعان النتيجة الجاهزة برحلة
+-- شبكة واحدة فقط. security definer لازم للعدّ عبر كل صفوف الخطة، فنكرّر هنا
+-- بالضبط نفس شرط "plans scoped read" الموجود فعلاً كسياسة RLS — لا صلاحية
+-- إضافية أُضيفت، فقط نفس التحقق يُطبَّق يدوياً داخل الدالة.
+-- ------------------------------------------------------------
+create or replace function quran_plan_report_stats(p_plan_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  result jsonb;
+  has_access boolean;
+begin
+  select exists(
+    select 1 from quran_student_plans qp
+    where qp.id = p_plan_id and (
+      is_admin() or my_role() = any(array['executive','supervisor']::user_role[])
+      or qp.teacher_id = auth.uid() or qp.login_id = auth.uid()
+      or exists (select 1 from students s where s.id = qp.student_id
+                 and (s.login_id = auth.uid() or s.parent_id = auth.uid()))
+    )
+  ) into has_access;
+  if not has_access then
+    return jsonb_build_object('error','forbidden');
+  end if;
+
+  select jsonb_build_object(
+    'total', count(w.id),
+    'done', count(*) filter (where p.status='done'),
+    'late', count(*) filter (where w.planned_date < current_date and (p.status is null or p.status<>'done')),
+    'early', count(*) filter (where p.is_early and p.status='done'),
+    'avg_mastery', round(avg(p.student_mastery) filter (where p.student_mastery is not null), 1),
+    'by_fortress', coalesce((
+      select jsonb_object_agg(x.fortress_code, jsonb_build_object('total', x.ftotal, 'done', x.fdone))
+      from (
+        select w2.fortress_code as fortress_code, count(*) as ftotal,
+               count(*) filter (where p2.status='done') as fdone
+        from quran_plan_wards w2
+        left join quran_ward_progress p2 on p2.ward_id = w2.id
+        where w2.plan_id = p_plan_id
+        group by w2.fortress_code
+      ) x
+    ), '{}'::jsonb)
+  ) into result
+  from quran_plan_wards w
+  left join quran_ward_progress p on p.ward_id = w.id
+  where w.plan_id = p_plan_id;
+
+  return result;
+end;
+$$;
+grant execute on function quran_plan_report_stats(uuid) to authenticated;
+
+-- عدّ الأوراد المتأخرة فقط (لمؤشر "ورد اليوم") — نفس منطق الحماية أعلاه
+create or replace function quran_late_ward_count(p_plan_id uuid)
+returns bigint
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  cnt bigint;
+  has_access boolean;
+begin
+  select exists(
+    select 1 from quran_student_plans qp
+    where qp.id = p_plan_id and (
+      is_admin() or my_role() = any(array['executive','supervisor']::user_role[])
+      or qp.teacher_id = auth.uid() or qp.login_id = auth.uid()
+      or exists (select 1 from students s where s.id = qp.student_id
+                 and (s.login_id = auth.uid() or s.parent_id = auth.uid()))
+    )
+  ) into has_access;
+  if not has_access then return 0; end if;
+
+  select count(*) into cnt
+  from quran_plan_wards w
+  left join quran_ward_progress p on p.ward_id = w.id
+  where w.plan_id = p_plan_id and w.planned_date < current_date
+    and (p.status is null or p.status <> 'done');
+  return cnt;
+end;
+$$;
+grant execute on function quran_late_ward_count(uuid) to authenticated;
 
 -- ------------------------------------------------------------
 -- ٠-ي) تخفيض الرسوم: كان المبلغ مقفولاً على "نصف السعر" بلا أي هامش لتقدير
