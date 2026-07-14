@@ -5780,16 +5780,22 @@ async function halqaReports(g, student, ratedIds, sessions){
   // لأي طالب يسجّل أوراده من نظام المسارات الفعلي بدل الصفحة القديمة. الآن نبني
   // نفس الجدول من quran_plan_wards/quran_ward_progress الحقيقيَين، بأعمدة الحصون
   // الفعلية المفعّلة في خطة الطالب (تختلف حسب النظام والمحطة — حفظ أو مراجعة).
+  const today=qTodayStr();
   const since=new Date(Date.now()-6*86400000).toISOString().slice(0,10);
   let hifzFortCols=[], hifzDays=[], hasAnyHifzEver=false;
   const { data:hifzPlan } = await sb.from('quran_student_plans').select('id,system_id').eq('student_id',student.id).eq('status','active').maybeSingle();
   if(hifzPlan){
     const { data:hifzForts } = await sb.from('quran_fortresses').select('*').eq('system_id',hifzPlan.system_id).order('order_index');
     hifzFortCols = hifzForts||[];
-    const { data:hifzWards } = await sb.from('quran_plan_wards').select('id,fortress_code,planned_date').eq('plan_id',hifzPlan.id).gte('planned_date',since).order('planned_date',{ascending:false});
+    // 🔴 كان بلا حد أعلى للتاريخ (.gte فقط بلا .lte)، فيجلب كل أوراد الخطة
+    // المستقبلية كمان (شهور/سنين) بدل آخر ٧ أيام فقط كما يوحي العنوان
+    const { data:hifzWards } = await sb.from('quran_plan_wards').select('id,fortress_code,planned_date').eq('plan_id',hifzPlan.id).gte('planned_date',since).lte('planned_date',today).order('planned_date',{ascending:false});
     const wIds=(hifzWards||[]).map(w=>w.id);
+    // 🔴 نجلب id أيضاً ونستخدم qProgMapFromRows بدل الدمج المباشر — لو فيه صفوف
+    // تقدّم مكررة قديمة (قبل قيد UNIQUE) كانت الصفحة بتاخد صفاً عشوائياً وتُظهر
+    // الورد "لسه مش منجَز" حتى لو الطالب سجّله فعلاً من "ورد اليوم"
     let hifzProgMap={};
-    { const hp=await qFetchProgress(wIds, 'ward_id,status'); (hp||[]).forEach(p=>hifzProgMap[p.ward_id]=p.status); }
+    { const hp=await qFetchProgress(wIds, 'id,ward_id,status'); const merged=qProgMapFromRows(hp); Object.keys(merged).forEach(k=>{ hifzProgMap[k]=merged[k].status; }); }
     const byDate={};
     (hifzWards||[]).forEach(w=>{ if(!byDate[w.planned_date]) byDate[w.planned_date]={ date:w.planned_date }; byDate[w.planned_date][w.fortress_code]=hifzProgMap[w.id]==='done'; });
     hifzDays=Object.values(byDate).sort((a,b)=>b.date.localeCompare(a.date));
@@ -8973,11 +8979,10 @@ function qBuildPlanDaysHtml(dates, byDate, progMap, fortMap, today, plan, role){
       const isDone = p&&p.status==='done';
       const isLate = isPast && !isDone;
       const statusBg = isDone?'rgba(27,77,62,0.08)':(isLate?'rgba(231,76,60,0.08)':'var(--cream)');
-      // "أتممت" فعل خاص بالطالب فقط — المعلم دوره "اعتماد" بس، مش إنه ينجز مكانه.
-      // يُسمح بالتسجيل لليوم الحالي والأيام السابقة (استدراك المتأخر) فقط — ميزة
-      // "التقدم المبكر" (تسجيل أيام مستقبلية) أُزيلت بالكامل بناءً على طلب صريح.
-      const canMark = isToday || isPast;
-      const btn = (role==='student' && !isDone && canMark) ? `<button onclick="qMarkWardFromPlan('${esc(c.id)}','${esc(dt)}')" style="border:none;background:${color};color:#fff;border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;font-weight:700">${mi('check')} أتممت</button>` : '';
+      // 🔴 "خطتي الكاملة" أصبحت للعرض فقط للطالب — التسجيل الفعلي حصراً من "ورد
+      // اليوم"/"الأوراد المتأخرة" بناءً على طلب صريح (كان التسجيل من هنا يتعارض
+      // مع نفس الوردة معروضة في صفحات أخرى ويظهر كأنه "بيتمسح"). دور المعلم
+      // ("اعتماد") غير متأثر — يبقى كما هو.
       const approveBtn = (role==='teacher'&&!isDone) ? `<button onclick="qTeacherApprove('${esc(c.id)}')" style="border:none;background:var(--emerald);color:#fff;border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer;font-weight:700">${mi('check')} اعتماد</button>` : '';
       const noteBtn = role==='teacher' ? `<button onclick="qTeacherNote('${esc(c.id)}')" title="${c.teacher_note?'تعديل الملاحظة':'إضافة ملاحظة'}" style="border:none;background:${c.teacher_note?'var(--gold)':'var(--cream-2)'};color:${c.teacher_note?'#fff':'var(--navy-deep)'};border:1px solid var(--line);border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer">${mi('pencil')}</button>` : '';
       const editWardBtn = role==='teacher' ? `<button onclick="qEditWard('${esc(c.id)}')" title="تعديل هذا الورد بالذات (بدون التأثير على باقي الأيام)" style="border:none;background:var(--cream-2);color:var(--navy-deep);border:1px solid var(--line);border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer">${mi('calendar')}</button>` : '';
@@ -8988,10 +8993,10 @@ function qBuildPlanDaysHtml(dates, byDate, progMap, fortMap, today, plan, role){
       const statusRow = isDone
         ? `<div class="qward-done-flag">🎉 تم الورد${p?.is_early?' <span style="opacity:.75">(مبكر)</span>':''}</div>`
         : (isLate ? `<div class="qward-late-flag">⏰ متأخر — لم يُنجز بعد</div>` : '');
-      return `<div class="qplan-mini ${isLate?'qplan-mini-late':''}" style="background:${statusBg}">
+      return `<div class="qplan-mini ${isLate?'qplan-mini-late':''}" data-ward="${esc(c.id)}" style="background:${statusBg}">
         <div class="qpmic" style="background:${color}">${icon}</div>
         <div style="flex:1;min-width:0"><b>${esc(f.name||c.fortress_code)}</b><small>${esc(c.amount_label||'—')}</small>${masteryBadge}</div>
-        <div class="qpm-actions">${btn}${approveBtn}${noteBtn}${editWardBtn}</div>
+        <div class="qpm-actions">${approveBtn}${noteBtn}${editWardBtn}</div>
         ${statusRow}
         ${noteRow}
       </div>`;
@@ -9277,38 +9282,6 @@ function qUpdateTodayHeader(){
   const p=document.getElementById('qtStatsPct'); if(p) p.textContent=`${ar(pct)}٪`;
   const f=document.getElementById('qtProgFill'); if(f) f.style.width=pct+'%';
 }
-/* ─── تسجيل الورد من "خطتي الكاملة" ─── */
-async function qMarkWardFromPlan(wardId, plannedDate){
-  const today = qTodayStr();
-  const isEarly = today < plannedDate;
-  const isLate  = today > plannedDate;
-  const btn = document.querySelector(`[onclick*="qMarkWardFromPlan('${wardId}'"]`);
-  const mini = btn?.closest('.qplan-mini');
-  if(btn){ btn.disabled=true; btn.style.opacity='.55'; }
-  const { error } = await qMarkWardRPC(wardId, {
-    p_status:'done', p_planned_for_date:plannedDate, p_actual_date:today,
-    p_is_early:isEarly, p_is_late:isLate,
-    p_days_offset: Math.round((new Date(plannedDate)-new Date(today))/86400000),
-  });
-  if(error){
-    console.error('qMarkWardFromPlan failed:',error);
-    if(btn){ btn.disabled=false; btn.style.opacity='1'; }
-    toast('⚠️ تعذّر الحفظ، حاول مرة أخرى');
-    return;
-  }
-  toast(isEarly?'🚀 تم الإنجاز مبكراً - بارك الله فيك!':'✓ تم الإنجاز');
-  // تحديث موضعي للبطاقة: إزالة زر الإتمام وإظهار علامة "تم الورد" بدل إعادة تحميل الصفحة
-  if(mini){
-    btn.remove();
-    if(!mini.querySelector('.qward-done-flag')){
-      mini.classList.remove('qplan-mini-late');
-      mini.style.background='rgba(27,77,62,0.08)';
-      mini.insertAdjacentHTML('beforeend', `<div class="qward-done-flag">🎉 تم الورد${isEarly?' <span style="opacity:.75">(مبكر)</span>':''}</div>`);
-    }
-    const lateFlag = mini.querySelector('.qward-late-flag'); if(lateFlag) lateFlag.remove();
-  }
-}
-
 // ══════════════════════════════════════════════════════════════════════
 // 🔴 طبقة التحديث اللحظي: لولي الأمر/المعلم أن يشوف تسجيل الطالب لحظياً بدون
 // عمل refresh يدوي (كان أحد الأسباب الشائعة لتصوّر "الموقع مش بيقرأ إن الطالب
@@ -9344,10 +9317,11 @@ async function qHandleRealtimeWardChange(payload){
     }catch(e){}
     return;
   }
-  // بطاقة "خطتي الكاملة" (qplan-mini): نكتفي بعلامة "تم" لو الحدث إنجاز فعلي
-  const mini = document.querySelector(`[onclick*="qMarkWardFromPlan('${wardId}'"]`)?.closest('.qplan-mini');
+  // بطاقة "خطتي الكاملة" (qplan-mini، للعرض فقط للطالب): نكتفي بعلامة "تم" لو
+  // الحدث إنجاز فعلي — نزيل فقط زر "اعتماد" المعلم (لو ظاهر)، لا أي زر آخر
+  const mini = document.querySelector(`.qplan-mini[data-ward="${wardId}"]`);
   if(mini && row.status==='done' && !mini.querySelector('.qward-done-flag')){
-    const btn = mini.querySelector('button'); if(btn) btn.remove();
+    const approveBtn = mini.querySelector('[onclick*="qTeacherApprove"]'); if(approveBtn) approveBtn.remove();
     mini.classList.remove('qplan-mini-late');
     mini.style.background='rgba(27,77,62,0.08)';
     mini.insertAdjacentHTML('beforeend', `<div class="qward-done-flag">🎉 تم الورد</div>`);
@@ -9551,7 +9525,9 @@ async function qCheckTransition(planId){
   const { data: wards } = await sb.from('quran_plan_wards').select('*').eq('plan_id',planId);
   const wardIds = (wards||[]).map(w=>w.id);
   const progs = await qFetchProgress(wardIds, 'ward_id,status');
-  const doneCount = (progs||[]).filter(p=>p.status==='done').length;
+  // عدّ بالمعرّفات الفريدة (Set) لا بطول الصفوف مباشرة — صف تقدّم مكرر لنفس
+  // الورد (بيانات قديمة قبل قيد UNIQUE) كان ممكن يُحسَب مرتين ويضخّم النسبة
+  const doneCount = new Set((progs||[]).filter(p=>p.status==='done').map(p=>p.ward_id)).size;
   const total = (wards||[]).length;
   const pct = total ? Math.round(doneCount/total*100) : 0;
   const { data: station } = await sb.from('quran_stations').select('*').eq('id',plan.current_station_id).maybeSingle();
@@ -9998,7 +9974,7 @@ async function qCheckAndFireNotifications(planId){
   const wIds = (allW||[]).map(w=>w.id);
   if(wIds.length){
     const progs = await qFetchProgress(wIds, 'ward_id,status');
-    const doneCount = (progs||[]).filter(p=>p.status==='done').length;
+    const doneCount = new Set((progs||[]).filter(p=>p.status==='done').map(p=>p.ward_id)).size;
     const pct = Math.round(doneCount/wIds.length*100);
     if(pct>=90) await qFireNotif(plan.login_id,'near_station_end',{ pct });
     if(pct>=100) await qFireNotif(plan.login_id,'station_complete',{ pct });
@@ -10053,11 +10029,11 @@ PAGES.supervisor_qoverview = async function(){
   const { data: todayWards } = await sb.from('quran_plan_wards').select('id,plan_id').eq('planned_date',today);
   const wardIds = (todayWards||[]).map(w=>w.id);
   const todayProgs = await qFetchProgress(wardIds, 'ward_id,status');
-  const todayDone = (todayProgs||[]).filter(p=>p.status==='done').length;
+  const todayDone = new Set((todayProgs||[]).filter(p=>p.status==='done').map(p=>p.ward_id)).size;
   const todayPct = wardIds.length ? Math.round(todayDone/wardIds.length*100) : 0;
   const { data: overdue } = await sb.from('quran_plan_wards').select('id').lt('planned_date',today);
   const overdueProgs = await qFetchProgress((overdue||[]).map(w=>w.id), 'ward_id,status');
-  const overdueDone = (overdueProgs||[]).filter(p=>p.status==='done').length;
+  const overdueDone = new Set((overdueProgs||[]).filter(p=>p.status==='done').map(p=>p.ward_id)).size;
   const lateCount = (overdue||[]).length - overdueDone;
 
   const systems = (allSys||[]).map(s=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed var(--line);font-size:13.5px"><span>${esc(s.name)}</span><b>${qStatusBadge(s.status)}</b></div>`).join('');

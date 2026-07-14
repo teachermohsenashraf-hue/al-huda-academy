@@ -59,6 +59,17 @@ begin
   end if;
 end $$;
 
+-- 🔴 VIEW دفاعي: يضمن صفاً واحداً بالضبط لكل ward_id حتى لو بقيت صفوف مكررة
+-- قديمة (قبل تفعيل قيد UNIQUE أعلاه على قواعد لم تُشغَّل السكربت الجديد فيها
+-- بعد) — نُبقي الأحدث (أعلى id). كل الدوال/الاستعلامات التجميعية بالأسفل
+-- تنضمّ (JOIN) لهذا الـ VIEW بدل الجدول الخام مباشرة، فتبقى أرقامها صحيحة
+-- دائماً بصرف النظر عن حالة قاعدة بيانات المستخدم وقت التشغيل.
+create or replace view quran_ward_progress_dedup as
+select distinct on (ward_id) *
+from quran_ward_progress
+order by ward_id, id desc;
+grant select on quran_ward_progress_dedup to authenticated;
+
 -- ------------------------------------------------------------
 -- 🔴 تحسين أداء جذري: صفحتا "تقريري القرآني" و"ورد اليوم" كانتا تجلبان كل
 -- أوراد الخطة وكل صفوف تقدّمها إلى المتصفح (مئات الصفوف) فقط لحساب أرقام
@@ -105,14 +116,14 @@ begin
         select w2.fortress_code as fortress_code, count(*) as ftotal,
                count(*) filter (where p2.status='done') as fdone
         from quran_plan_wards w2
-        left join quran_ward_progress p2 on p2.ward_id = w2.id
+        left join quran_ward_progress_dedup p2 on p2.ward_id = w2.id
         where w2.plan_id = p_plan_id
         group by w2.fortress_code
       ) x
     ), '{}'::jsonb)
   ) into result
   from quran_plan_wards w
-  left join quran_ward_progress p on p.ward_id = w.id
+  left join quran_ward_progress_dedup p on p.ward_id = w.id
   where w.plan_id = p_plan_id;
 
   return result;
@@ -144,7 +155,7 @@ begin
 
   select count(*) into cnt
   from quran_plan_wards w
-  left join quran_ward_progress p on p.ward_id = w.id
+  left join quran_ward_progress_dedup p on p.ward_id = w.id
   where w.plan_id = p_plan_id and w.planned_date < current_date
     and (p.status is null or p.status <> 'done');
   return cnt;
@@ -2497,12 +2508,12 @@ begin
         ) end
       ) order by w.fortress_code)
       from quran_plan_wards w
-      left join quran_ward_progress p on p.ward_id = w.id
+      left join quran_ward_progress_dedup p on p.ward_id = w.id
       where w.plan_id = p_plan_id and w.planned_date = v_today
     ), '[]'::jsonb),
     'late_count', (
       select count(*) from quran_plan_wards w
-      left join quran_ward_progress p on p.ward_id = w.id
+      left join quran_ward_progress_dedup p on p.ward_id = w.id
       where w.plan_id = p_plan_id and w.planned_date < v_today
         and (p.status is null or p.status <> 'done')
     ),
@@ -2524,7 +2535,7 @@ select
   p.status, p.student_mastery, p.teacher_mastery, p.student_note,
   p.teacher_approved_at, p.is_early, p.is_late, p.actual_date
 from quran_plan_wards w
-left join quran_ward_progress p on p.ward_id = w.id;
+left join quran_ward_progress_dedup p on p.ward_id = w.id;
 grant select on quran_ward_full to authenticated;
 
 -- تفعيل التحديث اللحظي (Realtime) لهذا الجدول تحديداً — بدونه لن يصل أي حدث
