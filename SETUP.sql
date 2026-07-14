@@ -36,6 +36,13 @@ update quran_ward_progress p set plan_id = w.plan_id
 from quran_plan_wards w where p.ward_id = w.id and p.plan_id is null;
 create index if not exists idx_qwp_plan_id on quran_ward_progress(plan_id);
 
+-- تنظيف صفوف تقدّم مكررة لنفس الورد (نتجت من كود قديم كان يُدرج بدل التحديث في
+-- بعض الحالات) — نُبقي الأحدث (أعلى id) لكل ward_id ونحذف الباقي، حتى لا يتضاعف
+-- عدّ "المُنجَز" في التقارير ونِسب الإنجاز. آمن ومتكرر (idempotent).
+delete from quran_ward_progress a using quran_ward_progress b
+where a.ward_id = b.ward_id and a.id < b.id;
+create index if not exists idx_qwp_ward_id on quran_ward_progress(ward_id);
+
 -- ------------------------------------------------------------
 -- ٠-ي) تخفيض الرسوم: كان المبلغ مقفولاً على "نصف السعر" بلا أي هامش لتقدير
 --      المشرف الفعلي لحالة كل أسرة، وبدون حقل "دخل الأسرة الشهري" في الاستبيان.
@@ -2025,6 +2032,40 @@ create policy "progress scoped read" on quran_ward_progress for select to authen
         or exists (select 1 from students s where s.id = qp.student_id
                    and (s.login_id = auth.uid() or s.parent_id = auth.uid()))
       ))
+);
+
+-- ------------------------------------------------------------
+-- 🔴 ثغرة حرجة مكتشفة: جدول quran_ward_progress كان عنده سياسة قراءة للطالب
+-- (progress scoped read) لكن **سياسة الكتابة الوحيدة (qprog_teacher) تشترط أن
+-- يكون المُنفِّذ معلّم الخطة أو مشرفاً**. فحين يضغط الطالب "أتممت"، ترفض RLS
+-- عملية الـ INSERT/UPDATE بصمت (Supabase ترجع نجاحاً بلا خطأ وبلا أي صف متأثر)،
+-- فتظهر رسالة النجاح لكن لا يُحفظ شيء فعلياً — وهو بالضبط سبب شكوى "الموقع
+-- مبيقرأش إن الطالب عمل تم". الإصلاح: سياسة كتابة (for all) تسمح لصاحب الخطة
+-- (الطالب/ولي الأمر عبر login_id/parent_id) بتسجيل تقدّم أوراد خطته هو فقط —
+-- دون أي تغيير في منطق النظام، فهذه هي الصلاحية المقصودة أصلاً وكانت غائبة.
+-- ------------------------------------------------------------
+drop policy if exists "qprog_owner_write" on quran_ward_progress;
+create policy "qprog_owner_write" on quran_ward_progress for all to authenticated
+using (
+  student_login_id = auth.uid()
+  or exists (
+    select 1 from quran_plan_wards w
+    join quran_student_plans qp on qp.id = w.plan_id
+    where w.id = quran_ward_progress.ward_id
+      and (qp.login_id = auth.uid()
+           or exists (select 1 from students s where s.id = qp.student_id
+                      and (s.login_id = auth.uid() or s.parent_id = auth.uid())))
+  )
+)
+with check (
+  exists (
+    select 1 from quran_plan_wards w
+    join quran_student_plans qp on qp.id = w.plan_id
+    where w.id = quran_ward_progress.ward_id
+      and (qp.login_id = auth.uid()
+           or exists (select 1 from students s where s.id = qp.student_id
+                      and (s.login_id = auth.uid() or s.parent_id = auth.uid())))
+  )
 );
 
 -- تقييم الطالب: عبر الخطة الأم

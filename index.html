@@ -103,15 +103,17 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
    عشان نضمن إزالة أي ترويسة/تذييل بيضيفها المتصفح تلقائياً (الرابط، الوقت،
    عنوان الصفحة) — دول مش من كودنا خالص وما كناش نقدر نتحكم فيهم إلا بالطريقة دي.
    بنموضعه برّه الشاشة (مش display:none) عشان html2canvas يقدر يرسمه فعلياً. */
-#printPlanArea{position:fixed;top:0;left:-99999px;width:900px;padding:24px;background:#fff;font-family:'Tajawal',sans-serif;color:#2C3E50;z-index:-1}
+#printPlanArea{position:fixed;top:0;left:-99999px;width:820px;padding:28px;background:#fff;font-family:'Tajawal',sans-serif;color:#2C3E50;z-index:-1;direction:rtl;text-align:right;box-sizing:border-box}
 .pp-head{display:flex;align-items:center;gap:14px;border-bottom:3px solid #1B4D3E;padding-bottom:14px;margin-bottom:16px}
 .pp-head img{width:56px;height:56px;object-fit:contain}
 .pp-head h1{font-family:'Amiri',serif;color:#1B4D3E;font-size:22px;margin:0}
 .pp-head p{color:#5A6B7A;font-size:12px;margin:2px 0 0}
 .pp-info{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px 20px;background:#F5EFDD;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:12.5px}
-.pp-table{width:100%;border-collapse:collapse;font-size:11.5px}
-.pp-table th{background:#1B4D3E;color:#fff;padding:8px 6px;text-align:center}
-.pp-table td{padding:6px;border:1px solid #ddd;text-align:center}
+.pp-table{width:100%;border-collapse:collapse;font-size:11.5px;table-layout:fixed}
+.pp-table th{background:#1B4D3E;color:#fff;padding:8px 6px;text-align:center;word-wrap:break-word}
+.pp-table td{padding:6px;border:1px solid #ddd;text-align:center;word-wrap:break-word;overflow-wrap:break-word}
+.pp-table th:first-child,.pp-table td:first-child{width:34px}
+.pp-table th:nth-child(2),.pp-table td:nth-child(2){width:78px}
 .pp-table tr:nth-child(even) td{background:#F5F0E8}
 .pp-foot{margin-top:16px;text-align:center;color:#C9A227;font-size:11px;border-top:1px solid #ddd;padding-top:8px}
 .uava{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;color:#fff;font-family:'Amiri';font-weight:700}
@@ -1497,6 +1499,21 @@ function applyDetectedCountry(cc){
 })();
 function currentFee(){ return SINGLE_FEE[USER_CURRENCY.code] ?? SINGLE_FEE.EGP; }
 function fmtPrice(amount){ const v = amount!=null ? Math.round(+amount) : currentFee(); return (USER_CURRENCY.code==='USD'?String(v):ar(v)) + ' ' + USER_CURRENCY.symbol; }
+// بطاقة "طريقة الدفع" الموحّدة (تجديد الطالب + رسوم ولي الأمر): فودافون كاش
+// تظهر لمصر فقط — خارج مصر نوجّه للتواصل عبر واتساب لاختيار وسيلة مناسبة للدولة.
+function paymentMethodBlockHtml(){
+  const wa = `<a href="https://wa.me/${WHATSAPP}" target="_blank" style="display:inline-flex;align-items:center;gap:8px;margin-top:8px;background:#25D366;color:#fff;padding:10px 20px;border-radius:24px;text-decoration:none;font-weight:700;font-size:14px"><svg width="18" height="18" viewBox="0 0 24 24" fill="#fff"><path d="M17.5 14.4c-.3-.1-1.7-.8-1.9-.9-.3-.1-.5-.1-.7.1-.2.3-.7.9-.9 1.1-.2.2-.3.2-.6.1-.3-.1-1.2-.5-2.3-1.4-.9-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6.1-.1.3-.3.4-.5.1-.1.2-.2.2-.4.1-.2 0-.3 0-.5-.1-.1-.7-1.6-.9-2.2-.2-.6-.5-.5-.7-.5h-.5c-.2 0-.5.1-.7.3-.3.3-1 .9-1 2.3s1 2.7 1.2 2.9c.1.2 2 3.1 4.9 4.3.7.3 1.2.5 1.6.6.7.2 1.3.2 1.8.1.5-.1 1.7-.7 1.9-1.4.2-.7.2-1.2.2-1.4-.1-.1-.3-.2-.6-.3zM12 2a10 10 0 00-8.6 15l-1.4 5 5.2-1.4A10 10 0 1012 2z"/></svg>تواصل واتساب</a>`;
+  if(USER_CURRENCY.code==='EGP'){
+    return `<div class="card" style="margin-top:18px"><div class="ch"><h3>${mi('card')} طريقة الدفع</h3></div>
+      <div class="pay-guide"><div class="pg-item"><div class="pg-icon">${mi('phone')}</div><div class="pg-info"><b>فودافون كاش</b><span>حوّل على رقم: <b style="color:var(--emerald)">01055747958</b></span></div></div></div>
+      <div style="margin-top:14px;text-align:center"><span style="color:var(--muted);font-size:13px">لو حابب تدفع بوسيلة أخرى</span><br>${wa}</div>
+    </div>`;
+  }
+  return `<div class="card" style="margin-top:18px"><div class="ch"><h3>${mi('card')} طريقة الدفع</h3></div>
+    <p style="color:var(--muted);font-size:13.5px;text-align:center;line-height:1.9;margin-bottom:6px">للدفع من خارج مصر، تواصل مع الإدارة عبر واتساب لاختيار وسيلة الدفع المناسبة لدولتك.</p>
+    <div style="text-align:center">${wa}</div>
+  </div>`;
+}
 function refreshDisplayedPrice(){
   if(typeof SELECTED_PLAN!=='undefined' && SELECTED_PLAN) SELECTED_PLAN.fee = currentFee();
   const el=$('#singlePlanPrice'); if(el) el.innerHTML = fmtPrice()+' <small>/شهر</small>';
@@ -3259,12 +3276,7 @@ PAGES.student_renewal=async function(){ setTop('تجديد اشتراكي','');
   return pageHead('تجديد اشتراكي','متابعة الاشتراك الشهري')+
   renewalBox(s)+
   `<div class="stats">${statCard(mi('check'),'g',ar(paidTotal)+' ج','إجمالي المدفوع')}${statCard(mi('calendar'),'n',fmtExactMoment(s.sub_end),'موعد انتهاء الاشتراك بالضبط')}</div>
-  <div class="card" style="margin-top:18px"><div class="ch"><h3>${mi('card')} طريقة الدفع</h3></div>
-    <div class="pay-guide"><div class="pg-item"><div class="pg-icon">${mi('phone')}</div><div class="pg-info"><b>فودافون كاش</b><span>حوّل على رقم: <b style="color:var(--emerald)">01055747958</b></span></div></div></div>
-    <div style="margin-top:14px;text-align:center"><span style="color:var(--muted);font-size:13px">لو حابب تدفع بوسيلة أخرى</span><br>
-      <a href="https://wa.me/${WHATSAPP}" target="_blank" style="display:inline-flex;align-items:center;gap:8px;margin-top:8px;background:#25D366;color:#fff;padding:10px 20px;border-radius:24px;text-decoration:none;font-weight:700;font-size:14px"><svg width="18" height="18" viewBox="0 0 24 24" fill="#fff"><path d="M17.5 14.4c-.3-.1-1.7-.8-1.9-.9-.3-.1-.5-.1-.7.1-.2.3-.7.9-.9 1.1-.2.2-.3.2-.6.1-.3-.1-1.2-.5-2.3-1.4-.9-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6.1-.1.3-.3.4-.5.1-.1.2-.2.2-.4.1-.2 0-.3 0-.5-.1-.1-.7-1.6-.9-2.2-.2-.6-.5-.5-.7-.5h-.5c-.2 0-.5.1-.7.3-.3.3-1 .9-1 2.3s1 2.7 1.2 2.9c.1.2 2 3.1 4.9 4.3.7.3 1.2.5 1.6.6.7.2 1.3.2 1.8.1.5-.1 1.7-.7 1.9-1.4.2-.7.2-1.2.2-1.4-.1-.1-.3-.2-.6-.3zM12 2a10 10 0 00-8.6 15l-1.4 5 5.2-1.4A10 10 0 1012 2z"/></svg>تواصل واتساب</a>
-    </div>
-  </div>
+  ${paymentMethodBlockHtml()}
   <div class="card"><div class="ch"><h3>سجل مدفوعاتي</h3></div><div class="up-list">${p.length?p.map(x=>`<div class="up"><div class="ui">${x.payment_method==='vodafone'?'📱':x.payment_method==='instapay'?'💳':x.payment_method==='fawry'?'🧾':'💵'}</div><div class="utxt"><b>${ar(x.amount||0)} ج — ${x.note||'اشتراك'}</b><span>${x.paid_at||x.created_at?.slice(0,10)||'—'}</span></div><span class="chip ${x.status==='paid'?'g':x.status==='rejected'?'':'gold'}">${x.status==='paid'?'مؤكّد':x.status==='rejected'?'مرفوض':'بانتظار'}</span></div>`).join(''):'<p style="color:var(--muted)">لا مدفوعات بعد.</p>'}</div></div>`;
 };
 
@@ -3549,12 +3561,7 @@ PAGES.parent_fees=async function(){ const kids=await myChildren(); if(!kids.leng
   return pageHead('الرسوم والاشتراك','متابعة اشتراكات أبنائك الشهرية')+
   `<div class="stats" style="margin-bottom:18px">${statCard(mi('family'),'e',ar(kids.length),'عدد الأبناء')}${statCard(mi('money'),'g',ar(paidTotal)+' ج','إجمالي المدفوع')}${statCard(mi('hourglass'),'n',ar(pendingCount),'دفعات معلّقة')}</div>
   ${activeKids.length?`<div class="ch" style="margin-bottom:10px"><h3>${mi('refresh')} اشتراكات الأبناء</h3></div><p style="color:var(--muted);font-size:13.5px;margin-bottom:14px">كل ابن له اشتراك منفصل حسب تاريخ انتهائه. جدّد لكلٍّ على حدة.</p>${renewCards||'<div class="card"><p style="color:var(--muted);text-align:center">لا اشتراكات نشطة تحتاج تجديداً الآن.</p></div>'}`:`<div class="card" style="text-align:center;padding:30px"><div class="empty-ic">${mi('clipboard')}</div><p style="color:var(--muted)">لا أبناء بمسارات نشطة بعد. سجّل أبناءك في المسارات أولاً.</p></div>`}
-  <div class="card" style="margin-top:18px"><div class="ch"><h3>${mi('card')} طريقة الدفع</h3></div>
-    <div class="pay-guide"><div class="pg-item"><div class="pg-icon">${mi('phone')}</div><div class="pg-info"><b>فودافون كاش</b><span>حوّل على رقم: <b style="color:var(--emerald)">01055747958</b></span></div></div></div>
-    <div style="margin-top:14px;text-align:center"><span style="color:var(--muted);font-size:13px">لو حابب تدفع بوسيلة أخرى</span><br>
-      <a href="https://wa.me/${WHATSAPP}" target="_blank" style="display:inline-flex;align-items:center;gap:8px;margin-top:8px;background:#25D366;color:#fff;padding:10px 20px;border-radius:24px;text-decoration:none;font-weight:700;font-size:14px"><svg width="18" height="18" viewBox="0 0 24 24" fill="#fff"><path d="M17.5 14.4c-.3-.1-1.7-.8-1.9-.9-.3-.1-.5-.1-.7.1-.2.3-.7.9-.9 1.1-.2.2-.3.2-.6.1-.3-.1-1.2-.5-2.3-1.4-.9-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6.1-.1.3-.3.4-.5.1-.1.2-.2.2-.4.1-.2 0-.3 0-.5-.1-.1-.7-1.6-.9-2.2-.2-.6-.5-.5-.7-.5h-.5c-.2 0-.5.1-.7.3-.3.3-1 .9-1 2.3s1 2.7 1.2 2.9c.1.2 2 3.1 4.9 4.3.7.3 1.2.5 1.6.6.7.2 1.3.2 1.8.1.5-.1 1.7-.7 1.9-1.4.2-.7.2-1.2.2-1.4-.1-.1-.3-.2-.6-.3zM12 2a10 10 0 00-8.6 15l-1.4 5 5.2-1.4A10 10 0 1012 2z"/></svg>تواصل واتساب</a>
-    </div>
-  </div>
+  ${paymentMethodBlockHtml()}
   <div class="card" style="margin-top:18px"><div class="ch"><h3>${mi('clipboard')} سجل المدفوعات</h3></div>
   <div class="up-list">${allPays.length?allPays.map(x=>{ const kid=kids.find(k=>k.id===x.student_id); return `<div class="up"><div class="ui">📱</div><div class="utxt"><b>${ar(x.amount||0)} ج — ${esc(kid?kid.full_name:'')}</b><span>${x.paid_at||x.created_at?.slice(0,10)||'—'} ${x.reference_number?'• مرجع: '+esc(x.reference_number):''}</span></div><span class="chip ${x.status==='paid'?'g':'gold'}">${x.status==='paid'?'مدفوع':'مستحق'}</span></div>`; }).join(''):'<p style="color:var(--muted)">لا مدفوعات بعد.</p>'}</div></div>`;
 };
@@ -8745,91 +8752,141 @@ PAGES.student_qtoday = async function(){
   if(!plan) return await noPlanYetCard(s);
   applyAbsenceShift(plan); // مهمة صيانة في الخلفية (لا تُنتظَر) — الصفحة ترسم فوراً، والإزاحة تنعكس في التحميل التالي إن لزمت
   const today = qTodayStr();
-  // استعلامات مستقلة عن بعضها بالتوازي بدل التتابع — أهم صفحة بيدخلها الطالب يومياً
+  // "ورد اليوم" يعرض أوراد اليوم فقط (بناءً على طلب صريح) — الأوراد المتأخرة
+  // لها صفحتها المستقلة (qlate) ويُنبَّه عليها في "التنبيهات". نعدّ المتأخرات هنا
+  // فقط لعرض مؤشّر صغير يوجّه الطالب لصفحتها، دون إظهار الأوراد نفسها هنا.
   const [{ data: todayWards }, { data: overdueWards }, { data: forts }] = await Promise.all([
     sb.from('quran_plan_wards').select('*').eq('plan_id',plan.id).eq('planned_date',today).order('fortress_code'),
-    sb.from('quran_plan_wards').select('*').eq('plan_id',plan.id).lt('planned_date',today),
+    sb.from('quran_plan_wards').select('id').eq('plan_id',plan.id).lt('planned_date',today),
     sb.from('quran_fortresses').select('*').eq('system_id',plan.system_id),
   ]);
   const fortMap = {}; (forts||[]).forEach(f=>{ fortMap[f.code]=f; });
-  const allWards = [...(overdueWards||[]).slice(-10), ...(todayWards||[])];
-  const wardIds = allWards.map(w=>w.id);
+  SESSION._qFortMap = fortMap; // نخزّنها لإعادة رسم بطاقة واحدة بعد التسجيل بلا إعادة تحميل
+  SESSION._qWardMap = {}; (todayWards||[]).forEach(w=>{ SESSION._qWardMap[w.id]=w; });
+  const todayIds = (todayWards||[]).map(w=>w.id);
   let progMap = {};
-  const progs = await qFetchProgress(wardIds);
+  const progs = await qFetchProgress(todayIds);
   (progs||[]).forEach(p=>{ progMap[p.ward_id]=p; });
+  // عدد المتأخرات: أوراد أيام سابقة لم تُسجَّل كـ"تم" (نجلب تقدّمها بالدفعات الصغيرة)
+  const overdueIds = (overdueWards||[]).map(w=>w.id);
+  const overdueProgs = await qFetchProgress(overdueIds, 'ward_id,status');
+  const overdueDoneSet = new Set((overdueProgs||[]).filter(p=>p.status==='done').map(p=>p.ward_id));
+  const lateCount = overdueIds.filter(id=>!overdueDoneSet.has(id)).length;
   const total = (todayWards||[]).length;
   const done = (todayWards||[]).filter(w=>{ const p=progMap[w.id]; return p&&p.status==='done'; }).length;
   const pct = total ? Math.round(done/total*100) : 0;
-  const lateCount = (overdueWards||[]).filter(w=>{ const p=progMap[w.id]; return !p||p.status!=='done'; }).length;
   const todayLabel = new Date().toLocaleDateString('ar-EG',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
 
   let html = `<div class="qtoday-hero">
     <h2>${mi('book')} ورد اليوم</h2>
     <p>${esc(todayLabel)}</p>
-    <div class="qtprog"><i style="width:${pct}%"></i></div>
-    <div class="qtstats"><span>أنجزت ${ar(done)} من ${ar(total)} حصن</span><span>${ar(pct)}٪</span></div>
+    <div class="qtprog"><i id="qtProgFill" style="width:${pct}%"></i></div>
+    <div class="qtstats"><span id="qtStatsTxt">أنجزت ${ar(done)} من ${ar(total)} حصن</span><span id="qtStatsPct">${ar(pct)}٪</span></div>
   </div>`;
 
   if(lateCount){
-    html += `<div style="background:rgba(231,76,60,0.08);border-inline-start:3px solid var(--rose);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13.5px;color:#7a2e2e">⏰ لديك <b>${ar(lateCount)}</b> ورد متأخر يظهر أدناه</div>`;
+    html += `<div onclick="navigate('qlate')" style="cursor:pointer;background:rgba(231,76,60,0.08);border-inline-start:3px solid var(--rose);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13.5px;color:#7a2e2e;display:flex;align-items:center;justify-content:space-between;gap:8px"><span>⏰ لديك <b>${ar(lateCount)}</b> ورد متأخر</span><span style="font-weight:700">عرض المتأخرات ←</span></div>`;
   }
 
-  if(!allWards.length){
+  if(!(todayWards||[]).length){
     html += `<div class="qnoplan"><div class="nei">🌿</div><h3>يوم راحة</h3><p>لا ورد اليوم — استثمر وقتك في الدعاء والتفكر.</p></div>`;
   } else {
-    html += allWards.map(w=>{
-      const f = fortMap[w.fortress_code]||{};
-      const color = f.color||qFortColor(w.fortress_code);
-      const icon = f.icon||qFortIcon(w.fortress_code);
-      const fname = f.name||w.fortress_code;
-      const p = progMap[w.id];
-      const isDone = p&&p.status==='done';
-      const isLate = w.planned_date < today;
-      const klass = isDone?'done':isLate?'late':'';
-      const masteryVal = p&&p.student_mastery ? parseInt(p.student_mastery) : 0;
-      const masteryHtml = `<div class="qrate-bar" style="margin-top:6px">
-        <small style="color:var(--muted);font-size:12px;margin-inline-end:4px">إتقاني:</small>
-        ${[1,2,3,4,5].map(n=>`<span class="${n<=masteryVal?'on':''}" onclick="qRateMastery('${esc(w.id)}',${n})">⭐</span>`).join('')}
-      </div>`;
-      const noteHtml = `<div style="margin-top:8px"><input type="text" placeholder="ملاحظة (اختياري)" value="${esc(p&&p.student_note||'')}"
-        onblur="qSaveStudentNote('${esc(w.id)}',this.value)"
-        style="width:100%;padding:8px 10px;border:1.5px solid var(--line);border-radius:9px;background:var(--cream);font-family:'Cairo';font-size:13px" /></div>`;
-      const teacherNote = w.teacher_note ? `<div class="qcwnote">📝 ${esc(w.teacher_note)}</div>` : '';
-      const approvedBadge = p&&p.teacher_approved_at ? `<span style="font-size:11px;color:var(--emerald);font-weight:700;background:rgba(27,77,62,0.1);padding:3px 8px;border-radius:8px">✅ معتمد</span>` : '';
-      const bodyText = w.surah_name
-        ? `<div class="qcwsurah">${esc(w.surah_name)}</div><div class="qcwrange">${w.whole_surah?'كاملة':w.ayah_from?'من '+ar(w.ayah_from||0)+' إلى '+ar(w.ayah_to||0):''}<br><small style="color:var(--muted);font-size:12px">${esc(w.amount_label||'')}</small></div>`
-        : `<div class="qcwrange">${esc(w.amount_label||'—')}</div>`;
-      const actions = isDone
-        ? `<div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">${masteryHtml}${approvedBadge}</div>${noteHtml}`
-        : `<div class="qcwacts"><button class="qa-done" onclick="qMarkWard('${esc(w.id)}','done','${esc(w.planned_date)}')">${mi('check')} أتممت</button><button class="qa-help" onclick="qMarkWard('${esc(w.id)}','need_help','${esc(w.planned_date)}')">🆘 مساعدة</button><button class="qa-skip" onclick="qMarkWard('${esc(w.id)}','skipped','${esc(w.planned_date)}')">${mi('x')} لم أتم</button></div>${noteHtml}`;
-      return `<div class="qcardward ${klass}" style="--accent:${color}">
-        <div class="qcwh">
-          <div class="qcwic" style="background:${color}">${icon}</div>
-          <div class="qcwt"><b>${esc(fname)}</b><small>${isLate?'⏰ متأخر من '+esc(w.planned_date):'اليوم'}</small></div>
-          <div class="qcwstat">${qStatusLabel(p?p.status:'not_started')}</div>
-        </div>
-        <div class="qcwbody">${bodyText}</div>
-        ${teacherNote}${actions}
-      </div>`;
-    }).join('');
-    // Early progress button
+    html += `<div id="qtodayList">`+(todayWards||[]).map(w=>qTodayCardHtml(w, progMap[w.id], fortMap)).join('')+`</div>`;
     html += `<div style="text-align:center;margin-top:16px">
       <button class="btn ghost" onclick="navigate('qmyplan')">${mi('rocket')} التقدم المبكر — افتح أياماً مستقبلية</button>
     </div>`;
   }
   return pageHead('ورد اليوم','') + html;
 };
+// صفحة "الأوراد المتأخرة" — يصل إليها الطالب من "التنبيهات" أو من مؤشّر ورد اليوم.
+// تعرض الأوراد الفائتة غير المنجَزة فقط، بنفس بطاقة التسجيل (أتممت/لم أتم).
+PAGES.student_qlate = async function(){
+  setTop('الأوراد المتأخرة','أوراد أيام سابقة لم تُنجَز بعد');
+  const s = await myStudentRow();
+  if(!s) return `<div class="qnoplan"><div class="nei">🌱</div><h3>لا توجد بيانات طالب</h3></div>`;
+  if(s.enrollment_status!=='active') return enrollGateMsg(s.enrollment_status);
+  const { data: plan } = await sb.from('quran_student_plans').select('*').eq('login_id',ME.id).eq('status','active').maybeSingle();
+  if(!plan) return await noPlanYetCard(s);
+  const today = qTodayStr();
+  const [{ data: overdueWards }, { data: forts }] = await Promise.all([
+    sb.from('quran_plan_wards').select('*').eq('plan_id',plan.id).lt('planned_date',today).order('planned_date').order('fortress_code'),
+    sb.from('quran_fortresses').select('*').eq('system_id',plan.system_id),
+  ]);
+  const fortMap = {}; (forts||[]).forEach(f=>{ fortMap[f.code]=f; });
+  SESSION._qFortMap = fortMap;
+  const progs = await qFetchProgress((overdueWards||[]).map(w=>w.id));
+  const progMap = {}; (progs||[]).forEach(p=>{ progMap[p.ward_id]=p; });
+  // نعرض غير المنجَز فقط (المتأخر الفعلي)
+  const pending = (overdueWards||[]).filter(w=>{ const p=progMap[w.id]; return !(p&&p.status==='done'); });
+  if(!pending.length){
+    return pageHead('الأوراد المتأخرة','')+`<div class="qnoplan"><div class="nei">✅</div><h3>لا أوراد متأخرة</h3><p>ما شاء الله — لا يوجد لديك أي ورد متأخر. واصل على هذا الالتزام.</p></div>`;
+  }
+  const html = `<div style="background:rgba(231,76,60,0.08);border-inline-start:3px solid var(--rose);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13.5px;color:#7a2e2e">⏰ لديك <b>${ar(pending.length)}</b> ورد متأخر — أنجزها لتعود لمسارك.</div>`
+    + `<div id="qtodayList">`+pending.map(w=>qTodayCardHtml(w, progMap[w.id], fortMap)).join('')+`</div>`;
+  return pageHead('الأوراد المتأخرة','')+html;
+};
 
-// نقطة كتابة موحّدة لصف تقدّم الورد (بدل تكرار نفس نمط select-ثم-update/insert).
-// updatePayload تُطبَّق دائماً (تحديث أو إدراج)، و insertDefaults تُضاف فقط عند
-// أول إدراج (زي status/planned_for_date الافتراضيَين) — بدون خلط الاثنين، فتحديث
-// حقل واحد (زي التقييم) على صف موجود بالفعل لا يُعدّل حقولاً أخرى معه. لا نُدرج
-// أي عمود قد لا يكون موجوداً في قاعدة البيانات (زي plan_id) لأن إدراج عمود مجهول
-// يُفشل الكتابة كلها بخطأ 400 ويكسر تسجيل الأوراد تماماً.
+// نقطة كتابة موحّدة لصف تقدّم الورد. تُرجع { error } دائماً كي يعرف المُستدعي هل
+// نجح الحفظ فعلاً أم لا (بدل رسالة نجاح كاذبة). ثلاث حمايات مهمة:
+// (١) لا نستخدم .maybeSingle() لأنها ترمي استثناءً لو فيه صفوف مكررة لنفس الورد
+//     (من بيانات قديمة) فيفشل الحفظ بصمت — نستخدم limit(1) بدلها.
+// (٢) نُلحق .select() بعد الكتابة ونتأكد أن صفاً فعلاً تأثّر — لو RLS رفضت العملية
+//     بصمت (ترجع نجاحاً بلا صفوف) نُرجع خطأً واضحاً بدل إيهام المستخدم بالنجاح.
+// (٣) لا نُدرج أي عمود قد لا يكون موجوداً في القاعدة (زي plan_id).
+// updatePayload تُطبَّق دائماً، و insertDefaults تُضاف فقط عند أول إدراج.
 async function qUpsertWardProgress(wardId, updatePayload, insertDefaults){
-  const { data: ex } = await sb.from('quran_ward_progress').select('id').eq('ward_id',wardId).maybeSingle();
-  if(ex){ await sb.from('quran_ward_progress').update(updatePayload).eq('id',ex.id); return; }
-  await sb.from('quran_ward_progress').insert({ ward_id:wardId, ...insertDefaults, ...updatePayload });
+  try{
+    const { data: rows } = await sb.from('quran_ward_progress').select('id').eq('ward_id',wardId).order('id',{ascending:true}).limit(1);
+    if(rows && rows.length){
+      const { data:upd, error } = await sb.from('quran_ward_progress').update(updatePayload).eq('id',rows[0].id).select('id');
+      if(error) return { error };
+      if(!upd || !upd.length) return { error:{ message:'تعذّر الحفظ (صلاحية)' } };
+      return { error:null };
+    }
+    const { data:ins, error } = await sb.from('quran_ward_progress').insert({ ward_id:wardId, ...insertDefaults, ...updatePayload }).select('id');
+    if(error) return { error };
+    if(!ins || !ins.length) return { error:{ message:'تعذّر الحفظ (صلاحية)' } };
+    return { error:null };
+  }catch(e){ return { error:e }; }
+}
+// عرض بطاقة ورد واحدة في "ورد اليوم"/"الأوراد المتأخرة" — مُستخرَجة كدالة واحدة
+// كي نعيد رسم بطاقة واحدة فقط بعد التسجيل (بدل إعادة تحميل الصفحة كاملة اللي كانت
+// بتاخد ~٢٠ ثانية). data-ward يسمح باستهداف البطاقة بدقة للتحديث الموضعي.
+function qTodayCardHtml(w, p, fortMap){
+  const today = qTodayStr();
+  const f = fortMap[w.fortress_code]||{};
+  const color = f.color||qFortColor(w.fortress_code);
+  const icon = f.icon||qFortIcon(w.fortress_code);
+  const fname = f.name||w.fortress_code;
+  const isDone = p&&p.status==='done';
+  const isLate = w.planned_date < today;
+  const klass = isDone?'done':isLate?'late':'';
+  const masteryVal = p&&p.student_mastery ? parseInt(p.student_mastery) : 0;
+  const masteryHtml = `<div class="qrate-bar" style="margin-top:6px">
+    <small style="color:var(--muted);font-size:12px;margin-inline-end:4px">إتقاني:</small>
+    ${[1,2,3,4,5].map(n=>`<span class="${n<=masteryVal?'on':''}" onclick="qRateMastery('${esc(w.id)}',${n})">⭐</span>`).join('')}
+  </div>`;
+  const noteHtml = `<div style="margin-top:8px"><input type="text" placeholder="ملاحظة (اختياري)" value="${esc(p&&p.student_note||'')}"
+    onblur="qSaveStudentNote('${esc(w.id)}',this.value)"
+    style="width:100%;padding:8px 10px;border:1.5px solid var(--line);border-radius:9px;background:var(--cream);font-family:'Cairo';font-size:13px" /></div>`;
+  const teacherNote = w.teacher_note ? `<div class="qcwnote">📝 ${esc(w.teacher_note)}</div>` : '';
+  const approvedBadge = p&&p.teacher_approved_at ? `<span style="font-size:11px;color:var(--emerald);font-weight:700;background:rgba(27,77,62,0.1);padding:3px 8px;border-radius:8px">✅ معتمد</span>` : '';
+  const bodyText = w.surah_name
+    ? `<div class="qcwsurah">${esc(w.surah_name)}</div><div class="qcwrange">${w.whole_surah?'كاملة':w.ayah_from?'من '+ar(w.ayah_from||0)+' إلى '+ar(w.ayah_to||0):''}<br><small style="color:var(--muted);font-size:12px">${esc(w.amount_label||'')}</small></div>`
+    : `<div class="qcwrange">${esc(w.amount_label||'—')}</div>`;
+  // زر "مساعدة" أُزيل بناءً على طلب صريح — يبقى فقط "أتممت" و"لم أتم"
+  const actions = isDone
+    ? `<div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="qward-done-flag" style="margin:0">🎉 تم الورد</span>${masteryHtml}${approvedBadge}</div>${noteHtml}`
+    : `<div class="qcwacts"><button class="qa-done" onclick="qMarkWard('${esc(w.id)}','done','${esc(w.planned_date)}')">${mi('check')} أتممت</button><button class="qa-skip" onclick="qMarkWard('${esc(w.id)}','skipped','${esc(w.planned_date)}')">${mi('x')} لم أتم</button></div>${noteHtml}`;
+  return `<div class="qcardward ${klass}" data-ward="${esc(w.id)}" style="--accent:${color}">
+    <div class="qcwh">
+      <div class="qcwic" style="background:${color}">${icon}</div>
+      <div class="qcwt"><b>${esc(fname)}</b><small>${isLate?'⏰ متأخر من '+esc(w.planned_date):'اليوم'}</small></div>
+      <div class="qcwstat">${qStatusLabel(p?p.status:'not_started')}</div>
+    </div>
+    <div class="qcwbody">${bodyText}</div>
+    ${teacherNote}${actions}
+  </div>`;
 }
 async function qRateMastery(wardId, val){
   await qUpsertWardProgress(wardId, { student_mastery:val }, { student_login_id:ME.id, status:'done', planned_for_date:qTodayStr(), actual_date:qTodayStr() });
@@ -8991,8 +9048,12 @@ async function qRenderFullPlan(planId, role='student'){
       const isDone = p&&p.status==='done';
       const isLate = isPast && !isDone;
       const statusBg = isDone?'rgba(27,77,62,0.08)':(isLate?'rgba(231,76,60,0.08)':'var(--cream)');
-      // "أتممت" فعل خاص بالطالب فقط — المعلم دوره "اعتماد" بس، مش إنه ينجز مكانه
-      const btn = (role==='student' && !isDone && (isToday||isFuture)) ? `<button onclick="qMarkWardFromPlan('${esc(c.id)}','${esc(dt)}')" style="border:none;background:${color};color:#fff;border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;font-weight:700">${mi('check')} أتممت</button>` : '';
+      // "أتممت" فعل خاص بالطالب فقط — المعلم دوره "اعتماد" بس، مش إنه ينجز مكانه.
+      // يُسمح بالتسجيل لليوم الحالي والأيام السابقة (استدراك المتأخر)، أما الأيام
+      // المستقبلية فمحظورة افتراضياً (لا يسجّل بكرة قبل ما ييجي) إلا إذا فعّل المعلم
+      // صراحةً "التقدم المبكر" لهذه الخطة — فنحافظ على الميزة الموجودة دون إساءة.
+      const canMark = isToday || isPast || (isFuture && plan.allow_early_progress);
+      const btn = (role==='student' && !isDone && canMark) ? `<button onclick="qMarkWardFromPlan('${esc(c.id)}','${esc(dt)}')" style="border:none;background:${color};color:#fff;border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;font-weight:700">${mi('check')} أتممت</button>` : '';
       const approveBtn = (role==='teacher'&&!isDone) ? `<button onclick="qTeacherApprove('${esc(c.id)}')" style="border:none;background:var(--emerald);color:#fff;border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer;font-weight:700">${mi('check')} اعتماد</button>` : '';
       const noteBtn = role==='teacher' ? `<button onclick="qTeacherNote('${esc(c.id)}')" title="${c.teacher_note?'تعديل الملاحظة':'إضافة ملاحظة'}" style="border:none;background:${c.teacher_note?'var(--gold)':'var(--cream-2)'};color:${c.teacher_note?'#fff':'var(--navy-deep)'};border:1px solid var(--line);border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer">${mi('pencil')}</button>` : '';
       const editWardBtn = role==='teacher' ? `<button onclick="qEditWard('${esc(c.id)}')" title="تعديل هذا الورد بالذات (بدون التأثير على باقي الأيام)" style="border:none;background:var(--cream-2);color:var(--navy-deep);border:1px solid var(--line);border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer">${mi('calendar')}</button>` : '';
@@ -9048,57 +9109,92 @@ function hasStationBoundaryFinished(hifzWards, station){
   return atEdge && fullyDone;
 }
 
-/* ─── تسجيل حالة ورد اليوم (تمّ/محتاج مساعدة/لم يتم) من صفحة "ورد اليوم" ─── */
+/* ─── تسجيل حالة ورد اليوم (تمّ/لم يتم) من "ورد اليوم"/"الأوراد المتأخرة" ───
+   لا نعيد تحميل الصفحة كاملة (كان سبب انتظار ~٢٠ ثانية)، بل نتحقق أن الحفظ نجح
+   فعلاً في القاعدة ثم نعيد رسم البطاقة الواحدة موضعياً فقط. لو فشل الحفظ (مثلاً
+   منعته صلاحية) نُظهر خطأً حقيقياً بدل رسالة نجاح كاذبة. */
 async function qMarkWard(wardId, status, plannedDate){
   const today = qTodayStr();
   const pd = plannedDate||today;
   const isEarly = today < pd, isLate = today > pd;
-  // تحديث فوري للواجهة (Optimistic UI): نعرض رسالة النجاح ونعطّل بطاقة الورد
-  // لحظيًا قبل انتظار قاعدة البيانات، بدل ما يحس المستخدم بتجميد الصفحة لحين
-  // انتهاء استعلامَين متتاليَين (select ثم update/insert) وإعادة تحميل الصفحة كاملة
-  const msgs={ done:(isEarly?'🚀 تم الإنجاز مبكراً — بارك الله فيك!':'✓ تم تسجيل الإنجاز'), need_help:'🆘 تم إبلاغ معلمك بحاجتك للمساعدة', skipped:'تم تسجيل التخطي' };
-  toast(msgs[status]||'✅ تم الحفظ');
-  const card = document.querySelector(`[onclick*="qMarkWard('${wardId}'"]`)?.closest('.qcardward');
-  if(card){ card.style.transition='opacity .15s'; card.style.opacity='.55'; card.style.pointerEvents='none'; }
+  // نجد البطاقة إمّا عبر data-ward (بطاقات ورد اليوم/المتأخرات)، وإلا عبر زر النداء
+  // نفسه (بطاقات صفحة متابعة ولي الأمر التي لا تحمل data-ward) — حتى يعمل الاثنان
+  const card = document.querySelector(`.qcardward[data-ward="${wardId}"]`)
+    || document.querySelector(`[onclick*="qMarkWard('${wardId}'"]`)?.closest('.qcardward');
+  if(card){ card.querySelectorAll('button').forEach(b=>b.disabled=true); card.style.opacity='.6'; }
   const payload = { ward_id:wardId, student_login_id:ME.id, status, planned_for_date:pd,
     actual_date:today, is_early:isEarly, is_late:isLate,
     days_offset: Math.round((new Date(pd)-new Date(today))/86400000),
     updated_at: new Date().toISOString() };
-  try{
-    await qUpsertWardProgress(wardId, payload);
-    // زر "مساعدة" كان لا يصل فعلياً لمعلم رغم رسالة النجاح المضلِّلة "تم إبلاغ معلمك" —
-    // الآن نرسل إشعاراً حقيقياً لمعلم الخطة بالورد المحدَّد الذي يحتاج الطالب مساعدة فيه
-    if(status==='need_help'){
-      try{
-        const { data: w } = await sb.from('quran_plan_wards').select('plan_id, amount_label, surah_name').eq('id',wardId).maybeSingle();
-        if(w?.plan_id){
-          const { data: plan } = await sb.from('quran_student_plans').select('teacher_id, student_id').eq('id',w.plan_id).maybeSingle();
-          if(plan?.teacher_id){
-            const studentName = ME.role==='student' ? ME.full_name : (await sb.from('students').select('full_name').eq('id',plan.student_id).maybeSingle()).data?.full_name;
-            await pushNotif(plan.teacher_id, '🆘 طالب يحتاج مساعدة', `${studentName||'طالبك'} يحتاج مساعدتك في: ${w.surah_name||w.amount_label||'ورد اليوم'}`, 'help_request', wardId);
-          }
-        }
-      }catch(e){ console.error('help notif failed:',e); }
+  const { error } = await qUpsertWardProgress(wardId, payload, {});
+  if(error){
+    console.error('qMarkWard failed:',error);
+    if(card){ card.querySelectorAll('button').forEach(b=>b.disabled=false); card.style.opacity='1'; }
+    toast('⚠️ تعذّر الحفظ، حاول مرة أخرى');
+    return;
+  }
+  toast(status==='done' ? (isEarly?'🚀 تم الإنجاز مبكراً — بارك الله فيك!':'✓ تم تسجيل الإنجاز') : 'تم تسجيل التخطي');
+  if(!card) return;
+  card.style.opacity='1';
+  // بطاقات ورد اليوم/المتأخرات (data-ward + خريطة الحصون مخزّنة): إعادة رسم غنية
+  // بالحالة الجديدة. غير ذلك (بطاقة ولي الأمر): تحويل موضعي بسيط دون إعادة تحميل.
+  if(card.hasAttribute('data-ward') && SESSION._qFortMap){
+    try{
+      const { data:pr } = await sb.from('quran_ward_progress').select('*').eq('ward_id',wardId).order('id',{ascending:false}).limit(1);
+      const w = { ...(SESSION._qWardMap&&SESSION._qWardMap[wardId]||{}) };
+      if(!w.id){ const r=await sb.from('quran_plan_wards').select('*').eq('id',wardId).maybeSingle(); Object.assign(w, r.data||{}); }
+      if(w.id) card.outerHTML = qTodayCardHtml(w, (pr&&pr[0])||null, SESSION._qFortMap);
+    }catch(e){}
+  } else {
+    const acts = card.querySelector('.qcwacts'); if(acts) acts.remove();
+    card.classList.add('done');
+    if(status==='done' && !card.querySelector('.qcwdoneflag')){
+      card.insertAdjacentHTML('beforeend', `<div class="qcwdoneflag" style="margin-top:10px;font-size:12.5px;color:var(--emerald);font-weight:700">✅ تم الورد</div>`);
     }
-  }catch(e){ console.error('qMarkWard failed:',e); toast('⚠️ تعذّر الحفظ، حاول مرة أخرى'); }
-  navigate(SESSION.page);
+  }
+  qUpdateTodayHeader();
 }
-/* ─── تسجيل الورد من الخطة الكاملة (مع دعم التقدم المبكر) ─── */
+// إعادة حساب رأس "ورد اليوم" (المنجَز/النسبة/شريط التقدم) من البطاقات الظاهرة
+function qUpdateTodayHeader(){
+  const list = document.getElementById('qtodayList'); if(!list) return;
+  const cards = list.querySelectorAll('.qcardward');
+  const total = cards.length;
+  const done = list.querySelectorAll('.qcardward.done').length;
+  const pct = total ? Math.round(done/total*100) : 0;
+  const t=document.getElementById('qtStatsTxt'); if(t) t.textContent=`أنجزت ${ar(done)} من ${ar(total)} حصن`;
+  const p=document.getElementById('qtStatsPct'); if(p) p.textContent=`${ar(pct)}٪`;
+  const f=document.getElementById('qtProgFill'); if(f) f.style.width=pct+'%';
+}
+/* ─── تسجيل الورد من "خطتي الكاملة" ─── */
 async function qMarkWardFromPlan(wardId, plannedDate){
   const today = qTodayStr();
   const isEarly = today < plannedDate;
   const isLate  = today > plannedDate;
-  toast(isEarly?'🚀 تم الإنجاز مبكراً - بارك الله فيك!':'✓ تم الإنجاز');
   const btn = document.querySelector(`[onclick*="qMarkWardFromPlan('${wardId}'"]`);
+  const mini = btn?.closest('.qplan-mini');
   if(btn){ btn.disabled=true; btn.style.opacity='.55'; }
   const payload = { ward_id:wardId, student_login_id:ME.id, status:'done', planned_for_date:plannedDate,
     actual_date:today, is_early:isEarly, is_late:isLate,
     days_offset: Math.round((new Date(plannedDate)-new Date(today))/86400000),
     updated_at: new Date().toISOString() };
-  try{
-    await qUpsertWardProgress(wardId, payload);
-  }catch(e){ console.error('qMarkWardFromPlan failed:',e); toast('⚠️ تعذّر الحفظ، حاول مرة أخرى'); }
-  navigate(SESSION.page);
+  const { error } = await qUpsertWardProgress(wardId, payload, {});
+  if(error){
+    console.error('qMarkWardFromPlan failed:',error);
+    if(btn){ btn.disabled=false; btn.style.opacity='1'; }
+    toast('⚠️ تعذّر الحفظ، حاول مرة أخرى');
+    return;
+  }
+  toast(isEarly?'🚀 تم الإنجاز مبكراً - بارك الله فيك!':'✓ تم الإنجاز');
+  // تحديث موضعي للبطاقة: إزالة زر الإتمام وإظهار علامة "تم الورد" بدل إعادة تحميل الصفحة
+  if(mini){
+    btn.remove();
+    if(!mini.querySelector('.qward-done-flag')){
+      mini.classList.remove('qplan-mini-late');
+      mini.style.background='rgba(27,77,62,0.08)';
+      mini.insertAdjacentHTML('beforeend', `<div class="qward-done-flag">🎉 تم الورد${isEarly?' <span style="opacity:.75">(مبكر)</span>':''}</div>`);
+    }
+    const lateFlag = mini.querySelector('.qward-late-flag'); if(lateFlag) lateFlag.remove();
+  }
 }
 
 /* ─── اعتماد المعلم للورد + تقييم الإتقان ─── */
@@ -9601,15 +9697,13 @@ async function qExportPlanPDF(planId){
   // (اللي كان بيبان رقم كبير مضلّل زي "321 من 321" لخطة مدتها كذا يوم بس)
   const totalDays = days.length;
   const doneDays = days.filter(d=>Object.values(d.forts).every(w=>!w||(progMap[w.id]&&progMap[w.id].status==='done'))).length;
-  const rowsHtml = days.map((d,i)=>{
-    const cells = QFORDER.map(code=>`<td>${qCellHtml(d.forts[code], progMap)}</td>`).join('');
-    return `<tr><td>${i+1}</td><td>${esc(d.date)}</td>${cells}</tr>`;
-  }).join('');
-  let host=document.getElementById('printPlanArea');
-  if(!host){ host=document.createElement('div'); host.id='printPlanArea'; document.body.appendChild(host); }
-  host.innerHTML=`
+  // نقسّم الأيام على صفحات مستقلة (٢٤ صفاً لكل صفحة) ونرسم كل صفحة على حدة ثم
+  // نلتقطها كصورة كاملة نضعها في صفحة PDF واحدة — بدل تقطيع صورة طويلة واحدة عبر
+  // الصفحات (اللي كان بيقصّ الصف الأخير في منتصفه ويطلع "متأكل"). كل صف الآن كامل.
+  const PER_PAGE = 24;
+  const headHtml = `
     <div class="pp-head">
-      <img id="ppLogo" src="assets/logo-icon.png" alt="أكاديمية الهدى">
+      <img class="ppLogo" src="assets/logo-icon.png" alt="أكاديمية الهدى">
       <div><h1>أكاديمية الهدى</h1><p>نُعلِّم بإتقان... ونُربِّي بإحسان</p></div>
     </div>
     <div class="pp-info">
@@ -9619,40 +9713,52 @@ async function qExportPlanPDF(planId){
       <div><b>تاريخ البداية:</b> ${esc(plan.start_date||'—')}</div>
       <div><b>مدة الخطة:</b> ${ar(doneDays)} من ${ar(totalDays)} يوم</div>
       <div><b>تاريخ التقرير:</b> ${new Date().toLocaleDateString('ar-EG')}</div>
-    </div>
-    <table class="pp-table">
-      <thead><tr><th>#</th><th>التاريخ</th>${QFORDER.map(c=>`<th>${esc(QFNAMES[c])}</th>`).join('')}</tr></thead>
-      <tbody>${rowsHtml}</tbody>
-    </table>
-    <div class="pp-foot">أكاديمية الهدى — نُعلِّم بإتقان... ونُربِّي بإحسان</div>`;
+    </div>`;
+  const theadHtml = `<thead><tr><th>#</th><th>التاريخ</th>${QFORDER.map(c=>`<th>${esc(QFNAMES[c])}</th>`).join('')}</tr></thead>`;
+  let host=document.getElementById('printPlanArea');
+  if(!host){ host=document.createElement('div'); host.id='printPlanArea'; document.body.appendChild(host); }
   try{
-    // ننتظر تحميل الشعار فعلياً قبل الالتقاط، وإلا html2canvas ممكن يلتقط
-    // الصورة فاضية لو الشبكة بطيئة (سباق بين تحميل الصورة والرسم)
-    const logoImg = host.querySelector('#ppLogo');
-    if(logoImg && !logoImg.complete){
-      await new Promise(res=>{ logoImg.onload=res; logoImg.onerror=res; setTimeout(res,1500); });
-    }
-    const canvas = await html2canvas(host, { scale:2, backgroundColor:'#ffffff', useCORS:true });
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ orientation:'portrait', unit:'pt', format:'a4' });
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
-    const imgW = pageW;
-    const imgH = canvas.height * (imgW / canvas.width);
-    let heightLeft = imgH, position = 0, firstPage = true;
-    const imgData = canvas.toDataURL('image/png');
-    while(heightLeft > 0){
-      if(!firstPage) pdf.addPage();
-      pdf.addImage(imgData, 'PNG', 0, position, imgW, imgH);
-      heightLeft -= pageH;
-      position -= pageH;
-      firstPage = false;
+    const M = 20; // هامش موحّد حول الصورة داخل الصفحة
+    const usableW = pageW - M*2;
+    const pageCount = Math.max(1, Math.ceil(days.length / PER_PAGE));
+    for(let pg=0; pg<pageCount; pg++){
+      const slice = days.slice(pg*PER_PAGE, (pg+1)*PER_PAGE);
+      const rowsHtml = slice.map((d,idx)=>{
+        const i = pg*PER_PAGE + idx;
+        const cells = QFORDER.map(code=>`<td>${qCellHtml(d.forts[code], progMap)}</td>`).join('');
+        return `<tr><td>${i+1}</td><td>${esc(d.date)}</td>${cells}</tr>`;
+      }).join('');
+      const pageNote = pageCount>1 ? `<div style="text-align:center;color:#5A6B7A;font-size:11px;margin-bottom:8px">صفحة ${ar(pg+1)} من ${ar(pageCount)}</div>` : '';
+      host.innerHTML = (pg===0?headHtml:'') + pageNote +
+        `<table class="pp-table">${theadHtml}<tbody>${rowsHtml}</tbody></table>
+         <div class="pp-foot">أكاديمية الهدى — نُعلِّم بإتقان... ونُربِّي بإحسان</div>`;
+      // ننتظر تحميل الشعار فعلياً قبل أول التقاط (سباق بين تحميل الصورة والرسم)
+      const logoImg = host.querySelector('.ppLogo');
+      if(logoImg && !logoImg.complete){
+        await new Promise(res=>{ logoImg.onload=res; logoImg.onerror=res; setTimeout(res,1500); });
+      }
+      const canvas = await html2canvas(host, { scale:2, backgroundColor:'#ffffff', useCORS:true });
+      const imgData = canvas.toDataURL('image/png');
+      let imgW = usableW;
+      let imgH = canvas.height * (imgW / canvas.width);
+      // لو ارتفاع الصفحة الواحدة تعدّى ارتفاع A4 (نادر)، نصغّرها لتناسب الصفحة كاملةً
+      const maxH = pageH - M*2;
+      if(imgH > maxH){ imgH = maxH; imgW = canvas.width * (imgH / canvas.height); }
+      if(pg>0) pdf.addPage();
+      const x = (pageW - imgW)/2; // توسيط أفقي — يمنع انزياح الجدول لأحد الجانبين
+      pdf.addImage(imgData, 'PNG', x, M, imgW, imgH);
     }
     pdf.save(`خطة_${(stu?.full_name||'الطالب').replace(/[^؀-ۿa-zA-Z0-9 ]/g,'')}.pdf`);
     toast('✅ تم تنزيل التقرير');
   }catch(e){
     console.error('qExportPlanPDF failed:', e);
     toast('تعذّر إنشاء ملف PDF: '+(e.message||'خطأ غير متوقع'));
+  } finally {
+    if(host) host.innerHTML='';
   }
 }
 
@@ -9740,8 +9846,9 @@ PAGES.student_qnotifs = async function(){
   if(plan) await qCheckAndFireNotifications(plan.id);
   const { data: notifs } = await sb.from('quran_notifications').select('*').eq('user_id',ME.id).order('created_at',{ascending:false}).limit(30);
   if(!notifs?.length) return pageHead('التنبيهات','') + '<div class="qnoplan"><div class="nei">🔔</div><h3>لا تنبيهات</h3></div>';
+  // page: الصفحة التي يفتحها الضغط على التنبيه (للطالب فقط: المتأخرات تفتح صفحتها)
   const NOTIF_MAP = {
-    late_wards:    { icon:'⏰', bg:'#fff0f0', title: n=>`لديك ${ar(n.count)} ورد متأخر`, sub:'اجعل اللحاق أولويتك اليوم' },
+    late_wards:    { icon:'⏰', bg:'#fff0f0', title: n=>`لديك ${ar(n.count)} ورد متأخر`, sub:'اضغط لعرض أوراد متأخرة وإنجازها', page: ME.role==='student'?'qlate':null },
     student_late:  { icon:'⚠️', bg:'#fff8e1', title: n=>`طالب متأخر في ${ar(n.count)} ورد`, sub:'راجع الطالب' },
     near_station_end:{ icon:'🏁', bg:'#e8f5e9', title: n=>`أنجزت ${ar(n.pct)}٪ من المحطة!`, sub:'قريباً من نهاية المحطة' },
     station_complete:{ icon:'🎉', bg:'#fffde7', title: n=>'أتممت المحطة — ماشاء الله!', sub:'تواصل مع معلمك للانتقال' },
@@ -9749,7 +9856,8 @@ PAGES.student_qnotifs = async function(){
   const html = (notifs||[]).map(n=>{
     const meta = NOTIF_MAP[n.kind] || { icon:'🔔', bg:'#f5f5f5', title:()=>n.kind, sub:'' };
     const payload = typeof n.payload==='string' ? JSON.parse(n.payload||'{}') : (n.payload||{});
-    return `<div class="qalert" style="background:${meta.bg}">
+    const clickable = meta.page ? ` onclick="navigate('${meta.page}')" style="background:${meta.bg};cursor:pointer"` : ` style="background:${meta.bg}"`;
+    return `<div class="qalert"${clickable}>
       <div class="qai" style="background:${meta.bg}">${meta.icon}</div>
       <div class="qab"><b>${esc(meta.title(payload))}</b><small>${esc(meta.sub)}</small></div>
       <div class="qat">${qAgo(n.created_at)}</div>
