@@ -8173,18 +8173,9 @@ async function renderStep1(stu, linkedSystem, allSys){
     </div>
     ${stationHint}
     ${ratesHtml}
-    <div class="qrow">
-      <div>
-        <label>تاريخ البداية</label>
-        <input type="date" id="qwStart" value="${esc(d.start_date)}" />
-      </div>
-      <div>
-        <label>السماح بالتقدم المبكر</label>
-        <select id="qwEarly">
-          <option value="true" ${d.allow_early_progress!==false?'selected':''}>نعم — يستطيع الطالب التقدم</option>
-          <option value="false" ${d.allow_early_progress===false?'selected':''}>لا — يلتزم بترتيب الأيام</option>
-        </select>
-      </div>
+    <div>
+      <label>تاريخ البداية</label>
+      <input type="date" id="qwStart" value="${esc(d.start_date)}" />
     </div>
     <div>
       <label>ملاحظات (اختياري)</label>
@@ -8539,7 +8530,6 @@ function qWizNext(currentStep){
       d.custom_units[sel.dataset.fortressId] = sel.value;
     });
     d.start_date = $('#qwStart').value;
-    d.allow_early_progress = $('#qwEarly').value==='true';
     d.notes = $('#qwNotes').value.trim();
   } else if(currentStep===3){
     d.current_surah_no = parseInt($('#qwCurSurah').value);
@@ -8567,7 +8557,9 @@ async function qSaveAndGenerate(studentId){
       start_date: d.start_date,
       status: 'active',
       far_review_mode: d.far_review_mode||'daily_rotation',
-      allow_early_progress: d.allow_early_progress!==false,
+      // "التقدم المبكر" أُزيلت كميزة بالكامل بناءً على طلب صريح — لا يُسمح بتسجيل
+      // أي يوم مستقبلي إطلاقاً، بصرف النظر عن أي إعداد سابق لهذا الحقل
+      allow_early_progress: false,
       notes: d.notes||null,
       created_by: ME.id
     };
@@ -8827,9 +8819,6 @@ PAGES.student_qtoday = async function(){
     html += `<div class="qnoplan"><div class="nei">🌿</div><h3>يوم راحة</h3><p>لا ورد اليوم — استثمر وقتك في الدعاء والتفكر.</p></div>`;
   } else {
     html += `<div id="qtodayList">`+(todayWards||[]).map(w=>qTodayCardHtml(w, progMap[w.id], fortMap)).join('')+`</div>`;
-    html += `<div style="text-align:center;margin-top:16px">
-      <button class="btn ghost" onclick="navigate('qmyplan')">${mi('rocket')} التقدم المبكر — افتح أياماً مستقبلية</button>
-    </div>`;
   }
   qSubscribePlanRealtime(plan.id); // تحديث لحظي: أي تعديل على تقدّم هذه الخطة من جهاز آخر ينعكس هنا فوراً
   return pageHead('ورد اليوم','') + html;
@@ -8965,14 +8954,13 @@ function qBuildPlanDaysHtml(dates, byDate, progMap, fortMap, today, plan, role){
     const dn = QPLAN_DAY_NAMES[dayObj.getDay()];
     const isToday = dt===today;
     const isPast = dt<today;
-    const isFuture = dt>today;
     const klass = isToday?'today':isPast?'past':'';
     const dots = cards.map(c=>{
       const p=progMap[c.id];
       const cls=p&&p.status==='done'?(p.is_late?'late':p.is_early?'early':'done'):(p&&p.status==='missed'?'missed':'');
       return `<span class="qpd ${cls}"></span>`;
     }).join('');
-    const dayLabel = isToday?'<span style="color:var(--gold);font-size:11px;font-weight:700;margin-inline-start:8px">• اليوم</span>':isFuture?`<span style="color:var(--muted);font-size:11px;margin-inline-start:8px">${role==='student'&&plan.allow_early_progress?'• اضغط للتقدم المبكر':''}</span>`:'';
+    const dayLabel = isToday?'<span style="color:var(--gold);font-size:11px;font-weight:700;margin-inline-start:8px">• اليوم</span>':'';
     const body = cards.map(c=>{
       const f = fortMap[c.fortress_code]||{};
       const color = f.color||qFortColor(c.fortress_code);
@@ -8982,10 +8970,9 @@ function qBuildPlanDaysHtml(dates, byDate, progMap, fortMap, today, plan, role){
       const isLate = isPast && !isDone;
       const statusBg = isDone?'rgba(27,77,62,0.08)':(isLate?'rgba(231,76,60,0.08)':'var(--cream)');
       // "أتممت" فعل خاص بالطالب فقط — المعلم دوره "اعتماد" بس، مش إنه ينجز مكانه.
-      // يُسمح بالتسجيل لليوم الحالي والأيام السابقة (استدراك المتأخر)، أما الأيام
-      // المستقبلية فمحظورة افتراضياً (لا يسجّل بكرة قبل ما ييجي) إلا إذا فعّل المعلم
-      // صراحةً "التقدم المبكر" لهذه الخطة — فنحافظ على الميزة الموجودة دون إساءة.
-      const canMark = isToday || isPast || (isFuture && plan.allow_early_progress);
+      // يُسمح بالتسجيل لليوم الحالي والأيام السابقة (استدراك المتأخر) فقط — ميزة
+      // "التقدم المبكر" (تسجيل أيام مستقبلية) أُزيلت بالكامل بناءً على طلب صريح.
+      const canMark = isToday || isPast;
       const btn = (role==='student' && !isDone && canMark) ? `<button onclick="qMarkWardFromPlan('${esc(c.id)}','${esc(dt)}')" style="border:none;background:${color};color:#fff;border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;font-weight:700">${mi('check')} أتممت</button>` : '';
       const approveBtn = (role==='teacher'&&!isDone) ? `<button onclick="qTeacherApprove('${esc(c.id)}')" style="border:none;background:var(--emerald);color:#fff;border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer;font-weight:700">${mi('check')} اعتماد</button>` : '';
       const noteBtn = role==='teacher' ? `<button onclick="qTeacherNote('${esc(c.id)}')" title="${c.teacher_note?'تعديل الملاحظة':'إضافة ملاحظة'}" style="border:none;background:${c.teacher_note?'var(--gold)':'var(--cream-2)'};color:${c.teacher_note?'#fff':'var(--navy-deep)'};border:1px solid var(--line);border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer">${mi('pencil')}</button>` : '';
