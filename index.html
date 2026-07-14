@@ -828,20 +828,21 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 .wa-float .wa-txt{white-space:nowrap}
 @media(max-width:600px){.wa-float .wa-txt{display:none}.wa-float{padding:14px;border-radius:50%}}
 
-/* بانر إشعار تحديث المنصة — يظهر أسفل الشاشة بهوية المنصة، مش إشعار متصفح عادي */
-#appUpdateBanner{position:fixed;left:16px;right:16px;bottom:16px;z-index:9999;animation:updSlideUp .35s ease}
-@keyframes updSlideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
-.upd-inner{max-width:520px;margin:0 auto;display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,var(--emerald-deep),var(--emerald));color:#fff;border-radius:16px;padding:14px 16px;box-shadow:0 12px 32px rgba(0,0,0,0.3);border:1px solid rgba(201,162,39,0.4)}
-.upd-ic{flex-shrink:0;width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,0.15);display:grid;place-items:center;font-size:18px}
-.upd-ic svg{width:20px;height:20px}
-.upd-txt{flex:1;min-width:0;display:flex;flex-direction:column}
+/* بانر إشعار تحديث المنصة — شريط كامل العرض أعلى الشاشة (بدل بطاقة عائمة أسفل) */
+#appUpdateBanner{position:fixed;left:0;right:0;top:0;z-index:9999;animation:updSlideDown .35s ease}
+@keyframes updSlideDown{from{transform:translateY(-100%);opacity:0}to{transform:translateY(0);opacity:1}}
+.upd-inner{display:flex;align-items:center;gap:14px;background:linear-gradient(135deg,var(--emerald-deep),var(--emerald));color:#fff;padding:10px 18px;box-shadow:0 4px 18px rgba(0,0,0,0.25)}
+.upd-ic{flex-shrink:0;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,0.15);display:grid;place-items:center;font-size:16px}
+.upd-ic svg{width:18px;height:18px}
+.upd-txt{flex:1;min-width:0;display:flex;flex-direction:column;text-align:center}
 .upd-txt b{font-family:'Amiri';font-size:14.5px}
 .upd-txt small{font-size:12px;opacity:0.85}
-.upd-btn{flex-shrink:0;display:inline-flex;align-items:center;gap:6px;background:var(--gold);color:var(--emerald-deep);border:none;padding:9px 16px;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap;transition:.2s}
+.upd-btn{flex-shrink:0;display:inline-flex;align-items:center;gap:6px;background:var(--gold);color:var(--emerald-deep);border:none;padding:9px 18px;border-radius:10px;font-weight:700;font-size:13.5px;cursor:pointer;white-space:nowrap;transition:.2s}
 .upd-btn:hover{background:var(--gold-light)}
-.upd-close{flex-shrink:0;background:none;border:none;color:#fff;opacity:0.7;font-size:20px;cursor:pointer;line-height:1;padding:0 4px}
-.upd-close:hover{opacity:1}
-@media(max-width:480px){.upd-inner{flex-wrap:wrap}.upd-txt{flex-basis:100%;order:1}.upd-ic{order:0}.upd-btn{order:2;flex:1;justify-content:center}.upd-close{order:3}}
+.upd-close{flex-shrink:0;background:rgba(255,255,255,0.15);border:none;color:#fff;opacity:0.9;font-size:16px;cursor:pointer;line-height:1;width:26px;height:26px;border-radius:50%;display:grid;place-items:center}
+.upd-close:hover{opacity:1;background:rgba(255,255,255,0.25)}
+body.has-update-banner{padding-top:52px}
+@media(max-width:600px){.upd-inner{flex-wrap:wrap;padding:10px 12px}.upd-txt{flex-basis:100%;order:1;text-align:center}.upd-ic{order:0}.upd-btn{order:2}.upd-close{order:3;position:absolute;top:8px;left:10px}#appUpdateBanner{position:fixed}body.has-update-banner{padding-top:66px}}
 
 /* setup */
 .setup-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:30px 20px;background:radial-gradient(ellipse at 80% 10%,rgba(34,107,84,0.12),transparent 50%),linear-gradient(160deg,#16362C,#123A2E)}
@@ -1669,12 +1670,17 @@ function showUpdateBanner(){
   const bar=document.createElement('div');
   bar.id='appUpdateBanner';
   bar.innerHTML=`<div class="upd-inner">
-    <span class="upd-ic">${mi?mi('rocket'):'🚀'}</span>
-    <span class="upd-txt"><b>تحديث جديد لأكاديمية الهدى</b><small>تم إضافة تحسينات جديدة للمنصة</small></span>
+    <button class="upd-close" onclick="dismissUpdateBanner()" aria-label="إغلاق">×</button>
     <button class="upd-btn" onclick="location.reload()">${mi?mi('refresh'):'🔄'} تحديث الآن</button>
-    <button class="upd-close" onclick="document.getElementById('appUpdateBanner').remove()" aria-label="إغلاق">×</button>
+    <span class="upd-txt"><b>تتوفر نسخة جديدة من النظام</b><small>يُرجى التحديث الآن للاستفادة من أحدث التحسينات</small></span>
+    <span class="upd-ic">${mi?mi('rocket'):'🚀'}</span>
   </div>`;
   document.body.appendChild(bar);
+  document.body.classList.add('has-update-banner');
+}
+function dismissUpdateBanner(){
+  document.getElementById('appUpdateBanner')?.remove();
+  document.body.classList.remove('has-update-banner');
 }
 /* ═══ بديل مخصّص لاقتراح "إضافة للشاشة الرئيسية" — لأن المتصفحات (خصوصاً كروم بعد أول زيارة، وسفاري على الآيفون دايماً) بقت مش بتظهر اقتراح التثبيت التلقائي من نفسها ═══ */
 let PWA_DEFERRED_PROMPT = null;
@@ -8670,7 +8676,7 @@ async function applyAbsenceShift(plan){
   const missedDates = Object.keys(byDate).filter(d=>byDate[d].every(w=>!doneSet.has(w.id))).sort();
   if(!missedDates.length){ await sb.from('quran_student_plans').update({ last_absence_check:todayStr }).eq('id',plan.id); return; }
   // نسجّل كل وِرد في الأيام الغائبة كغياب رسمي
-  const missRows = missedDates.flatMap(d=>byDate[d].map(w=>({ ward_id:w.id, status:'missed', planned_for_date:todayStr, actual_date:null })));
+  const missRows = missedDates.flatMap(d=>byDate[d].map(w=>({ ward_id:w.id, plan_id:plan.id, status:'missed', planned_for_date:todayStr, actual_date:null })));
   await sb.from('quran_ward_progress').insert(missRows);
   // نزحزح كل ما تبقّى من الخطة (من النهاردة فصاعداً) بعدد أيام الغياب دفعة واحدة —
   // بخطوات أيام دراسة فعلية (مش تقويمية خام) عشان الورد المُزاح ميقعش بالغلط
@@ -8771,19 +8777,30 @@ PAGES.student_qtoday = async function(){
   return pageHead('ورد اليوم','') + html;
 };
 
-async function qRateMastery(wardId, val){
+// نقطة كتابة موحّدة لصف تقدّم الورد (بدل تكرار نفس نمط select-ثم-update/insert
+// في أكثر من مكان) — تحرص كمان على تعبئة plan_id (عمود مكرَّر من الورد) عند أول
+// إدراج، وهو ما يسمح لصفحات "تقريري القرآني"/"خطتي الكاملة" بجلب تقدّم الخطة
+// كلها باستعلام eq بسيط بدل تمرير مئات المعرّفات في .in() في كل مرة (سبب بطء
+// تراكمي مشابه لمشكلة صفحة التنبيهات).
+// updatePayload تُطبَّق دائماً (تحديث أو إدراج)، و insertDefaults تُضاف فقط
+// عند أول إدراج (زي status/planned_for_date الافتراضيَين) — بدون خلط الاثنين،
+// تحديث حقل واحد (زي التقييم) على صف موجود بالفعل ما يُعدّلش حقولاً تانية معه
+async function qUpsertWardProgress(wardId, updatePayload, insertDefaults){
   const { data: ex } = await sb.from('quran_ward_progress').select('id').eq('ward_id',wardId).maybeSingle();
-  if(ex){ await sb.from('quran_ward_progress').update({ student_mastery:val }).eq('id',ex.id); }
-  else { await sb.from('quran_ward_progress').insert({ ward_id:wardId, student_login_id:ME.id, student_mastery:val, status:'done', planned_for_date:qTodayStr(), actual_date:qTodayStr() }); }
+  if(ex){ await sb.from('quran_ward_progress').update(updatePayload).eq('id',ex.id); return; }
+  let planId=null;
+  try{ const { data:w } = await sb.from('quran_plan_wards').select('plan_id').eq('id',wardId).maybeSingle(); planId=w?.plan_id||null; }catch(e){}
+  await sb.from('quran_ward_progress').insert({ ward_id:wardId, plan_id:planId, ...insertDefaults, ...updatePayload });
+}
+async function qRateMastery(wardId, val){
+  await qUpsertWardProgress(wardId, { student_mastery:val }, { student_login_id:ME.id, status:'done', planned_for_date:qTodayStr(), actual_date:qTodayStr() });
   // refresh stars only
   const sel = document.querySelector(`[onclick^="qRateMastery('${wardId}"]`)?.closest('.qcardward');
   if(sel){ sel.querySelectorAll('.qrate-bar span').forEach((s,i)=>{ if(i+1<=val) s.classList.add('on'); else s.classList.remove('on'); }); }
   toast('✅ تم حفظ التقييم');
 }
 async function qSaveStudentNote(wardId, note){
-  const { data: ex } = await sb.from('quran_ward_progress').select('id').eq('ward_id',wardId).maybeSingle();
-  if(ex) await sb.from('quran_ward_progress').update({ student_note:note }).eq('id',ex.id);
-  else await sb.from('quran_ward_progress').insert({ ward_id:wardId, student_login_id:ME.id, student_note:note, status:'not_started', planned_for_date:qTodayStr(), actual_date:null });
+  await qUpsertWardProgress(wardId, { student_note:note }, { student_login_id:ME.id, status:'not_started', planned_for_date:qTodayStr(), actual_date:null });
 }
 
 /* ─── صفحة خطتي الكاملة (للطالب) مع فلاتر وتقدم مبكر ─── */
@@ -8809,13 +8826,14 @@ async function qRenderFullPlan(planId, role='student'){
   ]);
   if(!plan) return '<div class="card">الخطة غير موجودة</div>';
   const wards = wardsRaw;
-  const wardIds = (wards||[]).map(w=>w.id);
+  // نجلب تقدّم الخطة كلها بـ plan_id مباشرة بدل تمرير قائمة معرّفات قد تصل لمئات
+  // العناصر في .in() — نفس نمط البطء التراكمي اللي كان بيعلّق صفحة التنبيهات
   const [{ data: sys }, { data: stu }, { data: station }, { data: forts }, progsRes] = await Promise.all([
     sb.from('quran_systems').select('name,path_key').eq('id',plan.system_id).maybeSingle(),
     sb.from('students').select('full_name').eq('id',plan.student_id).maybeSingle(),
     sb.from('quran_stations').select('*').eq('id',plan.current_station_id).maybeSingle(),
     sb.from('quran_fortresses').select('*').eq('system_id',plan.system_id),
-    wardIds.length ? sb.from('quran_ward_progress').select('*').in('ward_id',wardIds) : Promise.resolve({ data:[] }),
+    sb.from('quran_ward_progress').select('*').eq('plan_id',planId),
   ]);
   const fortMap = {}; (forts||[]).forEach(f=>{ fortMap[f.code]=f; });
   let progMap = {};
@@ -9007,9 +9025,7 @@ async function qMarkWard(wardId, status, plannedDate){
     days_offset: Math.round((new Date(pd)-new Date(today))/86400000),
     updated_at: new Date().toISOString() };
   try{
-    const { data: ex } = await sb.from('quran_ward_progress').select('id').eq('ward_id',wardId).maybeSingle();
-    if(ex) await sb.from('quran_ward_progress').update(payload).eq('id',ex.id);
-    else await sb.from('quran_ward_progress').insert(payload);
+    await qUpsertWardProgress(wardId, payload);
     // زر "مساعدة" كان لا يصل فعلياً لمعلم رغم رسالة النجاح المضلِّلة "تم إبلاغ معلمك" —
     // الآن نرسل إشعاراً حقيقياً لمعلم الخطة بالورد المحدَّد الذي يحتاج الطالب مساعدة فيه
     if(status==='need_help'){
@@ -9040,19 +9056,15 @@ async function qMarkWardFromPlan(wardId, plannedDate){
     days_offset: Math.round((new Date(plannedDate)-new Date(today))/86400000),
     updated_at: new Date().toISOString() };
   try{
-    const { data: ex } = await sb.from('quran_ward_progress').select('id').eq('ward_id',wardId).maybeSingle();
-    if(ex) await sb.from('quran_ward_progress').update(payload).eq('id',ex.id);
-    else await sb.from('quran_ward_progress').insert(payload);
+    await qUpsertWardProgress(wardId, payload);
   }catch(e){ console.error('qMarkWardFromPlan failed:',e); toast('⚠️ تعذّر الحفظ، حاول مرة أخرى'); }
   navigate(SESSION.page);
 }
 
 /* ─── اعتماد المعلم للورد + تقييم الإتقان ─── */
 async function qTeacherApprove(wardId){
-  const { data: ex } = await sb.from('quran_ward_progress').select('*').eq('ward_id',wardId).maybeSingle();
   const now = new Date().toISOString();
-  if(ex){ await sb.from('quran_ward_progress').update({ teacher_approved_at:now, teacher_id:ME.id, status:'done' }).eq('id',ex.id); }
-  else { await sb.from('quran_ward_progress').insert({ ward_id:wardId, teacher_id:ME.id, teacher_approved_at:now, status:'done', planned_for_date:qTodayStr(), actual_date:qTodayStr() }); }
+  await qUpsertWardProgress(wardId, { teacher_approved_at:now, teacher_id:ME.id, status:'done' }, { planned_for_date:qTodayStr(), actual_date:qTodayStr() });
   toast('✅ تم الاعتماد');
   navigate(SESSION.page);
 }
@@ -9154,9 +9166,11 @@ async function qSaveTeacherNote(wardId, clear){
   const note = clear ? null : ($('#qwNoteTxt')?.value.trim()||null);
   const btn=$('#qwNoteBtn'); if(btn){ btn.disabled=true; btn.textContent='جارٍ الحفظ...'; }
   await sb.from('quran_plan_wards').update({ teacher_note:note }).eq('id',wardId);
-  const { data: ex } = await sb.from('quran_ward_progress').select('id').eq('ward_id',wardId).maybeSingle();
-  if(ex) await sb.from('quran_ward_progress').update({ teacher_note:note, teacher_id:ME.id }).eq('id',ex.id);
-  else if(note) await sb.from('quran_ward_progress').insert({ ward_id:wardId, teacher_id:ME.id, teacher_note:note, status:'not_started', planned_for_date:qTodayStr(), actual_date:null });
+  if(note){
+    await qUpsertWardProgress(wardId, { teacher_note:note, teacher_id:ME.id }, { status:'not_started', planned_for_date:qTodayStr(), actual_date:null });
+  } else {
+    await sb.from('quran_ward_progress').update({ teacher_note:note, teacher_id:ME.id }).eq('ward_id',wardId);
+  }
   closeModal();
   toast(clear?'🗑️ حُذفت الملاحظة':'✅ تم حفظ الملاحظة');
   navigate(SESSION.page);
@@ -9398,13 +9412,15 @@ PAGES.teacher_qreport = async function(){
 };
 
 async function qRenderReport(planId){
-  const { data: plan } = await sb.from('quran_student_plans').select('*').eq('id',planId).maybeSingle();
+  // استعلامات مستقلة بالتوازي + جلب التقدّم بـ plan_id مباشرة بدل .in() بقائمة
+  // معرّفات قد تطول لمئات العناصر (نفس إصلاح الأداء في خطتي الكاملة/التنبيهات)
+  const [{ data: plan }, { data: wards }, { data: progs }] = await Promise.all([
+    sb.from('quran_student_plans').select('*').eq('id',planId).maybeSingle(),
+    sb.from('quran_plan_wards').select('*').eq('plan_id',planId),
+    sb.from('quran_ward_progress').select('*').eq('plan_id',planId),
+  ]);
   const { data: sys } = await sb.from('quran_systems').select('name').eq('id',plan.system_id).maybeSingle();
-  const { data: wards } = await sb.from('quran_plan_wards').select('*').eq('plan_id',planId);
-  const wardIds = (wards||[]).map(w=>w.id);
-  let progs = [];
-  if(wardIds.length){ const { data: p } = await sb.from('quran_ward_progress').select('*').in('ward_id',wardIds); progs = p||[]; }
-  const progMap = {}; progs.forEach(p=>{ progMap[p.ward_id]=p; });
+  const progMap = {}; (progs||[]).forEach(p=>{ progMap[p.ward_id]=p; });
   const byFort = {};
   (wards||[]).forEach(w=>{
     if(!byFort[w.fortress_code]) byFort[w.fortress_code]={total:0,done:0};
@@ -9414,10 +9430,10 @@ async function qRenderReport(planId){
   });
   const today = qTodayStr();
   const totalW = (wards||[]).length;
-  const doneW  = progs.filter(p=>p.status==='done').length;
+  const doneW  = (progs||[]).filter(p=>p.status==='done').length;
   const lateW  = (wards||[]).filter(w=>w.planned_date<today&&(!progMap[w.id]||progMap[w.id].status!=='done')).length;
-  const earlyW = progs.filter(p=>p.is_early&&p.status==='done').length;
-  const masterySamples = progs.filter(p=>p.student_mastery).map(p=>p.student_mastery);
+  const earlyW = (progs||[]).filter(p=>p.is_early&&p.status==='done').length;
+  const masterySamples = (progs||[]).filter(p=>p.student_mastery).map(p=>p.student_mastery);
   const avgMastery = masterySamples.length ? (masterySamples.reduce((a,b)=>a+parseFloat(b),0)/masterySamples.length).toFixed(1) : '—';
   const overallPct = totalW ? Math.round(doneW/totalW*100) : 0;
   const FORTNAMES = { new_hifz:'الحفظ الجديد', review_near:'المراجعة القريبة', review_far:'المراجعة البعيدة', reading:'ورد القراءة', listening:'ورد السماع' };

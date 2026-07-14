@@ -24,6 +24,19 @@ where a.id < b.id and a.user_id=b.user_id and a.kind=b.kind
 create index if not exists idx_quran_notifications_user_kind_created on quran_notifications(user_id, kind, created_at);
 
 -- ------------------------------------------------------------
+-- ٠-م) 🔴 إصلاح حرج في الأداء: "تقريري القرآني" و"خطتي الكاملة" كانا يجلبان كل
+--      أوراد الخطة (مئات الصفوف لخطة طويلة) ثم يمرّران كل معرّفاتها لاستعلام
+--      .in() على quran_ward_progress — رابط الاستعلام يكبر بحجم عدد الأوراد،
+--      وهو نفس نمط البطء التراكمي اللي علّق صفحة التنبيهات. plan_id هنا عمود
+--      مكرَّر (denormalized) من quran_plan_wards.plan_id يسمح بجلب تقدّم الخطة
+--      كلها باستعلام واحد بسيط (eq بدل in بقائمة ضخمة)، ومفهرس لسرعة فورية.
+-- ------------------------------------------------------------
+alter table quran_ward_progress add column if not exists plan_id bigint;
+update quran_ward_progress p set plan_id = w.plan_id
+from quran_plan_wards w where p.ward_id = w.id and p.plan_id is null;
+create index if not exists idx_qwp_plan_id on quran_ward_progress(plan_id);
+
+-- ------------------------------------------------------------
 -- ٠-ي) تخفيض الرسوم: كان المبلغ مقفولاً على "نصف السعر" بلا أي هامش لتقدير
 --      المشرف الفعلي لحالة كل أسرة، وبدون حقل "دخل الأسرة الشهري" في الاستبيان.
 --      approved_fee على الطالب يخزّن المبلغ الفعلي الذي وافق عليه المشرف (قد
