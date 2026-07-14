@@ -8929,122 +8929,19 @@ PAGES.student_qmyplan = async function(){
   return await qRenderFullPlan(plan.id, 'student');
 };
 
-async function qRenderFullPlan(planId, role='student'){
-  // تشغيل الاستعلامات المستقلة عن بعضها بالتوازي (Promise.all) بدل التتابع —
-  // الصفحة كانت بتنتظر ٨ استعلامات واحداً تلو الآخر رغم إن أغلبها لا يعتمد على
-  // نتيجة الآخر، وهو سبب رئيسي في بطء تحميل صفحات القرآن اللي اشتكى منها المستخدم
-  const [{ data: plan }, { data: wardsRaw }, { data: assess }] = await Promise.all([
-    sb.from('quran_student_plans').select('*').eq('id',planId).maybeSingle(),
-    sb.from('quran_plan_wards').select('*').eq('plan_id',planId).order('planned_date').order('fortress_code'),
-    sb.from('quran_student_assessment').select('current_surah_no').eq('plan_id',planId).maybeSingle(),
-  ]);
-  if(!plan) return '<div class="card">الخطة غير موجودة</div>';
-  const wards = wardsRaw;
-  const wardIds = (wards||[]).map(w=>w.id);
-  // تقدّم كل الخطة عبر الدفعات الصغيرة المقاومة للفشل (بدل قائمة .in ضخمة تعلّق
-  // الخادم، أو .eq('plan_id') الذي يعتمد على عمود قد لا يكون موجوداً في القاعدة)
-  const [{ data: sys }, { data: stu }, { data: station }, { data: forts }, progAll] = await Promise.all([
-    sb.from('quran_systems').select('name,path_key').eq('id',plan.system_id).maybeSingle(),
-    sb.from('students').select('full_name').eq('id',plan.student_id).maybeSingle(),
-    sb.from('quran_stations').select('*').eq('id',plan.current_station_id).maybeSingle(),
-    sb.from('quran_fortresses').select('*').eq('system_id',plan.system_id),
-    qFetchProgress(wardIds),
-  ]);
-  const fortMap = {}; (forts||[]).forEach(f=>{ fortMap[f.code]=f; });
-  let progMap = {};
-  (progAll||[]).forEach(p=>{ progMap[p.ward_id]=p; });
-  const today = qTodayStr();
-  const total = (wards||[]).length;
-  const done  = Object.values(progMap).filter(p=>p.status==='done').length;
-  const pct   = total ? Math.round(done/total*100) : 0;
-  const lateC = (wards||[]).filter(w=>w.planned_date<today&&(!progMap[w.id]||progMap[w.id].status!=='done')).length;
-  const earlyC= Object.values(progMap).filter(p=>p.is_early&&p.status==='done').length;
-
-  // group by date
-  const byDate = {};
-  (wards||[]).forEach(w=>{ if(!byDate[w.planned_date]) byDate[w.planned_date]=[]; byDate[w.planned_date].push(w); });
-  const dates = Object.keys(byDate).sort();
-  const DAYS = ['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
-
-  const statsRow = `<div class="qreport-grid" style="margin-bottom:18px">
-    <div class="qrstat"><span class="qrsv">${ar(dates.length)}</span><div class="qrsl">إجمالي الأيام</div></div>
-    <div class="qrstat"><span class="qrsv">${ar(total)}</span><div class="qrsl">إجمالي الأوراد</div></div>
-    <div class="qrstat"><span class="qrsv" style="color:var(--emerald)">${ar(done)}</span><div class="qrsl">منجَز</div></div>
-    <div class="qrstat gold"><span class="qrsv">${ar(pct)}٪</span><div class="qrsl">نسبة التقدم</div></div>
-    <div class="qrstat rose"><span class="qrsv">${ar(lateC)}</span><div class="qrsl">متأخرات</div></div>
-    <div class="qrstat" style="border-color:var(--gold)"><span class="qrsv" style="color:var(--gold)">${ar(earlyC)}</span><div class="qrsl">مبكر 🚀</div></div>
-  </div>`;
-
-  // "بوصلة الخطة" — رؤية واضحة لحدود المحطة الحقيقية وموقف الطالب الفعلي فيها،
-  // بدل ما يفضل غامض "الحفظ ماشي على إيه" — تحديدًا مطلوبة من المعلم بعد ما
-  // اتأكد إن حدود المحطات كانت بيانات نص حر مش فعلية
-  let compassHtml = '';
-  if(station){
-    const isReview = station.station_kind==='review';
-    const kindLabel = isReview ? '🔄 محطة مراجعة بحتة' : '📖 محطة حفظ';
-    let rangeHtml = '';
-    if(!isReview && station.boundary_surah_from && station.boundary_surah_to){
-      const bLo = Math.min(station.boundary_surah_from, station.boundary_surah_to);
-      const bHi = Math.max(station.boundary_surah_from, station.boundary_surah_to);
-      const sFrom = surahByNo(station.boundary_surah_from), sTo = surahByNo(station.boundary_surah_to);
-      // محطة محصورة داخل نفس السورة (بداية/إتمام): نعرض مدى الآيات بدل تكرار
-      // نفس اسم السورة مرتين بلا فائدة (زي "البقرة ← البقرة")
-      const rangeLabel = (bLo===bHi && station.boundary_ayah_from && station.boundary_ayah_to)
-        ? `${esc(sFrom?.name||'—')} (من الآية ${ar(station.boundary_ayah_from)} إلى ${ar(station.boundary_ayah_to)})`
-        : `${esc(sFrom?.name||'—')} ← ${esc(sTo?.name||'—')}`;
-      const hifzWards = (wards||[]).filter(w=>w.fortress_code==='new_hifz' && w.surah_no!=null);
-      const lastHifz = hifzWards.length ? hifzWards[hifzWards.length-1] : null;
-      const finished = hasStationBoundaryFinished(hifzWards, station);
-      rangeHtml = `<div class="qpvrow"><span>حدود الحفظ الجديد</span><b>${rangeLabel}</b></div>
-        <div class="qpvrow"><span>آخر موقف في الخطة</span><b>${lastHifz?esc(lastHifz.surah_name)+' • '+esc(lastHifz.amount_label||''):'لم يبدأ بعد'}</b></div>
-        <div class="qpvrow"><span>حالة الحد</span><b style="color:${finished?'var(--emerald)':'var(--gold)'}">${finished?'✅ وصلت الخطة لحد المحطة':'⏳ لسه جاري داخل الحدود'}</b></div>`;
-    } else if(!isReview){
-      rangeHtml = `<div class="qpvrow"><span>حدود الحفظ الجديد</span><b style="color:var(--muted)">غير محددة لهذه المحطة</b></div>`;
-    }
-    compassHtml = `<div class="card" style="margin-bottom:18px"><div class="ch"><h3>${mi('map')} بوصلة الخطة — ${esc(station.name)}</h3></div>
-      <div class="qpv">
-        <div class="qpvrow"><span>نوع المحطة</span><b>${kindLabel}</b></div>
-        ${rangeHtml}
-      </div>
-    </div>`;
-  }
-
-  const backBtn = role==='teacher' ? `<button class="qback" onclick="navigate('qplans')">← الرجوع</button>` : '';
-  const title = role==='teacher' ? 'خطة '+esc(stu?stu.full_name:'') : 'خطتي الكاملة';
-  const hint = esc(sys?sys.name:'')+' · '+(plan.status==='active'?'نشطة':plan.status==='paused'?'متوقفة':'—');
-
-  // export + edit buttons
-  const actBtns = `<div class="qexport-btns">
-    <button onclick="qExportPlanPDF('${esc(planId)}')">${mi('printer')} طباعة PDF</button>
-    ${role==='teacher'?`<button onclick="qExportPlanExcel('${esc(planId)}')">${mi('chart')} تصدير Excel</button><button onclick="qShowEditPanel('${esc(planId)}')">${mi('gear')} تعديل الخطة</button>`:''}
-  </div>`;
-  const editPanel = role==='teacher' ? `<div class="qedit-panel" id="qEditPanel_${esc(planId)}">
-    <h4>⚙️ تعديل الخطة</h4>
-    <div class="qform" style="margin-bottom:14px">
-      <div class="qrow">
-        <div>
-          <label>حالة الخطة</label>
-          <select id="qEPStatus_${esc(planId)}">
-            <option value="active" ${plan.status==='active'?'selected':''}>✅ نشطة</option>
-            <option value="paused" ${plan.status==='paused'?'selected':''}>⏸️ متوقفة مؤقتاً</option>
-            <option value="completed" ${plan.status==='completed'?'selected':''}>🏁 مكتملة</option>
-          </select>
-        </div>
-        <div>
-          <label>ملاحظة للتعديل</label>
-          <input type="text" id="qEPNote_${esc(planId)}" placeholder="سبب التعديل" />
-        </div>
-      </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn-sm" onclick="qUpdatePlanStatus('${esc(planId)}',this)">${mi('save')} حفظ الحالة</button>
-        <button class="btn-sm ghost" onclick="qRescheduleRemaining('${esc(planId)}')">${mi('refresh')} إعادة جدولة المتبقي</button>
-        ${role==='teacher'?`<button class="btn-sm gold" onclick="qCheckTransition('${esc(planId)}')">${mi('cap')} فحص الانتقال للمحطة التالية</button>`:''}
-        ${role==='teacher'?`<button class="btn-sm" style="background:var(--emerald);color:#fff" onclick="qCatchUpModal('${esc(planId)}')">${mi('refresh')} استدراك (تقديم الخطة)</button>`:''}
-      </div>
-    </div>
-  </div>` : '';
-
-  const daysHtml = dates.map(dt=>{
+// 🔴 حل جذري للبطء: كانت هذه الدالة تجلب كل أوراد الخطة (مئات الصفوف لخطة
+// طويلة) دائماً، بصرف النظر عن طولها. الآن نعرض بشكل افتراضي نافذة زمنية
+// محدودة فقط (٢١ يوماً سابقاً + ٤٥ يوماً قادماً — تغطي الاستخدام الفعلي في
+// أغلب الأحيان)، بحجم بيانات ثابت مهما طالت الخطة لسنوات. الأرقام الإجمالية
+// (إجمالي/منجز/متأخر) تُحسَب داخل قاعدة البيانات (RPC) لا من الصفوف المحمَّلة،
+// و"بوصلة الخطة" تعتمد على استعلام صغير مستقل (آخر ورد حفظ) بدل كل السجل.
+// زرّا "عرض كل الأيام السابقة/القادمة" يحمّلان الباقي عند الطلب فقط — مفيش أي
+// ميزة اتحذفت، بس البيانات بقت تتحمّل عند الحاجة الفعلية بدل كل مرة.
+const QPLAN_WINDOW_PAST_DAYS = 21, QPLAN_WINDOW_FUTURE_DAYS = 45;
+// مستخرجة من qRenderFullPlan لتُستخدم أيضاً في qLoadMoreDays (تحميل أيام إضافية عند
+// الطلب) دون تكرار منطق بناء بطاقة اليوم — نفس الشكل بالضبط في الحالتين
+function qBuildPlanDaysHtml(dates, byDate, progMap, fortMap, today, plan, role){
+  return dates.map(dt=>{
     const cards = byDate[dt];
     const dayObj = new Date(dt);
     const dn = DAYS[dayObj.getDay()];
@@ -9101,6 +8998,183 @@ async function qRenderFullPlan(planId, role='student'){
       <div class="qplan-day-body">${body}</div>
     </div>`;
   }).join('');
+}
+// تحميل نافذة أيام إضافية (أقدم أو أبعد) عند الطلب — بدون أي إعادة تحميل للصفحة
+// أو إعادة جلب كل بيانات الخطة؛ استعلام صغير مُحدَّد بمدى تاريخ فقط
+async function qLoadMoreDays(planId, role, dir){
+  const ctx = SESSION._qPlanCtx;
+  if(!ctx || ctx.planId!==planId) return;
+  const wrap = document.getElementById('qplanDays_'+planId);
+  const container = document.getElementById('qplanDaysInner_'+planId);
+  const btn = document.getElementById(dir==='past'?('qLoadPast_'+planId):('qLoadFuture_'+planId));
+  if(!wrap || !container) return;
+  if(btn){ btn.disabled=true; btn.textContent='⏳ جاري التحميل...'; }
+  const CHUNK_DAYS = 30;
+  let fromStr, toStr;
+  if(dir==='past'){
+    const curStart = new Date(wrap.dataset.winstart);
+    const end = new Date(curStart); end.setDate(end.getDate()-1);
+    const start = new Date(curStart); start.setDate(start.getDate()-CHUNK_DAYS);
+    fromStr = start.toISOString().slice(0,10); toStr = end.toISOString().slice(0,10);
+  } else {
+    const curEnd = new Date(wrap.dataset.winend);
+    const start = new Date(curEnd); start.setDate(start.getDate()+1);
+    const end = new Date(curEnd); end.setDate(end.getDate()+CHUNK_DAYS);
+    fromStr = start.toISOString().slice(0,10); toStr = end.toISOString().slice(0,10);
+  }
+  const { data: moreWards, error } = await sb.from('quran_plan_wards').select('*').eq('plan_id',planId).gte('planned_date',fromStr).lte('planned_date',toStr).order('planned_date').order('fortress_code');
+  if(error){ if(btn){ btn.disabled=false; btn.textContent='⚠️ حدث خطأ، حاول مرة أخرى'; } return; }
+  if(!moreWards || !moreWards.length){
+    if(btn){ btn.textContent = dir==='past' ? 'لا توجد أيام سابقة أخرى' : 'لا توجد أيام قادمة أخرى'; btn.disabled=true; }
+    if(dir==='past') wrap.dataset.winstart = fromStr; else wrap.dataset.winend = toStr;
+    return;
+  }
+  const ids = moreWards.map(w=>w.id);
+  const moreProg = await qFetchProgress(ids);
+  const progMap2 = {}; (moreProg||[]).forEach(p=>{ progMap2[p.ward_id]=p; });
+  const byDate2 = {}; moreWards.forEach(w=>{ (byDate2[w.planned_date]=byDate2[w.planned_date]||[]).push(w); });
+  const dates2 = Object.keys(byDate2).sort();
+  const html2 = qBuildPlanDaysHtml(dates2, byDate2, progMap2, ctx.fortMap, ctx.today, ctx.plan, role);
+  if(dir==='past'){
+    container.insertAdjacentHTML('afterbegin', html2);
+    wrap.dataset.winstart = fromStr;
+    if(btn){ btn.disabled=false; btn.textContent='⬅️ عرض أيام سابقة أقدم'; }
+  } else {
+    container.insertAdjacentHTML('beforeend', html2);
+    wrap.dataset.winend = toStr;
+    if(btn){ btn.disabled=false; btn.textContent='➡️ عرض أيام قادمة أبعد'; }
+  }
+}
+async function qRenderFullPlan(planId, role='student'){
+  const todayD = new Date();
+  const winStart = new Date(todayD); winStart.setDate(winStart.getDate()-QPLAN_WINDOW_PAST_DAYS);
+  const winEnd = new Date(todayD); winEnd.setDate(winEnd.getDate()+QPLAN_WINDOW_FUTURE_DAYS);
+  const winStartStr = winStart.toISOString().slice(0,10), winEndStr = winEnd.toISOString().slice(0,10);
+  const [{ data: plan }, { data: wardsRaw }, { data: assess }] = await Promise.all([
+    sb.from('quran_student_plans').select('*').eq('id',planId).maybeSingle(),
+    sb.from('quran_plan_wards').select('*').eq('plan_id',planId).gte('planned_date',winStartStr).lte('planned_date',winEndStr).order('planned_date').order('fortress_code'),
+    sb.from('quran_student_assessment').select('current_surah_no').eq('plan_id',planId).maybeSingle(),
+  ]);
+  if(!plan) return '<div class="card">الخطة غير موجودة</div>';
+  const wards = wardsRaw;
+  const wardIds = (wards||[]).map(w=>w.id);
+  const [{ data: sys }, { data: stu }, { data: station }, { data: forts }, progAll, statsResp, lastHifzResp] = await Promise.all([
+    sb.from('quran_systems').select('name,path_key').eq('id',plan.system_id).maybeSingle(),
+    sb.from('students').select('full_name').eq('id',plan.student_id).maybeSingle(),
+    sb.from('quran_stations').select('*').eq('id',plan.current_station_id).maybeSingle(),
+    sb.from('quran_fortresses').select('*').eq('system_id',plan.system_id),
+    qFetchProgress(wardIds), // تقدّم النافذة المعروضة فقط (صغيرة وثابتة الحجم)
+    sb.rpc('quran_plan_report_stats', { p_plan_id: planId }), // الأرقام الإجمالية للخطة كلها من القاعدة
+    sb.from('quran_plan_wards').select('id,surah_no,surah_name,amount_label').eq('plan_id',planId).eq('fortress_code','new_hifz').not('surah_no','is',null).order('planned_date',{ascending:false}).limit(1),
+  ]);
+  const fortMap = {}; (forts||[]).forEach(f=>{ fortMap[f.code]=f; });
+  let progMap = {};
+  (progAll||[]).forEach(p=>{ progMap[p.ward_id]=p; });
+  const today = qTodayStr();
+  let totalDays, total, done, pct, lateC, earlyC;
+  const stats = !statsResp.error && statsResp.data && !statsResp.data.error ? statsResp.data : null;
+  if(stats){
+    totalDays = stats.total_days||0; total = stats.total||0; done = stats.done||0;
+    pct = total ? Math.round(done/total*100) : 0; lateC = stats.late||0; earlyC = stats.early||0;
+  } else {
+    // احتياط متوافق مع ما قبل تشغيل SETUP.sql الجديد: نحسب من نافذة العرض فقط
+    // (رقم تقريبي وليس دقيقاً لكل الخطة، لحين تشغيل السكربت الذي يفعّل الدالة)
+    const uniqDates = new Set((wards||[]).map(w=>w.planned_date));
+    totalDays = uniqDates.size; total = (wards||[]).length;
+    done  = Object.values(progMap).filter(p=>p.status==='done').length;
+    pct   = total ? Math.round(done/total*100) : 0;
+    lateC = (wards||[]).filter(w=>w.planned_date<today&&(!progMap[w.id]||progMap[w.id].status!=='done')).length;
+    earlyC= Object.values(progMap).filter(p=>p.is_early&&p.status==='done').length;
+  }
+
+  // group by date
+  const byDate = {};
+  (wards||[]).forEach(w=>{ if(!byDate[w.planned_date]) byDate[w.planned_date]=[]; byDate[w.planned_date].push(w); });
+  const dates = Object.keys(byDate).sort();
+  const DAYS = ['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+
+  const statsRow = `<div class="qreport-grid" style="margin-bottom:18px">
+    <div class="qrstat"><span class="qrsv">${ar(totalDays)}</span><div class="qrsl">إجمالي الأيام</div></div>
+    <div class="qrstat"><span class="qrsv">${ar(total)}</span><div class="qrsl">إجمالي الأوراد</div></div>
+    <div class="qrstat"><span class="qrsv" style="color:var(--emerald)">${ar(done)}</span><div class="qrsl">منجَز</div></div>
+    <div class="qrstat gold"><span class="qrsv">${ar(pct)}٪</span><div class="qrsl">نسبة التقدم</div></div>
+    <div class="qrstat rose"><span class="qrsv">${ar(lateC)}</span><div class="qrsl">متأخرات</div></div>
+    <div class="qrstat" style="border-color:var(--gold)"><span class="qrsv" style="color:var(--gold)">${ar(earlyC)}</span><div class="qrsl">مبكر 🚀</div></div>
+  </div>`;
+
+  // "بوصلة الخطة" — رؤية واضحة لحدود المحطة الحقيقية وموقف الطالب الفعلي فيها،
+  // بدل ما يفضل غامض "الحفظ ماشي على إيه" — تحديدًا مطلوبة من المعلم بعد ما
+  // اتأكد إن حدود المحطات كانت بيانات نص حر مش فعلية
+  let compassHtml = '';
+  if(station){
+    const isReview = station.station_kind==='review';
+    const kindLabel = isReview ? '🔄 محطة مراجعة بحتة' : '📖 محطة حفظ';
+    let rangeHtml = '';
+    if(!isReview && station.boundary_surah_from && station.boundary_surah_to){
+      const bLo = Math.min(station.boundary_surah_from, station.boundary_surah_to);
+      const bHi = Math.max(station.boundary_surah_from, station.boundary_surah_to);
+      const sFrom = surahByNo(station.boundary_surah_from), sTo = surahByNo(station.boundary_surah_to);
+      // محطة محصورة داخل نفس السورة (بداية/إتمام): نعرض مدى الآيات بدل تكرار
+      // نفس اسم السورة مرتين بلا فائدة (زي "البقرة ← البقرة")
+      const rangeLabel = (bLo===bHi && station.boundary_ayah_from && station.boundary_ayah_to)
+        ? `${esc(sFrom?.name||'—')} (من الآية ${ar(station.boundary_ayah_from)} إلى ${ar(station.boundary_ayah_to)})`
+        : `${esc(sFrom?.name||'—')} ← ${esc(sTo?.name||'—')}`;
+      // آخر ورد حفظ جديد في الخطة كلها (استعلام صغير مستقل بدل الاعتماد على
+      // نافذة العرض المحدودة) — ضروري لأن "بوصلة الخطة" لازم تعكس الموقف الحقيقي
+      // حتى لو كان آخر ورد حفظ خارج نطاق الأيام المعروضة افتراضياً
+      const lastHifzWards = (lastHifzResp&&lastHifzResp.data) || [];
+      const lastHifz = lastHifzWards[0] || null;
+      const finished = hasStationBoundaryFinished(lastHifzWards, station);
+      rangeHtml = `<div class="qpvrow"><span>حدود الحفظ الجديد</span><b>${rangeLabel}</b></div>
+        <div class="qpvrow"><span>آخر موقف في الخطة</span><b>${lastHifz?esc(lastHifz.surah_name)+' • '+esc(lastHifz.amount_label||''):'لم يبدأ بعد'}</b></div>
+        <div class="qpvrow"><span>حالة الحد</span><b style="color:${finished?'var(--emerald)':'var(--gold)'}">${finished?'✅ وصلت الخطة لحد المحطة':'⏳ لسه جاري داخل الحدود'}</b></div>`;
+    } else if(!isReview){
+      rangeHtml = `<div class="qpvrow"><span>حدود الحفظ الجديد</span><b style="color:var(--muted)">غير محددة لهذه المحطة</b></div>`;
+    }
+    compassHtml = `<div class="card" style="margin-bottom:18px"><div class="ch"><h3>${mi('map')} بوصلة الخطة — ${esc(station.name)}</h3></div>
+      <div class="qpv">
+        <div class="qpvrow"><span>نوع المحطة</span><b>${kindLabel}</b></div>
+        ${rangeHtml}
+      </div>
+    </div>`;
+  }
+
+  const backBtn = role==='teacher' ? `<button class="qback" onclick="navigate('qplans')">← الرجوع</button>` : '';
+  const title = role==='teacher' ? 'خطة '+esc(stu?stu.full_name:'') : 'خطتي الكاملة';
+  const hint = esc(sys?sys.name:'')+' · '+(plan.status==='active'?'نشطة':plan.status==='paused'?'متوقفة':'—');
+
+  // export + edit buttons
+  const actBtns = `<div class="qexport-btns">
+    <button onclick="qExportPlanPDF('${esc(planId)}')">${mi('printer')} طباعة PDF</button>
+    ${role==='teacher'?`<button onclick="qExportPlanExcel('${esc(planId)}')">${mi('chart')} تصدير Excel</button><button onclick="qShowEditPanel('${esc(planId)}')">${mi('gear')} تعديل الخطة</button>`:''}
+  </div>`;
+  const editPanel = role==='teacher' ? `<div class="qedit-panel" id="qEditPanel_${esc(planId)}">
+    <h4>⚙️ تعديل الخطة</h4>
+    <div class="qform" style="margin-bottom:14px">
+      <div class="qrow">
+        <div>
+          <label>حالة الخطة</label>
+          <select id="qEPStatus_${esc(planId)}">
+            <option value="active" ${plan.status==='active'?'selected':''}>✅ نشطة</option>
+            <option value="paused" ${plan.status==='paused'?'selected':''}>⏸️ متوقفة مؤقتاً</option>
+            <option value="completed" ${plan.status==='completed'?'selected':''}>🏁 مكتملة</option>
+          </select>
+        </div>
+        <div>
+          <label>ملاحظة للتعديل</label>
+          <input type="text" id="qEPNote_${esc(planId)}" placeholder="سبب التعديل" />
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-sm" onclick="qUpdatePlanStatus('${esc(planId)}',this)">${mi('save')} حفظ الحالة</button>
+        <button class="btn-sm ghost" onclick="qRescheduleRemaining('${esc(planId)}')">${mi('refresh')} إعادة جدولة المتبقي</button>
+        ${role==='teacher'?`<button class="btn-sm gold" onclick="qCheckTransition('${esc(planId)}')">${mi('cap')} فحص الانتقال للمحطة التالية</button>`:''}
+        ${role==='teacher'?`<button class="btn-sm" style="background:var(--emerald);color:#fff" onclick="qCatchUpModal('${esc(planId)}')">${mi('refresh')} استدراك (تقديم الخطة)</button>`:''}
+      </div>
+    </div>
+  </div>` : '';
+
+  const daysHtml = qBuildPlanDaysHtml(dates, byDate, progMap, fortMap, today, plan, role);
 
   // نفتح تلقائياً "اليوم" + أي يوم سابق لسه فيه متأخرات لم تُنجز
   setTimeout(()=>{
@@ -9108,7 +9182,17 @@ async function qRenderFullPlan(planId, role='student'){
     document.querySelectorAll('.qplan-day[data-haslatewards="1"]').forEach(d=>d.classList.add('open'));
   },100);
 
-  return backBtn + pageHead(title, hint) + compassHtml + statsRow + actBtns + editPanel + daysHtml;
+  // كاش خفيف يتيح لـ qLoadMoreDays تحميل نوافذ أيام إضافية عند الطلب فقط،
+  // من غير ما يعيد جلب/بناء بيانات الخطة كلها من جديد
+  SESSION._qPlanCtx = { planId, plan, fortMap, today };
+
+  const daysWrap = `<div class="qplan-days" id="qplanDays_${esc(planId)}" data-winstart="${esc(winStartStr)}" data-winend="${esc(winEndStr)}">
+    <button class="btn-sm ghost" id="qLoadPast_${esc(planId)}" onclick="qLoadMoreDays('${esc(planId)}','${esc(role)}','past')" style="width:100%;margin-bottom:10px">${mi('refresh')} عرض أيام سابقة أقدم</button>
+    <div id="qplanDaysInner_${esc(planId)}">${daysHtml}</div>
+    <button class="btn-sm ghost" id="qLoadFuture_${esc(planId)}" onclick="qLoadMoreDays('${esc(planId)}','${esc(role)}','future')" style="width:100%;margin-top:10px">${mi('refresh')} عرض أيام قادمة أبعد</button>
+  </div>`;
+
+  return backBtn + pageHead(title, hint) + compassHtml + statsRow + actBtns + editPanel + daysWrap;
 }
 // هل الحفظ الجديد في هذه المحطة وصل فعلاً لحدها المحدد (مش بس نسبة إنجاز عامة)؟
 // أدق إشارة اكتمال لمحطة حفظ: آخر ورد حفظ جديد بيلمس طرف الحد (مش مجرد % مكتمل)

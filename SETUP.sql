@@ -79,6 +79,7 @@ begin
 
   select jsonb_build_object(
     'total', count(w.id),
+    'total_days', count(distinct w.planned_date),
     'done', count(*) filter (where p.status='done'),
     'late', count(*) filter (where w.planned_date < current_date and (p.status is null or p.status<>'done')),
     'early', count(*) filter (where p.is_early and p.status='done'),
