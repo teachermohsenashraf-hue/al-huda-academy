@@ -2769,7 +2769,7 @@ const MENUS = {
   ]},
   student:{ skin:'s-emerald', title:'لوحة الطالب', sections:[
     {label:'مساري', items:[['roadmap',mi('map'),'خطة مساري'],['myhalqa',mi('mosque'),'حلقتي']]},
-    {label:'قسم القرآن', items:[['qtoday',mi('book'),'ورد اليوم'],['qmyplan',mi('calendar'),'خطتي الكاملة']]},
+    {label:'قسم القرآن', items:[['qtoday',mi('book'),'ورد اليوم']]},
     {label:'حلقتي', items:[['choose',mi('chooseTeacher'),'معلمي'],['myparent',mi('family'),'ولي أمري']]},
     {label:'عام', items:[['chat',mi('chat'),'الرسائل'],['renewal',mi('refresh'),'تجديد اشتراكي']]},
     {label:'حسابي', items:[['mydata',mi('lock'),'بياناتي']]},
@@ -6243,9 +6243,19 @@ const HUSOON_BRIEF=[
   ['مراجعة البعيد','تثبيت القديم موزّعاً على الأسبوع.'],
   ['ورد السماع','وجهان سماعاً يومياً بصوت متقن.'],
 ];
-PAGES.student_roadmap=async function(){ setTop('خطة مساري','خطة متوقعة لسير المسار ومدته');
+PAGES.student_roadmap=async function(){
   const s=await myStudentRow(); if(!s) return noJourneyMsg('student');
   if(s.enrollment_status!=='active') return enrollGateMsg(s.enrollment_status);
+  // 🔴 دمج بناءً على طلب صريح: "خطتي الكاملة" أُزيلت — بمجرد ما يبقى للطالب خطة
+  // حقيقية أنشأها المعلم، "خطة مساري" تتحوّل تلقائياً لعرض نفس التفاصيل اليومية
+  // الفعلية (بدل الخطة الاسترشادية العامة)، فمفيش داعي لصفحتين منفصلتين
+  const { data: realPlan } = await sb.from('quran_student_plans').select('*').eq('login_id',ME.id).eq('status','active').maybeSingle();
+  if(realPlan){
+    setTop('خطة مساري','');
+    applyAbsenceShift(realPlan); // مهمة صيانة في الخلفية (لا تُنتظَر)
+    return await qRenderFullPlan(realPlan.id, 'student');
+  }
+  setTop('خطة مساري','خطة متوقعة لسير المسار ومدته');
   if(!s.quran_path) return `<div class="card" style="text-align:center;padding:36px"><div class="empty-ic">${mi('map')}</div><h3 style="color:var(--navy-deep)">لم تختر مساراً بعد</h3><p style="color:var(--muted)">اذهب إلى «مساري» واختر مسارك لتظهر خطته.</p></div>`;
   const rm=ROADMAPS[s.quran_path];
   if(!rm) return '<div class="card"><p style="color:var(--muted)">لا توجد خطة لهذا المسار.</p></div>';
@@ -8960,17 +8970,6 @@ async function qSaveStudentNote(wardId, note){
   if(error) console.error('qSaveStudentNote failed:',error);
 }
 
-/* ─── صفحة خطتي الكاملة (للطالب) مع فلاتر وتقدم مبكر ─── */
-PAGES.student_qmyplan = async function(){
-  setTop('خطتي الكاملة','');
-  const s = await myStudentRow();
-  if(!s) return `<div class="qnoplan"><div class="nei">🌱</div><h3>لا بيانات</h3></div>`;
-  if(s.enrollment_status!=='active') return enrollGateMsg(s.enrollment_status);
-  const { data: plan } = await sb.from('quran_student_plans').select('*').eq('login_id',ME.id).eq('status','active').maybeSingle();
-  if(!plan) return await noPlanYetCard(s);
-  applyAbsenceShift(plan); // مهمة صيانة في الخلفية (لا تُنتظَر) — الصفحة ترسم فوراً، والإزاحة تنعكس في التحميل التالي إن لزمت
-  return await qRenderFullPlan(plan.id, 'student');
-};
 
 // 🔴 حل جذري للبطء: كانت هذه الدالة تجلب كل أوراد الخطة (مئات الصفوف لخطة
 // طويلة) دائماً، بصرف النظر عن طولها. الآن نعرض بشكل افتراضي نافذة زمنية
@@ -9182,7 +9181,7 @@ async function qRenderFullPlan(planId, role='student'){
   }
 
   const backBtn = role==='teacher' ? `<button class="qback" onclick="navigate('qplans')">← الرجوع</button>` : '';
-  const title = role==='teacher' ? 'خطة '+esc(stu?stu.full_name:'') : 'خطتي الكاملة';
+  const title = role==='teacher' ? 'خطة '+esc(stu?stu.full_name:'') : 'خطة مساري';
   const hint = esc(sys?sys.name:'')+' · '+(plan.status==='active'?'نشطة':plan.status==='paused'?'متوقفة':'—');
 
   // export + edit buttons
@@ -10055,7 +10054,7 @@ PAGES.student_qnotifs = async function(){
     const payload = typeof n.payload==='string' ? JSON.parse(n.payload||'{}') : (n.payload||{});
     // الضغط على أي تنبيه يمسحه نهائياً (مش بس ينتقل ويسيبه زي ما هو) — ده اللي
     // كان يخلي نفس التنبيه يفضل ظاهر إلى الأبد حتى بعد قراءته والتعامل معه
-    return `<div class="qalert" data-notif-id="${n.id}" onclick="qDismissNotif(${n.id}${meta.page?`,'${meta.page}'`:''})" style="background:${meta.bg};cursor:pointer">
+    return `<div class="qalert" data-notif-id="${esc(n.id)}" onclick="qDismissNotif('${esc(n.id)}'${meta.page?`,'${meta.page}'`:''})" style="background:${meta.bg};cursor:pointer">
       <div class="qai" style="background:${meta.bg}">${meta.icon}</div>
       <div class="qab"><b>${esc(meta.title(payload))}</b><small>${esc(meta.sub)}</small></div>
       <div class="qat">${qAgo(n.created_at)}</div>
