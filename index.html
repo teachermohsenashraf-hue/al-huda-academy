@@ -2886,6 +2886,7 @@ async function refreshMenuDots(){
 
 async function navigate(page){
   qUnsubscribePlanRealtime(); // ننهي أي اشتراك تحديث لحظي من الصفحة السابقة قبل رسم الجديدة
+  chatUnsubscribeRealtime(); // نفس الشيء للمحادثات
   SESSION.page=page;
   document.querySelectorAll('#sidebar a').forEach(a=>a.classList.toggle('active',a.dataset.page===page));
   // نغلق قائمة الجوال فوراً عند الضغط على أي رابط — بدل ما ننتظر تحميل الصفحة
@@ -5395,6 +5396,7 @@ async function chatPage(){ setTop('الرسائل','تواصل مباشر');
   const active=list.find(c=>c.id===SESSION.activeChat);
   let msgs=[];
   if(active){ const { data }=await sb.from('messages').select('*').eq('chat_id',active.id).order('created_at'); msgs=data||[]; }
+  if(active) chatSubscribeRealtime(active.id, 'chatBody', renderMainBubble); // تحديث لحظي للرسائل الواردة
   return pageHead('الرسائل','محادثاتك')+
   `<div style="margin-bottom:14px"><button class="btn" onclick="newChatModal()">+ محادثة جديدة</button></div>
   <div class="chat-wrap">
@@ -5435,6 +5437,31 @@ async function notifyOtherChatParties(chatId, body){
     const others=(chat?.party_ids||[]).filter(id=>id!==ME.id);
     for(const uid of others){ await pushNotif(uid, '💬 رسالة جديدة من '+(ME.full_name||'مستخدم'), body.slice(0,80), 'message', chatId); }
   }catch(e){}
+}
+// ══════════════════════════════════════════════════════════════════════
+// 🔴 إصلاح حرج: صفحة المحادثة كانت تجلب الرسائل مرة واحدة فقط عند رسمها،
+// ولا تتحدّث إلا لو *أنا* اللي بعتّ رسالة (sendMsg بتعمل إعادة جلب يدوية).
+// لو الطرف التاني بعت وأنا فاتح نفس المحادثة، الإشعار كان يظهر في الجرس
+// (لأنه مسار منفصل تماماً) لكن الرسالة نفسها ما كانتش تظهر في الشات إلا
+// بإعادة تحميل الصفحة يدوياً. الاشتراك ده يضيف أي رسالة واردة فوراً بدون
+// أي عملية من المستخدم — بنفس فكرة تحديث تقدّم القرآن اللحظي.
+function chatSubscribeRealtime(chatId, bodyElId, renderFn){
+  chatUnsubscribeRealtime();
+  if(!chatId || !sb.channel) return;
+  try{
+    SESSION._chatChannel = sb.channel('chatmsgs_'+chatId)
+      .on('postgres_changes', { event:'INSERT', schema:'public', table:'messages', filter:'chat_id=eq.'+chatId }, (payload)=>{
+        const m = payload && payload.new; if(!m || m.sender_id===ME.id) return; // رسائلنا نضيفها فوراً يدوياً وقت الإرسال
+        const body = document.getElementById(bodyElId); if(!body) return;
+        const empty = body.querySelector('p'); if(empty) empty.remove();
+        body.insertAdjacentHTML('beforeend', renderFn(m));
+        body.scrollTop = body.scrollHeight;
+      })
+      .subscribe();
+  }catch(e){ console.error('chatSubscribeRealtime failed:',e); }
+}
+function chatUnsubscribeRealtime(){
+  if(SESSION._chatChannel){ try{ sb.removeChannel(SESSION._chatChannel); }catch(e){} SESSION._chatChannel=null; }
 }
 async function editMyMessage(msgId, oldBody, kind){
   const nb=prompt('عدّل رسالتك:', oldBody);
@@ -5741,6 +5768,7 @@ async function halqaChatBox(g, student, isTeacher){
   let msgs=[];
   if(chat){ const { data }=await sb.from('messages').select('*').eq('chat_id',chat.id).order('created_at'); msgs=data||[]; }
   SESSION._halqaChat={ groupId:g.id, parties, chatId:chat?.id||null };
+  if(chat) chatSubscribeRealtime(chat.id, 'halqaChatBody', renderHalqaBubble); // تحديث لحظي للرسائل الواردة
   return `<div class="halqa-chat">
     <div class="halqa-chat-body" id="halqaChatBody">${msgs.length?msgs.map(renderHalqaBubble).join(''):'<p style="color:var(--muted);text-align:center;margin-top:40px">ابدأ المحادثة 👋<br><span style="font-size:12px">نسّقا مواعيد الحصص وتابعا الحفظ هنا.</span></p>'}</div>
     <div class="chat-input"><input id="halqaChatInput" placeholder="اكتب رسالتك..." onkeydown="if(event.key==='Enter')sendHalqaMsg()"><button onclick="sendHalqaMsg()">${mi('arrowRight')} </button></div>
@@ -9657,6 +9685,9 @@ PAGES.teacher_qmonitor = async function(){
 
 /* ─── تقارير الطالب ─── */
 PAGES.student_qreport = async function(){
+  // أُزيلت هذه الصفحة من الطالب بالكامل بناءً على طلب صريح — حماية إضافية هنا
+  // حتى لو وُصل إليها بأي طريق غير رابط القائمة الجانبية (اللي شيلناه بالفعل)
+  if(ME.role==='student') return await navigate('qtoday');
   setTop('تقريري القرآني','');
   const s = await myStudentRow();
   if(!s) return `<div class="qnoplan"><div class="nei">📊</div><h3>لا بيانات</h3></div>`;
@@ -10059,10 +10090,9 @@ function qInjectStudentMenuExtras(){
   if(ME.role!=='student') return;
   const nav = document.querySelector('#sidebar .menu');
   if(!nav) return;
-  if(nav.querySelector('[data-page="qreport"]')) return; // already injected
-  const a1 = document.createElement('a');
-  a1.dataset.page='qreport'; a1.innerHTML='<span class="i">'+mi('chart')+'</span> تقريري القرآني';
-  a1.onclick=()=>navigate('qreport');
+  if(nav.querySelector('[data-page="qnotifs"]')) return; // already injected
+  // "تقريري القرآني" أُزيلت من الطالب بالكامل بناءً على طلب صريح — تبقى متاحة
+  // للمعلم/الإدارة فقط عبر صفحاتهم الخاصة
   const a2 = document.createElement('a');
   a2.dataset.page='qnotifs'; a2.innerHTML='<span class="i">'+mi('bell')+'</span> التنبيهات';
   a2.onclick=()=>navigate('qnotifs');
@@ -10070,9 +10100,8 @@ function qInjectStudentMenuExtras(){
   let qLabel = null;
   labels.forEach(l=>{ if(l.textContent.includes('قسم القرآن')) qLabel=l; });
   if(qLabel){
-    qLabel.parentNode.insertBefore(a1, qLabel.nextSibling);
-    qLabel.parentNode.insertBefore(a2, a1.nextSibling);
-  } else { nav.appendChild(a1); nav.appendChild(a2); }
+    qLabel.parentNode.insertBefore(a2, qLabel.nextSibling);
+  } else { nav.appendChild(a2); }
 }
 
 
