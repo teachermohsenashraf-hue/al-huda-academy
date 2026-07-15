@@ -2476,7 +2476,12 @@ async function doReset(){
   await afterAuth();
 }
 function loginForm(){
-  return `<div class="afield"><label>البريد الإلكتروني</label><input id="lgEmail" type="email" value="${LOGIN_PREFILL||''}" placeholder="example@mail.com"></div>
+  // زر البصمة يظهر فقط إذا كان الجهاز يدعم WebAuthn ويوجد passkey مسجّلة على
+  // هذا الجهاز لهذا الحساب (نتعرّف عليها من العلامة المحلية) — وإلا لا يظهر إطلاقاً
+  const showPk = (typeof window!=='undefined' && !!window.PublicKeyCredential) && !!pkStoredEmail();
+  const pkBlock = showPk ? `<button class="auth-btn" id="pkLoginBtn" onclick="doPasskeyLogin()" style="background:var(--navy-deep);display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:12px">${PK_ICON} الدخول بالبصمة</button>
+    <div style="display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px;margin-bottom:14px"><span style="flex:1;height:1px;background:var(--line)"></span>أو بكلمة المرور<span style="flex:1;height:1px;background:var(--line)"></span></div>` : '';
+  return pkBlock + `<div class="afield"><label>البريد الإلكتروني</label><input id="lgEmail" type="email" value="${LOGIN_PREFILL||pkStoredEmail()||''}" placeholder="example@mail.com"></div>
   <div class="afield"><label>كلمة المرور</label><input id="lgPass" type="password" placeholder="••••••••"></div>
   <div style="text-align:left;margin-bottom:14px"><a onclick="switchAuth('forgot')" style="font-size:13px;color:var(--emerald);cursor:pointer">نسيت كلمة المرور؟</a></div>
   <div class="turnstile-wrap"><div id="lgTurnstile" class="cf-turnstile" data-sitekey="${TURNSTILE_SITE_KEY}" data-callback="onTurnstileOk"></div></div>
@@ -2536,6 +2541,147 @@ let _turnstileToken=null;
 function onTurnstileOk(token){ _turnstileToken=token; }
 function pickSignupRole(r){ SIGNUP_ROLE=r; document.querySelectorAll('.rc').forEach(x=>x.classList.remove('on')); event.currentTarget.classList.add('on'); $('#studentExtra').classList.toggle('hidden',r!=='student'); }
 
+/* ══════════════════════════════════════════════════════════════════════
+   🔐 الدخول بالبصمة (WebAuthn / Passkeys) — طبقة اختيارية فوق الدخول العادي.
+   لا تُخزَّن أي بصمة؛ العميل يتعامل فقط مع البروتوكول الرسمي، والتحقق الفعلي
+   (التوقيع/التحدّي/الأصل) يتم في Edge Function بمفتاح service_role.
+   ══════════════════════════════════════════════════════════════════════ */
+const PK_FN = SUPABASE_URL + '/functions/v1/passkey';
+let LAST_AUTH_METHOD = 'password';
+const PK = {
+  supported(){ return typeof window!=='undefined' && !!window.PublicKeyCredential; },
+  async platformAvailable(){ try{ return this.supported() && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable(); }catch(e){ return false; } },
+  _b2ab(b){ const s=b.replace(/-/g,'+').replace(/_/g,'/'); const p=s.length%4?'='.repeat(4-s.length%4):''; const bin=atob(s+p); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i); return u.buffer; },
+  _ab2b(buf){ const u=new Uint8Array(buf); let s=''; for(let i=0;i<u.length;i++)s+=String.fromCharCode(u[i]); return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); },
+  async _call(action, payload, bearer){
+    const res = await fetch(PK_FN+'?action='+action, { method:'POST',
+      headers:{ 'content-type':'application/json', 'apikey':SUPABASE_ANON, 'authorization':'Bearer '+(bearer||SUPABASE_ANON) },
+      body: JSON.stringify(payload||{}) });
+    return await res.json();
+  },
+  deviceInfo(){
+    const ua=navigator.userAgent||''; let os='غير معروف', type='desktop', browser='متصفح';
+    if(/Windows/i.test(ua)) os='Windows'; else if(/Android/i.test(ua)){os='Android';type='mobile';}
+    else if(/iPhone|iPod/i.test(ua)){os='iOS';type='mobile';} else if(/iPad/i.test(ua)){os='iPadOS';type='tablet';}
+    else if(/Mac/i.test(ua)) os='macOS'; else if(/Linux/i.test(ua)) os='Linux';
+    if(/Edg\//i.test(ua)) browser='Edge'; else if(/OPR\//i.test(ua)) browser='Opera'; else if(/Chrome\//i.test(ua)) browser='Chrome';
+    else if(/Firefox\//i.test(ua)) browser='Firefox'; else if(/Safari\//i.test(ua)) browser='Safari';
+    return { os, type, browser, label: browser+' على '+os };
+  },
+  async register(){
+    const { data:{ session } } = await sb.auth.getSession();
+    if(!session) throw new Error('no_session');
+    const r1 = await this._call('register-options', {}, session.access_token);
+    if(!r1.options) throw new Error(r1.error||'options_failed');
+    const opt = r1.options;
+    opt.challenge = this._b2ab(opt.challenge);
+    opt.user.id = this._b2ab(opt.user.id);
+    if(opt.excludeCredentials) opt.excludeCredentials = opt.excludeCredentials.map(c=>({ ...c, id:this._b2ab(c.id) }));
+    const cred = await navigator.credentials.create({ publicKey: opt });
+    const att = { id:cred.id, rawId:this._ab2b(cred.rawId), type:cred.type,
+      response:{ clientDataJSON:this._ab2b(cred.response.clientDataJSON), attestationObject:this._ab2b(cred.response.attestationObject),
+        transports: cred.response.getTransports? cred.response.getTransports():undefined },
+      clientExtensionResults: cred.getClientExtensionResults? cred.getClientExtensionResults():{},
+      authenticatorAttachment: cred.authenticatorAttachment||undefined };
+    const r2 = await this._call('register-verify', { attestation:att, device:this.deviceInfo() }, session.access_token);
+    if(!r2.ok) throw new Error(r2.error||'verify_failed');
+    try{ localStorage.setItem('pk_email', (ME&&ME.email) || (session.user&&session.user.email) || ''); }catch(e){}
+    return true;
+  },
+  async login(email){
+    const r1 = await this._call('auth-options', { email });
+    if(!r1.options) throw new Error(r1.error||'options_failed');
+    if(!r1.hasPasskey) throw new Error('no_passkey');
+    const opt = r1.options;
+    opt.challenge = this._b2ab(opt.challenge);
+    if(opt.allowCredentials) opt.allowCredentials = opt.allowCredentials.map(c=>({ ...c, id:this._b2ab(c.id) }));
+    const asr = await navigator.credentials.get({ publicKey: opt });
+    const assertion = { id:asr.id, rawId:this._ab2b(asr.rawId), type:asr.type,
+      response:{ clientDataJSON:this._ab2b(asr.response.clientDataJSON), authenticatorData:this._ab2b(asr.response.authenticatorData),
+        signature:this._ab2b(asr.response.signature), userHandle: asr.response.userHandle? this._ab2b(asr.response.userHandle):undefined },
+      clientExtensionResults: asr.getClientExtensionResults? asr.getClientExtensionResults():{},
+      authenticatorAttachment: asr.authenticatorAttachment||undefined };
+    const r2 = await this._call('auth-verify', { email, assertion });
+    if(!r2.ok || !(r2.token_hash||r2.email_otp)) throw new Error(r2.error||'verify_failed');
+    let vErr;
+    if(r2.token_hash){ ({ error:vErr } = await sb.auth.verifyOtp({ token_hash:r2.token_hash, type:'magiclink' })); }
+    if(vErr && r2.email_otp){ ({ error:vErr } = await sb.auth.verifyOtp({ email, token:r2.email_otp, type:'email' })); }
+    if(vErr) throw new Error(vErr.message||'session_failed');
+    return true;
+  }
+};
+function pkStoredEmail(){ try{ return localStorage.getItem('pk_email')||''; }catch(e){ return ''; } }
+const PK_ICON = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4"/><path d="M14 13.12c0 2.38 0 6.38-1 8.88"/><path d="M17.29 21.02c.12-.6.43-2.3.5-3.02"/><path d="M2 12a10 10 0 0 1 18-6"/><path d="M2 16h.01"/><path d="M21.8 16c.2-2 .131-5.354 0-6"/><path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2"/><path d="M8.65 22c.21-.66.45-1.32.57-2"/><path d="M9 6.8a6 6 0 0 1 9 5.2v2"/></svg>';
+// الدخول بالبصمة من شاشة الدخول
+async function doPasskeyLogin(){
+  const email = ($('#lgEmail')?.value.trim()) || pkStoredEmail();
+  if(!email){ toast('اكتب بريدك أولاً ثم اضغط الدخول بالبصمة'); $('#lgEmail')?.focus(); return; }
+  const btn=$('#pkLoginBtn'); const orig=btn?btn.innerHTML:''; if(btn){ btn.disabled=true; btn.innerHTML='جارٍ التحقق…'; }
+  try{
+    LAST_AUTH_METHOD='passkey';
+    await PK.login(email);
+    await afterAuth();
+  }catch(e){
+    // فشل/إلغاء/انتهاء مهلة = لا قفل ولا خروج، نعود بهدوء لكلمة المرور
+    if(btn){ btn.disabled=false; btn.innerHTML=orig; }
+    if(e && e.message==='no_passkey'){ toast('لا توجد بصمة مسجّلة لهذا البريد على هذا الجهاز'); try{ localStorage.removeItem('pk_email'); }catch(_){}
+      renderAuthBody(); return; }
+    if(e && (e.name==='NotAllowedError'||e.name==='AbortError')) return; // ألغى المستخدم — بصمت
+    toast('تعذّر الدخول بالبصمة، استخدم كلمة المرور');
+  }
+}
+// عرض تفعيل البصمة بعد أول دخول ناجح على جهاز يدعمها (مرة واحدة)
+async function maybeOfferPasskey(){
+  try{
+    if(!ME || !ME.id || !ME.email) return;
+    if(!(await PK.platformAvailable())) return;
+    if(pkStoredEmail()===ME.email) return;                       // مفعّلة على هذا الجهاز بالفعل
+    if(localStorage.getItem('pk_prompted_'+ME.id)) return;       // عُرضت من قبل ولم يفعّلها
+    $('#modalHost').innerHTML = `<div class="modal-bg show" onclick="if(event.target===this)pkDismissOffer()"><div class="modal" style="text-align:center;max-width:420px">
+      <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--emerald),var(--emerald-deep));display:grid;place-items:center;margin:0 auto 14px;color:#fff">${PK_ICON}</div>
+      <h3 style="color:var(--navy-deep);font-family:Amiri;margin-bottom:8px">دخول أسرع بالبصمة؟</h3>
+      <p style="color:var(--muted);font-size:14px;line-height:1.9;margin-bottom:18px">فعّل تسجيل الدخول ببصمة الإصبع أو التعرّف على الوجه على هذا الجهاز، لتدخل حسابك في لحظة دون كتابة كلمة المرور. تبقى كلمة المرور متاحة دائماً كخيار احتياطي.</p>
+      <button class="btn" id="pkOfferBtn" style="width:100%;margin-bottom:8px" onclick="pkEnableFromOffer()">${PK_ICON} تفعيل البصمة</button>
+      <button class="btn ghost" style="width:100%" onclick="pkDismissOffer()">لاحقاً</button>
+    </div></div>`;
+  }catch(e){}
+}
+function pkDismissOffer(){ try{ if(ME) localStorage.setItem('pk_prompted_'+ME.id,'1'); }catch(e){} closeModal(); }
+async function pkEnableFromOffer(){
+  const btn=$('#pkOfferBtn'); if(btn){ btn.disabled=true; btn.innerHTML='جارٍ التفعيل…'; }
+  try{
+    await PK.register();
+    try{ if(ME) localStorage.setItem('pk_prompted_'+ME.id,'1'); }catch(e){}
+    closeModal(); toast('✅ تم تفعيل الدخول بالبصمة على هذا الجهاز');
+  }catch(e){
+    if(btn){ btn.disabled=false; btn.innerHTML=PK_ICON+' تفعيل البصمة'; }
+    if(e && (e.name==='NotAllowedError'||e.name==='AbortError')){ pkDismissOffer(); return; }
+    toast('تعذّر التفعيل الآن، يمكنك المحاولة لاحقاً من «الأمان وتسجيل الدخول»');
+  }
+}
+
+/* ══ إدارة الجلسات — سجل منطقي فوق جلسات Supabase (لا نلمس auth.sessions) ══ */
+function localSessionId(){ try{ return localStorage.getItem('session_id')||''; }catch(e){ return ''; } }
+async function forceSignOut(){ try{ localStorage.removeItem('session_id'); }catch(e){} try{ await sb.auth.signOut(); }catch(e){} location.reload(); }
+async function ensureSessionRegistered(method){
+  try{
+    const uid = ME? ME.id : (await sb.auth.getUser()).data.user?.id;
+    if(!uid) return;
+    const sid = localSessionId();
+    if(sid){
+      const { data } = await sb.from('user_sessions').select('revoked_at').eq('id',sid).maybeSingle();
+      if(data && data.revoked_at){ await forceSignOut(); return; }  // أُنهيت عن بُعد = خروج فقط في هذه الحالة
+      if(data){ sb.rpc('touch_my_session',{ p_id:sid }); return; }  // جلسة صالحة — لمسة نشاط
+      // data=null: معرّف قديم/لحساب آخر على نفس المتصفح — لا نُخرج، ننشئ جلسة جديدة
+      try{ localStorage.removeItem('session_id'); }catch(e){}
+    }
+    const info=PK.deviceInfo();
+    const { data } = await sb.from('user_sessions').insert({ user_id:uid, device_label:info.label, device_type:info.type,
+      os:info.os, browser:info.browser, method:method||LAST_AUTH_METHOD||'password' }).select('id').maybeSingle();
+    if(data&&data.id){ try{ localStorage.setItem('session_id',data.id); }catch(e){} }
+  }catch(e){}
+}
+
 async function doLogin(){
   const email=$('#lgEmail').value.trim(), pass=$('#lgPass').value;
   if(!email||!pass){ toast('أدخل البريد وكلمة المرور'); return; }
@@ -2552,6 +2698,7 @@ async function doLogin(){
     _turnstileToken=null;
     return;
   }
+  LAST_AUTH_METHOD='password';
   await afterAuth();
 }
 async function doSignup(){
@@ -2619,6 +2766,8 @@ async function afterAuth(){
   let { data:prof } = await sb.from('profiles').select('*').eq('id',user.id).single();
   if(!prof){ await sb.from('profiles').insert({ id:user.id, role:'parent', full_name:user.email.split('@')[0], email:user.email }); ({ data:prof }=await sb.from('profiles').select('*').eq('id',user.id).single()); }
   ME=prof;
+  // تسجيل/التحقق من جلسة هذا الجهاز (يُنهي الخروج تلقائياً لو أُبطلت عن بُعد)
+  ensureSessionRegistered(LAST_AUTH_METHOD);
   // معالجة دعوات الربط: هل دُعي هذا المستخدم؟
   try{ await processLinkInvites(); }catch(e){ console.error('link invites:',e); }
   // استعادة النيّة المحفوظة (مسار ضغطه قبل الدخول الإلزامي)
@@ -2658,8 +2807,10 @@ function enterDashboard(){
   buildShell(); qInjectStudentMenuExtras(); navigate(ME.role==='student'?'roadmap':'dash');
   subscribeToNotifs(); requestNotifPermission();
   setTimeout(()=>{ maybeStartTour(); loadNotifications(); maybeShowWelcomeBook(); maybeCheckExpiryReminder(); }, 400);
+  // عرض تفعيل البصمة بعد ما تستقر اللوحة (لا يزاحم الجولة/الترحيب)
+  setTimeout(()=>{ if(!document.querySelector('#modalHost .modal-bg')) maybeOfferPasskey(); }, 2600);
 }
-async function logout(){ if(NOTIF_CHANNEL){ try{ sb.removeChannel(NOTIF_CHANNEL); }catch(e){} NOTIF_CHANNEL=null; } await sb.auth.signOut(); location.reload(); }
+async function logout(){ if(NOTIF_CHANNEL){ try{ sb.removeChannel(NOTIF_CHANNEL); }catch(e){} NOTIF_CHANNEL=null; } try{ localStorage.removeItem('session_id'); }catch(e){} await sb.auth.signOut(); location.reload(); }
 
 function hideAll(){ ['setupScreen','landing','authScreen','shell','setupWarn'].forEach(id=>$('#'+id)?.classList.add('hidden')); }
 
@@ -2777,6 +2928,8 @@ const MENUS = {
     {label:'حسابي', items:[['mydata',mi('lock'),'بياناتي']]},
   ]},
 };
+// "الأمان وتسجيل الدخول" متاح لكل الأدوار — نُضيفه مرة واحدة بدل تكراره في كل قائمة
+Object.values(MENUS).forEach(m=>{ if(m&&m.sections) m.sections.push({ label:'الأمان', items:[['security',mi('shield'),'الأمان وتسجيل الدخول']] }); });
 
 /* ============================================================
    الجولة التعريفية (لكل دور حسب صلاحياته)
@@ -3179,6 +3332,114 @@ PAGES.parent_mydata=async function(){ setTop('بياناتي','بيانات حس
     ${myDataRow('عدد الأبناء المسجّلين',ar((kids||[]).length))}
   </div>`+myDataPasswordBlock();
 };
+/* ══════ صفحة "الأمان وتسجيل الدخول" (لكل الأدوار) ══════ */
+const PK_EVENT_AR = {
+  passkey_registered:'✅ تفعيل الدخول بالبصمة', passkey_register_failed:'⚠️ فشل تفعيل البصمة',
+  passkey_auth_success:'🔓 دخول ناجح بالبصمة', passkey_auth_failed:'⚠️ فشل دخول بالبصمة',
+  passkey_deleted:'🗑️ حذف بصمة جهاز', passkey_auth_unknown_cred:'⚠️ محاولة بمفتاح غير معروف',
+  session_revoked:'🚪 إنهاء جلسة', sessions_revoked_all:'🚪 إنهاء كل الجلسات الأخرى',
+};
+function pkAgo(ts){ if(!ts) return '—'; const d=Math.floor((Date.now()-new Date(ts))/1000);
+  if(d<60) return 'الآن'; if(d<3600) return 'منذ '+ar(Math.floor(d/60))+' دقيقة';
+  if(d<86400) return 'منذ '+ar(Math.floor(d/3600))+' ساعة'; return 'منذ '+ar(Math.floor(d/86400))+' يوم'; }
+async function securityPage(){
+  setTop('الأمان وتسجيل الدخول','أجهزتك الموثوقة وجلساتك');
+  const supported = (typeof window!=='undefined' && !!window.PublicKeyCredential);
+  const platform = supported ? await PK.platformAvailable().catch(()=>false) : false;
+  const [{ data:creds }, { data:sessions }, { data:audit }] = await Promise.all([
+    sb.from('webauthn_credentials').select('*').eq('user_id',ME.id).order('created_at',{ascending:false}),
+    sb.from('user_sessions').select('*').eq('user_id',ME.id).is('revoked_at',null).order('last_active_at',{ascending:false}),
+    sb.from('auth_audit_log').select('*').eq('user_id',ME.id).order('created_at',{ascending:false}).limit(20),
+  ]);
+  const mySid = localSessionId();
+  const thisDeviceHasPk = pkStoredEmail()===ME.email;
+
+  // (١) تفعيل البصمة على هذا الجهاز
+  let pkCard;
+  if(!supported){
+    pkCard = `<p style="color:var(--muted);font-size:13.5px;line-height:1.9">متصفحك أو جهازك الحالي لا يدعم الدخول بالبصمة (WebAuthn). جرّب متصفحاً حديثاً على جهاز يدعم بصمة الإصبع أو التعرّف على الوجه.</p>`;
+  } else if(thisDeviceHasPk){
+    pkCard = `<div style="display:flex;align-items:center;gap:10px;background:rgba(27,77,62,0.08);border-radius:12px;padding:14px 16px"><span style="color:var(--emerald)">${PK_ICON}</span><div style="flex:1"><b style="color:var(--navy-deep)">مفعّلة على هذا الجهاز</b><br><span style="color:var(--muted);font-size:12.5px">تقدر تدخل حسابك بالبصمة من شاشة الدخول مباشرة.</span></div></div>
+      <p style="color:var(--muted);font-size:12.5px;margin-top:10px">لإلغائها من هذا الجهاز، احذف مفتاحه من قائمة الأجهزة أدناه.</p>`;
+  } else {
+    pkCard = `<p style="color:var(--muted);font-size:13.5px;line-height:1.9;margin-bottom:14px">فعّل الدخول ببصمة الإصبع / التعرّف على الوجه على هذا الجهاز لتدخل في لحظة دون كلمة مرور. تبقى كلمة المرور متاحة دائماً كخيار احتياطي.</p>
+      <button class="btn" id="pkSetBtn" onclick="pkEnableFromSettings()" ${platform?'':'disabled title="لا يوجد مصادِق بيومتري على هذا الجهاز"'} style="display:inline-flex;align-items:center;gap:8px">${PK_ICON} تفعيل الدخول بالبصمة</button>`;
+  }
+
+  // (٢) الأجهزة الموثوقة (Passkeys)
+  const devRows = (creds||[]).length ? (creds||[]).map(c=>`<div class="sec-row">
+      <div class="sec-ic">${c.device_type==='mobile'?'📱':c.device_type==='tablet'?'📲':'💻'}</div>
+      <div class="sec-body"><b>${esc(c.device_label||'جهاز')}</b><span>${esc([c.os,c.browser].filter(Boolean).join(' · ')||'—')} • سُجّل ${pkAgo(c.created_at)} • آخر استخدام ${pkAgo(c.last_used_at)}</span></div>
+      <div class="sec-side"><span class="chip ${c.is_active?'g':''}" style="font-size:10.5px">${c.is_active?'نشط':'غير نشط'}</span>
+        <button class="btn-sm ghost" style="color:#E74C3C" onclick="pkDeleteCred('${esc(c.id)}')">حذف</button></div>
+    </div>`).join('') : '<p style="color:var(--muted);text-align:center;padding:18px;font-size:13.5px">لا أجهزة موثوقة بعد.</p>';
+
+  // (٣) الجلسات النشطة
+  const sesRows = (sessions||[]).length ? (sessions||[]).map(s=>{
+    const cur = s.id===mySid;
+    return `<div class="sec-row ${cur?'sec-cur':''}">
+      <div class="sec-ic">${s.device_type==='mobile'?'📱':s.device_type==='tablet'?'📲':'💻'}</div>
+      <div class="sec-body"><b>${esc(s.device_label||'جهاز')} ${cur?'<span class="chip g" style="font-size:10px">الجلسة الحالية</span>':''}</b><span>${esc(s.method==='passkey'?'دخول بالبصمة':'كلمة مرور')} • نشاط ${pkAgo(s.last_active_at)}</span></div>
+      <div class="sec-side">${cur?'':`<button class="btn-sm ghost" style="color:#E74C3C" onclick="sessRevoke('${esc(s.id)}')">إنهاء</button>`}</div>
+    </div>`; }).join('') : '<p style="color:var(--muted);text-align:center;padding:18px;font-size:13.5px">لا جلسات نشطة.</p>';
+
+  // (٤) سجل الأمان
+  const auditRows = (audit||[]).length ? (audit||[]).map(a=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:9px 2px;border-bottom:1px dashed var(--line);font-size:13px"><span>${esc(PK_EVENT_AR[a.event]||a.event)}</span><span style="color:var(--muted);font-size:11.5px;white-space:nowrap">${pkAgo(a.created_at)}</span></div>`).join('') : '<p style="color:var(--muted);text-align:center;padding:16px;font-size:13px">لا أحداث بعد.</p>';
+
+  return pageHead('الأمان وتسجيل الدخول','')+
+  `<style>
+    .sec-row{display:flex;align-items:center;gap:12px;padding:13px 4px;border-bottom:1px solid var(--line)}
+    .sec-row:last-child{border-bottom:none}
+    .sec-cur{background:rgba(27,77,62,0.05);border-radius:10px;padding:13px 10px}
+    .sec-ic{width:40px;height:40px;border-radius:10px;background:var(--cream-2);display:grid;place-items:center;font-size:19px;flex:none}
+    .sec-body{flex:1;min-width:0}.sec-body b{color:var(--navy-deep);font-size:14px;display:block}
+    .sec-body span{color:var(--muted);font-size:12px;display:block;line-height:1.6}
+    .sec-side{display:flex;align-items:center;gap:8px;flex:none}
+  </style>
+  <div class="card" style="margin-bottom:16px"><div class="ch"><h3>${PK_ICON} الدخول بالبصمة</h3></div>${pkCard}</div>
+  <div class="card" style="margin-bottom:16px"><div class="ch"><h3>${mi('shield')} الأجهزة الموثوقة</h3>${(creds||[]).length>1?`<button class="btn-sm ghost" style="color:#E74C3C" onclick="pkDeleteAllCreds()">حذف الكل</button>`:''}</div>${devRows}</div>
+  <div class="card" style="margin-bottom:16px"><div class="ch"><h3>${mi('dot')} الجلسات النشطة</h3>${(sessions||[]).length>1?`<button class="btn-sm ghost" style="color:#E74C3C" onclick="sessRevokeOthers()">إنهاء الجلسات الأخرى</button>`:''}</div>${sesRows}</div>
+  <div class="card"><div class="ch"><h3>${mi('clipboard')} سجل الأمان</h3></div>${auditRows}</div>`;
+}
+PAGES.admin_security = PAGES.executive_security = PAGES.supervisor_security = PAGES.teacher_security = PAGES.parent_security = PAGES.student_security = securityPage;
+async function pkEnableFromSettings(){
+  const btn=$('#pkSetBtn'); if(btn){ btn.disabled=true; btn.innerHTML='جارٍ التفعيل…'; }
+  try{ await PK.register(); toast('✅ تم تفعيل الدخول بالبصمة'); navigate('security'); }
+  catch(e){ if(btn){ btn.disabled=false; btn.innerHTML=PK_ICON+' تفعيل الدخول بالبصمة'; }
+    if(e&&(e.name==='NotAllowedError'||e.name==='AbortError')) return;
+    toast('تعذّر التفعيل، حاول مرة أخرى'); }
+}
+async function pkDeleteCred(id){
+  if(!confirm('حذف هذا الجهاز؟ لن يستطيع الدخول بالبصمة حتى تعيد تسجيلها.')) return;
+  const { error }=await sb.from('webauthn_credentials').delete().eq('id',id);
+  if(error){ toast('تعذّر الحذف'); return; }
+  sb.rpc('log_auth_event',{ p_event:'passkey_deleted', p_detail:null });
+  // لو لم يتبقَّ أي مفتاح لهذا المستخدم، نُنظّف علامة الدخول السريع على هذا الجهاز
+  try{ const { count }=await sb.from('webauthn_credentials').select('id',{count:'exact',head:true}).eq('user_id',ME.id);
+    if(!count) localStorage.removeItem('pk_email'); }catch(e){}
+  toast('🗑️ تم حذف الجهاز'); navigate('security');
+}
+async function pkDeleteAllCreds(){
+  if(!confirm('حذف كل الأجهزة الموثوقة؟ ستحتاج إعادة تفعيل البصمة على كل جهاز.')) return;
+  await sb.from('webauthn_credentials').delete().eq('user_id',ME.id);
+  sb.rpc('log_auth_event',{ p_event:'passkey_deleted', p_detail:{ all:true } });
+  try{ localStorage.removeItem('pk_email'); }catch(e){}
+  toast('🗑️ حُذفت كل الأجهزة'); navigate('security');
+}
+async function sessRevoke(id){
+  const { error }=await sb.from('user_sessions').update({ revoked_at:new Date().toISOString() }).eq('id',id);
+  if(error){ toast('تعذّر الإنهاء'); return; }
+  sb.rpc('log_auth_event',{ p_event:'session_revoked', p_detail:null });
+  if(id===localSessionId()){ await forceSignOut(); return; } // أنهى جلسته الحالية
+  toast('🚪 أُنهيت الجلسة'); navigate('security');
+}
+async function sessRevokeOthers(){
+  if(!confirm('إنهاء كل الجلسات الأخرى عدا هذا الجهاز؟')) return;
+  const { error }=await sb.rpc('revoke_other_sessions',{ p_keep:localSessionId()||null });
+  if(error){ toast('تعذّر الإنهاء'); return; }
+  sb.rpc('log_auth_event',{ p_event:'sessions_revoked_all', p_detail:null });
+  toast('🚪 أُنهيت الجلسات الأخرى'); navigate('security');
+}
 PAGES.student_challenge=async function(){ setTop('تحدي رجل الأسبوع',''); const s=await myStudentRow(); if(!s)return noStudentMsg(); if(s.enrollment_status!=='active')return enrollGateMsg(s.enrollment_status); return pageHead('تحدي رجل الأسبوع','عادات يومية')+`<div class="card"><div id="chalBox">${await challengeBox(s.id)}</div></div>`; };
 PAGES.student_worship=async function(){ setTop('متابعة العبادات',''); const s=await myStudentRow(); if(!s)return noStudentMsg(); if(s.enrollment_status!=='active')return enrollGateMsg(s.enrollment_status); return pageHead('متابعة العبادات','أسبوعك مع العبادة')+`<div class="card">${await worshipTable(s.id)}</div>`; };
 PAGES.student_rank=async function(){ setTop('الترتيب','تنافس شريف'); const s=await myStudentRow(); if(!s)return noStudentMsg(); if(s.enrollment_status!=='active')return enrollGateMsg(s.enrollment_status); return pageHead('ترتيب الحلقة','')+`<div class="card">${await leaderboard(s.group_id,s.id)}</div>`; };

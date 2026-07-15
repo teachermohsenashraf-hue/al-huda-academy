@@ -2646,3 +2646,133 @@ begin
     alter publication supabase_realtime add table quran_ward_progress;
   end if;
 end $$;
+
+-- ══════════════════════════════════════════════════════════════════════════
+-- 🔐 الدخول بالبصمة (WebAuthn / Passkeys) — طبقة مستقلة تماماً فوق نظام الدخول
+-- الحالي (Supabase Auth بالبريد/كلمة المرور يبقى الأساس دائماً وكخيار احتياطي).
+-- لا تُخزَّن أي بيانات بيومترية إطلاقاً — فقط ما يتطلبه معيار WebAuthn الرسمي:
+-- المفتاح العام (Public Key) ومُعرّف الاعتماد (Credential ID) وعدّاد التوقيع.
+-- التحقق الفعلي من التوقيع/التحدّي/الأصل يتم داخل Edge Function بمفتاح
+-- service_role (يتجاوز RLS)، وهذه الجداول تخدم التخزين والإدارة والتدقيق.
+-- ══════════════════════════════════════════════════════════════════════════
+
+-- (١) مفاتيح Passkey المسجَّلة — صف لكل جهاز/مفتاح لكل مستخدم
+create table if not exists webauthn_credentials (
+  id            uuid primary key default gen_random_uuid(),
+  user_id       uuid not null references auth.users(id) on delete cascade,
+  credential_id text not null unique,              -- base64url (مُعرّف الاعتماد)
+  public_key    text not null,                     -- base64url (المفتاح العام COSE) — لا سرّ فيه
+  counter       bigint not null default 0,         -- عدّاد التوقيع (منع إعادة الإرسال/الاستنساخ)
+  transports    text[],
+  aaguid        text,
+  device_label  text,                              -- اسم ودّي يظهر للمستخدم
+  device_type   text,                              -- mobile / desktop / tablet
+  os            text,
+  browser       text,
+  created_at    timestamptz not null default now(),
+  last_used_at  timestamptz,
+  is_active     boolean not null default true
+);
+create index if not exists idx_webauthn_cred_user on webauthn_credentials(user_id);
+alter table webauthn_credentials enable row level security;
+-- الكتابة (إدراج المفتاح العام) تتم حصراً من الخادم بعد التحقق (service_role يتجاوز RLS).
+-- المالك يقرأ ويحذف مفاتيحه فقط (الحذف = إلغاء الـ Passkey لهذا الجهاز).
+drop policy if exists "wac owner read" on webauthn_credentials;
+drop policy if exists "wac owner delete" on webauthn_credentials;
+create policy "wac owner read"   on webauthn_credentials for select to authenticated using (user_id = auth.uid());
+create policy "wac owner delete" on webauthn_credentials for delete to authenticated using (user_id = auth.uid());
+
+-- (٢) تحدّيات WebAuthn — كل عملية تُصدر challenge عشوائياً واحد الاستخدام، بمهلة
+-- قصيرة، لمنع Replay Attacks. لا وصول للعميل إطلاقاً (الخادم فقط عبر service_role).
+create table if not exists webauthn_challenges (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid references auth.users(id) on delete cascade,
+  email       text,
+  challenge   text not null,
+  purpose     text not null check (purpose in ('register','authenticate')),
+  created_at  timestamptz not null default now(),
+  expires_at  timestamptz not null,
+  consumed_at timestamptz
+);
+create index if not exists idx_wac_ch_email on webauthn_challenges(email, purpose, created_at desc);
+create index if not exists idx_wac_ch_expires on webauthn_challenges(expires_at);
+alter table webauthn_challenges enable row level security;  -- بلا سياسات = محظور على العملاء، الخادم فقط
+
+-- (٣) الجلسات النشطة — سجل منطقي فوق جلسات Supabase (لا نلمس auth.sessions
+-- الداخلية) يتيح للمستخدم رؤية أجهزته وإنهاء أي جلسة عن بُعد. كل جهاز يحفظ
+-- مُعرّف صفّه محلياً؛ وعند إبطاله يُسجَّل خروجه في الإقلاع التالي.
+create table if not exists user_sessions (
+  id            uuid primary key default gen_random_uuid(),
+  user_id       uuid not null references auth.users(id) on delete cascade,
+  device_label  text,
+  device_type   text,
+  os            text,
+  browser       text,
+  ip            text,
+  method        text,                              -- password / passkey
+  created_at    timestamptz not null default now(),
+  last_active_at timestamptz not null default now(),
+  revoked_at    timestamptz
+);
+create index if not exists idx_user_sessions_user on user_sessions(user_id, revoked_at);
+alter table user_sessions enable row level security;
+drop policy if exists "us owner read" on user_sessions;
+drop policy if exists "us owner insert" on user_sessions;
+drop policy if exists "us owner update" on user_sessions;
+drop policy if exists "us owner delete" on user_sessions;
+create policy "us owner read"   on user_sessions for select to authenticated using (user_id = auth.uid());
+create policy "us owner insert" on user_sessions for insert to authenticated with check (user_id = auth.uid());
+create policy "us owner update" on user_sessions for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "us owner delete" on user_sessions for delete to authenticated using (user_id = auth.uid());
+
+-- (٤) سجل الأحداث الأمنية — إنشاء/حذف Passkey، نجاح/فشل الدخول بالبصمة، جهاز
+-- جديد، إنهاء جلسة... متاح للمالك وللإدارة، بلا أي بيانات بيومترية.
+create table if not exists auth_audit_log (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid references auth.users(id) on delete set null,
+  event      text not null,
+  detail     jsonb,
+  ip         text,
+  ua         text,
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_auth_audit_user on auth_audit_log(user_id, created_at desc);
+alter table auth_audit_log enable row level security;
+drop policy if exists "audit owner read" on auth_audit_log;
+drop policy if exists "audit staff read" on auth_audit_log;
+drop policy if exists "audit self insert" on auth_audit_log;
+create policy "audit owner read" on auth_audit_log for select to authenticated using (user_id = auth.uid());
+create policy "audit staff read" on auth_audit_log for select to authenticated using (
+  is_admin() or my_role() = any(array['executive','supervisor']::user_role[])
+);
+create policy "audit self insert" on auth_audit_log for insert to authenticated with check (user_id = auth.uid() or user_id is null);
+
+-- مساعدات إدارة الجلسات (SECURITY DEFINER لضمان اقتصار الأثر على جلسات المالك فقط)
+create or replace function revoke_other_sessions(p_keep uuid)
+returns void language sql security definer set search_path = public as $$
+  update user_sessions set revoked_at = now()
+  where user_id = auth.uid() and revoked_at is null and (p_keep is null or id <> p_keep);
+$$;
+grant execute on function revoke_other_sessions(uuid) to authenticated;
+
+create or replace function touch_my_session(p_id uuid)
+returns void language sql security definer set search_path = public as $$
+  update user_sessions set last_active_at = now()
+  where id = p_id and user_id = auth.uid() and revoked_at is null;
+$$;
+grant execute on function touch_my_session(uuid) to authenticated;
+
+create or replace function log_auth_event(p_event text, p_detail jsonb default null)
+returns void language sql security definer set search_path = public as $$
+  insert into auth_audit_log(user_id, event, detail) values (auth.uid(), p_event, p_detail);
+$$;
+grant execute on function log_auth_event(text, jsonb) to authenticated;
+
+-- حلّ مُعرّف المستخدم من بريده — تُستدعى حصراً من Edge Function (service_role).
+-- ممنوحة لـ service_role فقط (لا authenticated/anon) لتفادي تعداد البريد (enumeration).
+create or replace function webauthn_user_by_email(p_email text)
+returns uuid language sql security definer set search_path = auth, public as $$
+  select id from auth.users where lower(email) = lower(p_email) limit 1;
+$$;
+revoke all on function webauthn_user_by_email(text) from public, anon, authenticated;
+grant execute on function webauthn_user_by_email(text) to service_role;
