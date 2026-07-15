@@ -33,6 +33,7 @@ drop policy if exists "quran_notifications owner all" on quran_notifications;
 drop policy if exists "quran_notifications insert any" on quran_notifications;
 drop policy if exists "quran_notifications owner read" on quran_notifications;
 drop policy if exists "quran_notifications owner write" on quran_notifications;
+drop policy if exists "quran_notifications owner delete" on quran_notifications;
 create policy "quran_notifications insert any" on quran_notifications for insert to authenticated with check (true);
 create policy "quran_notifications owner read" on quran_notifications for select to authenticated using (user_id = auth.uid());
 create policy "quran_notifications owner write" on quran_notifications for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
