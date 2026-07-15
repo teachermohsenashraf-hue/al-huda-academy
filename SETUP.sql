@@ -23,6 +23,21 @@ where a.id < b.id and a.user_id=b.user_id and a.kind=b.kind
   and a.created_at < now() - interval '1 hour';
 create index if not exists idx_quran_notifications_user_kind_created on quran_notifications(user_id, kind, created_at);
 
+-- 🔴 صفحة "تنبيهات القرآن" بقت تحذف التنبيه فور الضغط عليه (بدل ما يفضل ظاهراً
+-- للأبد بعد قراءته) — نتأكد إن صاحب التنبيه فعلاً يقدر يحذف صفه الخاص. مهم:
+-- الإدراج (INSERT) لازم يبقى مفتوحاً بلا تقييد بـ user_id=auth.uid()، لأن
+-- qFireNotif بينادَى من جلسة الطالب نفسه لينبّه المعلم (student_late) — لو
+-- قيّدنا الإدراج بالمالك فقط هيفشل بالضبط نفس فشل الكتابة اللي أصلحناه قبل كده
+alter table quran_notifications enable row level security;
+drop policy if exists "quran_notifications owner all" on quran_notifications;
+drop policy if exists "quran_notifications insert any" on quran_notifications;
+drop policy if exists "quran_notifications owner read" on quran_notifications;
+drop policy if exists "quran_notifications owner write" on quran_notifications;
+create policy "quran_notifications insert any" on quran_notifications for insert to authenticated with check (true);
+create policy "quran_notifications owner read" on quran_notifications for select to authenticated using (user_id = auth.uid());
+create policy "quran_notifications owner write" on quran_notifications for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "quran_notifications owner delete" on quran_notifications for delete to authenticated using (user_id = auth.uid());
+
 -- ------------------------------------------------------------
 -- ٠-م) 🔴 إصلاح حرج في الأداء: "تقريري القرآني" و"خطتي الكاملة" كانا يجلبان كل
 --      أوراد الخطة (مئات الصفوف لخطة طويلة) ثم يمرّران كل معرّفاتها لاستعلام

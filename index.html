@@ -10013,9 +10013,25 @@ async function qCheckAndFireNotifications(planId){
     if(pct>=100) await qFireNotif(plan.login_id,'station_complete',{ pct });
   }
 }
+// نص عربي مختصر لكل نوع تنبيه قرآني — نفس المضمون الظاهر في صفحة "تنبيهات
+// القرآن"، مُستخدَم هنا كمان لتغذية الجرس العلوي (كان له جدول notifications
+// منفصل تماماً عن quran_notifications، فتنبيهات القرآن ما كانتش تظهر فيه إطلاقاً)
+function qNotifTitleBody(kind, payload){
+  const p = payload||{};
+  switch(kind){
+    case 'late_wards': return { title:`لديك ${ar(p.count||0)} ورد متأخر`, body:'اضغط لعرض أوراد متأخرة وإنجازها' };
+    case 'student_late': return { title:`طالب متأخر في ${ar(p.count||0)} ورد`, body:'راجع الطالب' };
+    case 'near_station_end': return { title:`أنجزت ${ar(p.pct||0)}٪ من المحطة!`, body:'قريباً من نهاية المحطة' };
+    case 'station_complete': return { title:'أتممت المحطة — ماشاء الله!', body:'تواصل مع معلمك للانتقال' };
+    default: return { title:kind, body:'' };
+  }
+}
 async function qFireNotif(userId, kind, payload){
   if(!userId) return;
   try{ await sb.from('quran_notifications').insert({ user_id:userId, kind, payload:JSON.stringify(payload), created_at:new Date().toISOString() }); }catch(e){}
+  // نغذّي الجرس العلوي بنفس التنبيه — بدون هذا كانت تنبيهات القرآن مرئية فقط
+  // داخل صفحتها الخاصة ولا تظهر في الجرس أبداً
+  try{ const { title, body } = qNotifTitleBody(kind, payload); await pushNotif(userId, title, body, 'system', kind); }catch(e){}
 }
 
 /* ─── صفحة التنبيهات ─── */
@@ -10037,8 +10053,9 @@ PAGES.student_qnotifs = async function(){
   const html = (notifs||[]).map(n=>{
     const meta = NOTIF_MAP[n.kind] || { icon:'🔔', bg:'#f5f5f5', title:()=>n.kind, sub:'' };
     const payload = typeof n.payload==='string' ? JSON.parse(n.payload||'{}') : (n.payload||{});
-    const clickable = meta.page ? ` onclick="navigate('${meta.page}')" style="background:${meta.bg};cursor:pointer"` : ` style="background:${meta.bg}"`;
-    return `<div class="qalert"${clickable}>
+    // الضغط على أي تنبيه يمسحه نهائياً (مش بس ينتقل ويسيبه زي ما هو) — ده اللي
+    // كان يخلي نفس التنبيه يفضل ظاهر إلى الأبد حتى بعد قراءته والتعامل معه
+    return `<div class="qalert" data-notif-id="${n.id}" onclick="qDismissNotif(${n.id}${meta.page?`,'${meta.page}'`:''})" style="background:${meta.bg};cursor:pointer">
       <div class="qai" style="background:${meta.bg}">${meta.icon}</div>
       <div class="qab"><b>${esc(meta.title(payload))}</b><small>${esc(meta.sub)}</small></div>
       <div class="qat">${qAgo(n.created_at)}</div>
@@ -10047,6 +10064,12 @@ PAGES.student_qnotifs = async function(){
   try{ await sb.from('quran_notifications').update({ read_at:new Date().toISOString() }).eq('user_id',ME.id).is('read_at',null); }catch(e){}
   return pageHead('تنبيهات القرآن','') + html;
 };
+// حذف تنبيه قرآني فور الضغط عليه — ثم الانتقال لصفحته المرتبطة إن وُجدت
+async function qDismissNotif(id, page){
+  try{ await sb.from('quran_notifications').delete().eq('id', id); }catch(e){}
+  const el = document.querySelector(`[data-notif-id="${id}"]`); if(el) el.remove();
+  if(page) navigate(page);
+}
 PAGES.teacher_qnotifs = PAGES.student_qnotifs;
 
 /* ─── صفحة المشرف: نظرة عامة قرآن ─── */
