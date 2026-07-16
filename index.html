@@ -3407,7 +3407,7 @@ async function pkEnableFromSettings(){
   try{ await PK.register(); toast('✅ تم تفعيل الدخول بالبصمة'); navigate('security'); }
   catch(e){ if(btn){ btn.disabled=false; btn.innerHTML=PK_ICON+' تفعيل الدخول بالبصمة'; }
     if(e&&(e.name==='NotAllowedError'||e.name==='AbortError')) return;
-    toast('تعذّر التفعيل، حاول مرة أخرى'); }
+    toast('تعذّر التفعيل: '+(e&&(e.message||e.name)||'?')); }
 }
 async function pkDeleteCred(id){
   if(!confirm('حذف هذا الجهاز؟ لن يستطيع الدخول بالبصمة حتى تعيد تسجيلها.')) return;
