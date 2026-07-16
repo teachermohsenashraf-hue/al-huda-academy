@@ -2572,8 +2572,9 @@ const PK = {
     const { data:{ session } } = await sb.auth.getSession();
     if(!session) throw new Error('no_session');
     const r1 = await this._call('register-options', {}, session.access_token);
-    if(!r1.options) throw new Error(r1.error||'options_failed');
+    if(!r1.options) throw new Error(r1.error||('options_failed: '+JSON.stringify(r1)));
     const opt = r1.options;
+    if(!opt.user) throw new Error('no_user_field: '+JSON.stringify(r1).slice(0,300));
     opt.challenge = this._b2ab(opt.challenge);
     opt.user.id = this._b2ab(opt.user.id);
     if(opt.excludeCredentials) opt.excludeCredentials = opt.excludeCredentials.map(c=>({ ...c, id:this._b2ab(c.id) }));
