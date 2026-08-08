@@ -9713,6 +9713,8 @@ async function qRenderFullPlan(planId, role='student'){
         <button class="btn-sm ghost" onclick="qRescheduleRemaining('${esc(planId)}')">${mi('refresh')} إعادة جدولة المتبقي</button>
         ${role==='teacher'?`<button class="btn-sm gold" onclick="qCheckTransition('${esc(planId)}')">${mi('cap')} فحص الانتقال للمحطة التالية</button>`:''}
         ${role==='teacher'?`<button class="btn-sm" style="background:var(--emerald);color:#fff" onclick="qCatchUpModal('${esc(planId)}')">${mi('refresh')} استدراك (تقديم الخطة)</button>`:''}
+        ${role==='teacher'?`<button class="btn-sm ghost" onclick="qAddRemedialModal('${esc(planId)}')">➕ مراجعة علاجية</button>`:''}
+        <button class="btn-sm ghost" onclick="qShowEditHistory('${esc(planId)}')">📜 سجل التعديلات</button>
       </div>
     </div>
   </div>` : '';
@@ -9895,6 +9897,7 @@ async function qEditWard(wardId){
       <div class="field"><label>إلى آية</label><input id="qwEditTo" type="number" min="1" value="${w.ayah_to||1}"></div>
     </div>`:''}
     <div class="field"><label>وصف الورد (كما يظهر للطالب)</label><input id="qwEditLabel" value="${esc(w.amount_label||'')}"></div>
+    <div class="field"><label>سبب التعديل <span class="hint">(يُسجَّل في سجل تعديلات الخطة)</span></label><input id="qwEditReason" placeholder="مثلاً: الطالب أظهر استعداداً لزيادة الحفظ"></div>
     <div class="field" style="display:flex;align-items:center;gap:8px;margin-top:6px"><input type="checkbox" id="qwRipple"><label for="qwRipple" style="margin:0">رحّل هذا التغيير على بقية أيام الخطة (إزاحة تلقائية للزيادة أو النقصان)</label></div>
     <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إلغاء</button><button class="btn" id="qwEditBtn" onclick="qSaveWardEdit('${esc(wardId)}',${isSurahBased})">${mi('check')} حفظ التعديل</button></div>
   </div></div>`;
@@ -9929,15 +9932,19 @@ async function qSaveWardEdit(wardId, isSurahBased){
   const { data:updated, error } = await sb.from('quran_plan_wards').update(payload).eq('id',wardId).select();
   if(error){ if(btn){ btn.disabled=false; btn.textContent='حفظ التعديل'; } toast('تعذّر الحفظ: '+error.message); return; }
   if(!updated||!updated.length){ if(btn){ btn.disabled=false; btn.textContent='حفظ التعديل'; } toast('⚠️ لم يُحفَظ أي تغيير — تأكد أنك المعلم المسؤول عن هذه الخطة'); return; }
+  const reason = $('#qwEditReason')?.value.trim() || null;
+  let rippled = false;
   // الترحيل: لو المعلم فعّل الخيار، نحسب فرق عدد الآيات (زيادة/نقصان) عن اليوم الأصلي
   // وننقله كإزاحة على أيام الخطة اللاحقة (نفس فكرة applyAbsenceShift لكن بسبب تعديل يدوي مش غياب)
   if($('#qwRipple')?.checked && isSurahBased && before){
     const oldCount=(before.ayah_to||1)-(before.ayah_from||1)+1;
     const diff=newAyahCount-oldCount;
     if(diff!==0){
-      try{ await qRippleWardChange(before.plan_id, before.planned_date, wardId, diff); }catch(e){ console.error('qRippleWardChange:',e); }
+      try{ await qRippleWardChange(before.plan_id, before.planned_date, wardId, diff); rippled=true; }catch(e){ console.error('qRippleWardChange:',e); }
     }
   }
+  await logPlanEdit(before?.plan_id, 'ward_edited', reason, before, payload,
+    rippled ? 'تعديل هذا اليوم مع ترحيل الفرق على بقية أيام الخطة' : 'تعديل هذا اليوم فقط — بقية الخطة كما هي');
   if(btn){ btn.disabled=false; btn.textContent='حفظ التعديل'; }
   closeModal();
   toast('✅ تم تعديل ورد هذا اليوم');
@@ -9974,6 +9981,18 @@ async function qSaveTeacherNote(wardId, clear){
 }
 
 /* ─── تعديل الخطة ─── */
+// سجل تعديلات الخطة الموحّد — كل أداة تعديل (حالة، ورد بعينه، إعادة جدولة،
+// استدراك، انتقال محطة) تسجّل هنا: مين عدّل، امتى، السبب، التعديل، وأثره
+// المتوقع على موعد الهدف. كانت المحاولة القديمة الوحيدة (على quran_system_audit)
+// تفشل بصمت لأي معلم عادي فعلياً (RLS مقصورة على admin/executive فقط).
+async function logPlanEdit(planId, action, reason, before, after, impact){
+  try{
+    await sb.from('quran_plan_edits').insert({
+      plan_id:planId, actor_id:ME.id, actor_role:ME.role, action, reason:reason||null,
+      before_data:before||null, after_data:after||null, expected_impact:impact||null
+    });
+  }catch(e){ console.error('logPlanEdit failed:', e); }
+}
 function qShowEditPanel(planId){ const el=document.getElementById('qEditPanel_'+planId); if(el) el.classList.toggle('open'); }
 async function qUpdatePlanStatus(planId, btn){
   if(btn){ btn.disabled=true; btn.textContent='جارٍ الحفظ...'; }
@@ -9986,8 +10005,8 @@ async function qUpdatePlanStatus(planId, btn){
     const { data:updated, error } = await sb.from('quran_student_plans').update({ status, updated_at:new Date().toISOString() }).eq('id',planId).select();
     if(error){ toast('تعذّر الحفظ: '+error.message); return; }
     if(!updated||!updated.length){ toast('⚠️ لم يُحفَظ أي تغيير — تأكد أنك المعلم المسؤول عن هذه الخطة'); return; }
-    // audit — .catch() مش موجودة على query builder سوبابيز قبل await، فلازم try/catch
-    try{ await sb.from('quran_system_audit').insert({ system_id:null, actor_id:ME.id, action:'plan_status_changed', before_data:{status:before?.status}, after_data:{status, note}, created_at:new Date().toISOString() }); }catch(e){}
+    await logPlanEdit(planId, 'status_changed', note, {status:before?.status}, {status},
+      status==='paused'?'الخطة متوقفة مؤقتاً — لا أوراد جديدة تُحسَب متأخرة حتى الاستئناف':status==='completed'?'الخطة اكتملت':'الخطة نشطة');
     toast('✅ تم تحديث الحالة');
     navigate(SESSION.page);
   } finally {
@@ -9996,6 +10015,7 @@ async function qUpdatePlanStatus(planId, btn){
 }
 async function qRescheduleRemaining(planId){
   if(!confirm('سيتم إعادة توزيع الأوراد المتبقية بدءاً من اليوم. هل توافق؟')) return;
+  const reason = prompt('سبب إعادة الجدولة (اختياري، يُسجَّل في سجل التعديلات):') || null;
   const today = qTodayStr();
   // Mark old future wards for deletion and re-generate
   const { data: futureWards } = await sb.from('quran_plan_wards').select('id').eq('plan_id',planId).gt('planned_date',today);
@@ -10010,6 +10030,7 @@ async function qRescheduleRemaining(planId){
   await sb.from('quran_student_plans').update({ start_date:today, updated_at:new Date().toISOString() }).eq('id',planId);
   try {
     const res = await generatePlanSchedule(planId);
+    await logPlanEdit(planId, 'rescheduled_remaining', reason, null, {from_date:today}, 'إلغاء كل الأوراد المستقبلية وإعادة توليدها من اليوم');
     toast('🔄 تمت إعادة الجدولة — '+ar(res.count)+' ورد جديد');
   } catch(e){ toast('تعذّر: '+e.message); }
   navigate(SESSION.page);
@@ -10024,6 +10045,7 @@ function qCatchUpModal(planId){
       <p class="qmdesc">لو الطالب سابق خطته فعليًا، اختر كام "يوم دراسة" عايز تقدّم بيه كل الأيام المتبقية. أيام الراحة المحددة للطالب هتتخطّى تلقائيًا ومش هتتأثر.</p>
       <div class="qform">
         <div><label>عدد أيام الدراسة</label><input type="number" id="qCatchUpDays" value="1" min="1" max="60" /></div>
+        <div><label>السبب <span class="hint">(يُسجَّل في سجل التعديلات)</span></label><input id="qCatchUpReason" placeholder="مثلاً: الطالب أنجز أوراده الحالية بتفوّق"></div>
       </div>
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
         <button class="btn ghost" onclick="qCloseModal()">إلغاء</button>
@@ -10045,6 +10067,8 @@ async function qCatchUpPlan(planId){
     const newDate = qShiftDateBySteps(w.planned_date, studyDays, -days);
     await sb.from('quran_plan_wards').update({ planned_date: newDate }).eq('id',w.id);
   }
+  const reason = $('#qCatchUpReason')?.value.trim() || null;
+  await logPlanEdit(planId, 'caught_up', reason, null, {days_advanced:days}, 'تقديم كل الأوراد المستقبلية '+days+' يوم دراسة — موعد الهدف يقترب بنفس القدر');
   qCloseModal();
   toast('✅ تم تقديم الخطة '+ar(days)+' يوم دراسة');
   navigate(SESSION.page);
@@ -10091,10 +10115,60 @@ async function qCheckTransition(planId){
     </div>
   </div>`;
 }
+// إضافة مراجعة علاجية / تصحيح تلاوة — ورد إضافي خارج جدول الخطة الأصلي، لا يؤثر
+// على أي يوم آخر مجدوَل. عبر RPC مخصّصة (quran_add_remedial_ward) تسجّل في سجل
+// التعديلات تلقائياً.
+function qAddRemedialModal(planId){
+  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1);
+  $('#qmodalHost').innerHTML = `<div class="qmodal" onclick="if(event.target===this)qCloseModal()">
+    <div class="qmbox">
+      <h2>➕ إضافة مراجعة علاجية</h2>
+      <p class="qmdesc">يوم إضافي خارج جدول الخطة الأصلي — مناسب لتصحيح تلاوة أو مراجعة عاجلة، بلا أي تأثير على بقية مواعيد الخطة.</p>
+      <div class="qform">
+        <div><label>التاريخ</label><input type="date" id="qRemDate" value="${tomorrow.toISOString().slice(0,10)}"></div>
+        <div><label>نوع الحصن</label><select id="qRemFortress">${QURAN_DEFAULT_FORTRESSES.map(f=>`<option value="${f.code}">${f.icon} ${f.name}</option>`).join('')}</select></div>
+        <div><label>وصف الورد</label><input id="qRemLabel" placeholder="مثلاً: مراجعة سورة البقرة — تصحيح تلاوة"></div>
+        <div><label>السبب التربوي <span class="hint">(يُسجَّل في سجل التعديلات)</span></label><input id="qRemReason" placeholder="مثلاً: أخطاء تلاوة متكررة تحتاج تثبيتاً"></div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+        <button class="btn ghost" onclick="qCloseModal()">إلغاء</button>
+        <button class="btn" id="qRemBtn" onclick="qSaveRemedial('${esc(planId)}')">${mi('check')} إضافة</button>
+      </div>
+    </div>
+  </div>`;
+}
+async function qSaveRemedial(planId){
+  const date=$('#qRemDate').value, fortress=$('#qRemFortress').value, label=$('#qRemLabel').value.trim(), reason=$('#qRemReason').value.trim();
+  if(!date){ toast('اختر التاريخ'); return; }
+  const btn=$('#qRemBtn'); if(btn){ btn.disabled=true; btn.textContent='جارٍ الإضافة...'; }
+  const { data:res, error } = await sb.rpc('quran_add_remedial_ward', { p_plan_id:planId, p_planned_date:date, p_fortress_code:fortress, p_amount_label:label||null, p_reason:reason||null });
+  if(btn){ btn.disabled=false; btn.textContent='➕ إضافة'; }
+  if(error || !res?.ok){ toast('تعذّر: '+(error?.message||res?.error||'')); return; }
+  qCloseModal(); toast('✅ أُضيفت المراجعة العلاجية'); navigate(SESSION.page);
+}
+// سجل تعديلات الخطة — من عدّل، امتى، السبب، وأثره المتوقع. مرئي للمعلم والإدارة
+// وأيضاً للطالب/وليّ الأمر (شفافية) حسب سياسة RLS على الجدول
+async function qShowEditHistory(planId){
+  const { data:rows } = await sb.from('quran_plan_edits').select('*, actor:profiles!quran_plan_edits_actor_id_fkey(full_name)').eq('plan_id',planId).order('created_at',{ascending:false}).limit(50);
+  const ACTION_AR = { status_changed:'تغيير حالة الخطة', ward_edited:'تعديل ورد يوم بعينه', rescheduled_remaining:'إعادة جدولة المتبقي', caught_up:'استدراك (تقديم الخطة)', station_transition:'انتقال لمحطة جديدة', add_remedial_ward:'إضافة مراجعة علاجية' };
+  const html = (rows||[]).length ? (rows||[]).map(r=>`<div style="padding:10px 4px;border-bottom:1px dashed var(--line)">
+      <div style="display:flex;justify-content:space-between;gap:8px"><b style="font-size:13.5px;color:var(--navy-deep)">${esc(ACTION_AR[r.action]||r.action)}</b><span style="color:var(--muted);font-size:11.5px;white-space:nowrap">${pkAgo(r.created_at)}</span></div>
+      <div style="font-size:12px;color:var(--muted);margin-top:2px">بواسطة ${esc(r.actor?.full_name||'—')}${r.reason?' — السبب: '+esc(r.reason):''}</div>
+      ${r.expected_impact?`<div style="font-size:11.5px;color:var(--emerald-deep);margin-top:2px">🎯 ${esc(r.expected_impact)}</div>`:''}
+    </div>`).join('') : '<p style="color:var(--muted);text-align:center;padding:20px;font-size:13px">لا تعديلات مسجَّلة على هذه الخطة بعد.</p>';
+  $('#qmodalHost').innerHTML = `<div class="qmodal" onclick="if(event.target===this)qCloseModal()">
+    <div class="qmbox">
+      <h2>📜 سجل تعديلات الخطة</h2>
+      <div style="max-height:420px;overflow-y:auto;margin-top:10px">${html}</div>
+      <div style="text-align:end;margin-top:14px"><button class="btn ghost" onclick="qCloseModal()">إغلاق</button></div>
+    </div>
+  </div>`;
+}
 async function qDoTransition(planId, nextStationId){
   if(!nextStationId){ toast('لا توجد محطة تالية'); return; }
   // Delete future wards, update station, regenerate
   const today = qTodayStr();
+  const { data: planBefore } = await sb.from('quran_student_plans').select('current_station_id').eq('id',planId).maybeSingle();
   const { data: futureWards } = await sb.from('quran_plan_wards').select('id').eq('plan_id',planId).gte('planned_date',today);
   if(futureWards?.length){
     const ids = futureWards.map(w=>w.id);
@@ -10104,6 +10178,8 @@ async function qDoTransition(planId, nextStationId){
   await sb.from('quran_student_plans').update({ current_station_id:nextStationId, start_date:today, updated_at:new Date().toISOString() }).eq('id',planId);
   try {
     const res = await generatePlanSchedule(planId);
+    await logPlanEdit(planId, 'station_transition', null, {station_id:planBefore?.current_station_id}, {station_id:nextStationId},
+      'إعادة توليد جدول الخطة بالكامل من اليوم بمنهج المحطة الجديدة');
     toast('🎉 انتقلت للمحطة التالية — '+ar(res.count)+' ورد جديد');
     qCloseModal();
     navigate(SESSION.page);
