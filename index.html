@@ -2762,6 +2762,34 @@ async function processLinkInvites(){
     }catch(e){ console.error('accept_link_invite exception:', e); }
   }
 }
+// شاشة إلزامية بملء الصفحة — لا وصول للوحة إلا بعد تغيير كلمة المرور المؤقّتة.
+// الجلسة أصلاً موثَّقة (المستخدم دخل بالفعل بكلمة المرور المؤقّتة)، فلا حاجة لإعادة
+// إدخالها هنا — فقط كلمة مرور جديدة يختارها هو بنفسه ولا يعرفها أي طرف ثالث.
+async function mustChangePasswordGate(){
+  hideAll(); $('#authScreen').classList.remove('hidden');
+  $('#authScreen').innerHTML = `<div class="auth-card" style="text-align:center;padding:32px 24px">
+    <div class="empty-ic">${mi('lock')}</div>
+    <h3 style="color:var(--navy-deep);margin:10px 0 6px">غيّر كلمة المرور أولاً</h3>
+    <p style="color:var(--muted);font-size:13.5px;line-height:1.8;margin-bottom:18px">دخلت بكلمة مرور مؤقّتة أُنشئت لك. اختر كلمة مرور جديدة تعرفها أنت وحدك قبل المتابعة.</p>
+    <div class="afield" style="text-align:right"><label>كلمة المرور الجديدة</label><input id="mcpNew" type="password" placeholder="٦ أحرف على الأقل"></div>
+    <div class="afield" style="text-align:right"><label>تأكيد كلمة المرور الجديدة</label><input id="mcpNew2" type="password" placeholder="أعد كتابتها"></div>
+    <button class="auth-btn" id="mcpBtn" onclick="submitMustChangePassword()">حفظ ومتابعة</button>
+  </div>`;
+}
+async function submitMustChangePassword(){
+  const np=$('#mcpNew').value, np2=$('#mcpNew2').value;
+  if(!np||np.length<6){ toast('كلمة المرور ٦ أحرف على الأقل'); return; }
+  if(np!==np2){ toast('كلمتا المرور غير متطابقتين'); return; }
+  const btn=$('#mcpBtn'); btn.disabled=true; btn.textContent='جارٍ الحفظ...';
+  const { error:pErr }=await sb.auth.updateUser({ password:np });
+  if(pErr){ btn.disabled=false; btn.textContent='حفظ ومتابعة'; toast('تعذّر: '+pErr.message); return; }
+  const { error:fErr }=await sb.from('profiles').update({ must_change_password:false }).eq('id',ME.id);
+  btn.disabled=false; btn.textContent='حفظ ومتابعة';
+  if(fErr){ toast('تعذّر تحديث الحالة: '+fErr.message); return; }
+  ME.must_change_password=false;
+  toast('✅ تم تغيير كلمة المرور');
+  await afterAuth();
+}
 async function afterAuth(){
   const { data:{ user } } = await sb.auth.getUser();
   if(!user) return;
@@ -2790,6 +2818,10 @@ async function afterAuth(){
     return;
   }
   ME=prof;
+  // إلزام تغيير كلمة المرور عند أول دخول لأي حساب أُنشئ/أُعيد تعيينه من طرف آخر
+  // (طالب أنشأ حساب وليّ أمره وشافها نصاً على الشاشة، أو إدارة أعادت تعيينها) —
+  // كانت هذه الحالات تترك كلمة مرور معروفة لطرف ثالث بلا أي إلزام بتغييرها أبداً
+  if(prof.must_change_password){ await mustChangePasswordGate(); return; }
   // تسجيل/التحقق من جلسة هذا الجهاز (يُنهي الخروج تلقائياً لو أُبطلت عن بُعد)
   ensureSessionRegistered(LAST_AUTH_METHOD);
   // معالجة دعوات الربط: هل دُعي هذا المستخدم؟
@@ -3237,14 +3269,27 @@ PAGES.student_dash = async function(){
   // عبادات) كانت تُنفَّذ متسلسلة دائماً حتى لطالب حفظ فقط (القسم مخفي عنده أصلاً).
   // نجلبها الآن بالتوازي مع حصون اليوم، وفقط عند الحاجة الفعلية لعرض القسم.
   const showTarbiya = s.track==='tarbiya' || s.track==='both';
-  const [hus, chalHtml, rankHtml, worshipHtml] = await Promise.all([
-    sb.from('husoon_marks').select('*').eq('student_id',s.id).order('hisn_no').then(r=>r.data||[]),
+  // مصدر "حصون اليوم" الحقيقي هو خطة الطالب الفعلية (quran_plan_wards/quran_ward_progress)
+  // وليس husoon_marks القديم المنفصل تمامًا عنها — كان مؤشر الإنجاز هنا يعرض بيانات
+  // ذاتية التسجيل بلا أي علاقة بالورد الحقيقي الذي يبنيه المعلم. نستخدم husoon_marks
+  // فقط كاحتياط مؤقّت للطلاب الذين لا خطة فعلية لهم بعد (لم يُنشئ معلمهم خطة القرآن)،
+  // حتى لا تنكسر لوحتهم قبل إنشائها.
+  const plan = await myActivePlan();
+  const [hus, husoonSection, chalHtml, rankHtml, worshipHtml] = await Promise.all([
+    plan ? Promise.resolve([]) : sb.from('husoon_marks').select('*').eq('student_id',s.id).order('hisn_no').then(r=>r.data||[]),
+    plan ? realFortressesTodayHTML(plan) : Promise.resolve(null),
     showTarbiya ? challengeBox(s.id) : Promise.resolve(''),
     showTarbiya ? leaderboard(s.group_id,s.id) : Promise.resolve(''),
     showTarbiya ? worshipTable(s.id) : Promise.resolve(''),
   ]);
-  const done=hus.filter(h=>h.state==='done').length, part=hus.filter(h=>h.state==='part').length;
-  const hp=Math.round((done+part*0.5)/(hus.length||1)*100);
+  let hp, husoonBoxHtml, husoonTitle='حصون اليوم';
+  if(plan){
+    hp = husoonSection.pct; husoonBoxHtml = husoonSection.html; husoonTitle = husoonSection.title;
+  } else {
+    const done=hus.filter(h=>h.state==='done').length, part=hus.filter(h=>h.state==='part').length;
+    hp=Math.round((done+part*0.5)/(hus.length||1)*100);
+    husoonBoxHtml = husoonRows(hus);
+  }
   return `<div class="hero-band e"><div style="display:flex;align-items:center;justify-content:space-between;gap:24px;position:relative;z-index:2;flex-wrap:wrap"><div><h1 style="font-size:25px;margin-bottom:6px;color:#fff">أنت تسير في خير، فلا تقف 🌟</h1><p style="color:rgba(255,255,255,0.85);font-size:15px;max-width:440px">حافظت على وردك ${ar(s.streak)} يوماً متتالياً. كلّ صفحة تتعب فيها اليوم نورٌ لك غداً.</p><div class="quran" style="font-size:17px;color:var(--gold-light);margin-top:10px">﴿ ورتّل القرآن ترتيلاً ﴾</div></div><div style="background:rgba(255,255,255,0.12);border:1px solid rgba(217,184,77,0.4);border-radius:18px;padding:16px 26px;text-align:center"><div style="font-family:Amiri;font-size:38px;line-height:1;color:var(--gold-light)">${ar(s.streak)}</div><div style="font-size:12.5px;color:rgba(255,255,255,0.8);margin-top:4px">يوماً 🔥</div></div></div></div>
   ${studentLevelBadgesHTML(s)}
   <!-- بطاقة حفظ اليوم السريعة -->
@@ -3254,7 +3299,7 @@ PAGES.student_dash = async function(){
   </div>
   <div class="stats">${statCard(mi('book'),'e',ar(s.pages),'صفحة محفوظة')}${statCard(mi('medal'),'g',ar(s.points),'نقطة')}${statCard(mi('check'),'e',pct(s.mastery),'الإتقان')}${statCard(mi('medal'),'n',s.rank===1?'الأول':'ال'+ar(s.rank),'ترتيبك')}</div>
   <div class="track-sec" data-track="quran"><div class="section-label"><span class="sl-t">📖 مسار القرآن</span><span class="sl-line"></span></div>
-    <div class="grid2"><div class="card"><div class="ch"><h3>حصون اليوم</h3><span class="tagline-sm">إنجاز ${pct(hp)}</span></div><div id="husoonBox">${husoonRows(hus)}</div></div>
+    <div class="grid2"><div class="card"><div class="ch"><h3>${esc(husoonTitle)}</h3><span class="tagline-sm">إنجاز ${pct(hp)}</span></div><div id="husoonBox">${husoonBoxHtml}</div></div>
     <div class="card"><div class="ch"><h3>إنجاز اليوم</h3></div><div style="text-align:center"><div class="ring"><svg width="150" height="150"><circle cx="75" cy="75" r="68" fill="none" stroke="#eee" stroke-width="13"/><circle cx="75" cy="75" r="68" fill="none" stroke="url(#sg)" stroke-width="13" stroke-linecap="round" stroke-dasharray="427" stroke-dashoffset="${427-427*hp/100}"/><defs><linearGradient id="sg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1B4D3E"/><stop offset="1" stop-color="#C9A227"/></linearGradient></defs></svg><div class="rc">${pct(hp)}</div></div><div style="color:var(--muted);font-size:13.5px">من حصون اليوم الخمسة</div></div></div></div>
     <div class="card"><div class="ch"><h3>${mi('map')} خطة مسارك</h3><button class="more" onclick="navigate('roadmap')">التفاصيل ←</button></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
@@ -3282,6 +3327,35 @@ function husoonRows(hus){ return hus.map(h=>{
   let r=h.state==='done'?'<span class="pill done">تمّ ✓</span>':h.state==='part'?'<span class="pill part">جزئي</span>':`<button class="btn-sm" onclick="markHisn(${h.id},${h.hisn_no})">تسجيل</button>`;
   return `<div class="hrow"><div class="hn">${ar(h.hisn_no)}</div><div class="htxt"><b>${h.hisn_name}</b><span>${h.detail||''}</span></div>${r}</div>`;
 }).join(''); }
+// نسخة "حصون اليوم" المبنية على المصدر الحقيقي (خطة الطالب الفعلية) — تُستخدم في
+// لوحة الطالب الرئيسية بدل husoonRows/husoon_marks كلما وُجدت خطة نشطة للطالب.
+// تعرض ملخصاً (فورتريس اليوم وحالتها) وتحيل التسجيل الفعلي لصفحة "ورد اليوم"
+// (qtoday) حيث يوجد سياق كل حصن الكامل (السورة/الآيات) بدل تكرار كل ذلك هنا.
+async function realFortressesTodayHTML(plan){
+  const today = qTodayStr();
+  const [{ data: tw }, forts] = await Promise.all([
+    sb.from('quran_plan_wards').select('id,fortress_code,fortress_id,is_rest_day').eq('plan_id',plan.id).eq('planned_date',today).order('fortress_code'),
+    fortressesFor(plan.system_id),
+  ]);
+  const todayWards = (tw||[]).filter(w=>!w.is_rest_day);
+  const fortMap = {}; (forts||[]).forEach(f=>{ fortMap[f.code]=f; });
+  if(!todayWards.length){
+    return { pct:100, title:'حصون اليوم', html:`<div class="hrow"><div class="htxt"><b>🌿 يوم راحة</b><span>لا ورد مجدوَل اليوم</span></div></div>` };
+  }
+  const progs = await qFetchProgress(todayWards.map(w=>w.id));
+  const progMap = qProgMapFromRows(progs);
+  const done = todayWards.filter(w=>progMap[w.id]?.status==='done').length;
+  const pct = Math.round(done/todayWards.length*100);
+  const html = todayWards.map(w=>{
+    const f = fortMap[w.fortress_code]||{}; const p = progMap[w.id];
+    const isDone = p?.status==='done';
+    const r = isDone
+      ? `<span class="pill done">تمّ ✓${p?.marked_by_role==='parent'?' (ولي الأمر)':p?.marked_by_role==='teacher'?' (المعلم)':''}</span>`
+      : `<button class="btn-sm" onclick="navigate('qtoday')">تسجيل</button>`;
+    return `<div class="hrow"><div class="hn">${f.icon||'🛡️'}</div><div class="htxt"><b>${esc(f.name||w.fortress_code)}</b></div>${r}</div>`;
+  }).join('');
+  return { pct, title:'حصون اليوم', html };
+}
 async function markHisn(id,no){ await sb.from('husoon_marks').update({state:'done'}).eq('id',id); toast('أحسنت! تم التسجيل'); navigate('dash'); }
 
 async function challengeBox(sid){
@@ -3335,9 +3409,11 @@ async function changeMyPassword(){
 PAGES.student_mydata=async function(){ setTop('بياناتي','بيانات تسجيلك وحسابك');
   const s=await myStudentRow(); if(!s) return noStudentMsg();
   return pageHead('بياناتي','بيانات تسجيلك وحسابك')+
-  `<div class="card"><div class="ch"><h3>${mi('child')} بيانات التسجيل</h3></div>
+  `<div class="card"><div class="ch"><h3>${mi('child')} بيانات التسجيل</h3><button class="btn-sm ghost" onclick="editMyStudentDataModal(${s.id},'${escJs(s.full_name||'')}')">${mi('pencil')} تعديل</button></div>
     ${myDataRow('الاسم',s.full_name)}
     ${myDataRow('البريد الإلكتروني',ME.email)}
+    ${myDataRow('رقم الهاتف',ME.phone)}
+    ${myDataRow('الدولة',ME.country)}
     ${myDataRow('العمر',s.age?ar(s.age)+' سنة':null)}
     ${myDataRow('النوع',s.gender==='male'?'ذكر':s.gender==='female'?'أنثى':null)}
     ${myDataRow('المسار',pathName(s.quran_path))}
@@ -3346,6 +3422,28 @@ PAGES.student_mydata=async function(){ setTop('بياناتي','بيانات ت�
     ${myDataRow('حالة الاشتراك',statusLabel(s.enrollment_status))}
   </div>`+myDataPasswordBlock();
 };
+// تعديل ذاتي آمن للاسم/الهاتف/الدولة — كانت هذه البيانات بلا أي واجهة تعديل
+// بعد التسجيل، رغم أنها الحقول الأكثر عرضة للخطأ الإملائي وقت التسجيل الأول
+function editMyStudentDataModal(studentId, curName){
+  $('#modalHost').innerHTML=`<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <h3 style="margin-bottom:14px">تعديل بياناتي</h3>
+    <div class="field"><label>الاسم الكامل</label><input id="edMyName" value="${esc(curName||'')}"></div>
+    <div class="field"><label>رقم الهاتف</label><input id="edMyPhone" value="${esc(ME.phone||'')}"></div>
+    <div class="field"><label>الدولة</label><select id="edMyCountry">${COUNTRIES.map(c=>`<option value="${c}" ${ME.country===c?'selected':''}>${c}</option>`).join('')}</select></div>
+    <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إلغاء</button><button class="btn" id="edMySaveBtn" onclick="saveMyStudentData(${studentId})">حفظ</button></div>
+  </div></div>`;
+}
+async function saveMyStudentData(studentId){
+  const name=$('#edMyName').value.trim(), phone=$('#edMyPhone').value.trim(), country=$('#edMyCountry').value;
+  if(!name){ toast('أدخل الاسم'); return; }
+  const btn=$('#edMySaveBtn'); btn.disabled=true; btn.textContent='جارٍ الحفظ...';
+  const { error:e1 }=await sb.from('students').update({ full_name:name }).eq('id',studentId);
+  const { error:e2 }=await sb.from('profiles').update({ phone, country }).eq('id',ME.id);
+  btn.disabled=false; btn.textContent='حفظ';
+  if(e1||e2){ toast('تعذّر الحفظ: '+((e1||e2).message)); return; }
+  ME.phone=phone; ME.country=country; invalidateStudentCache();
+  closeModal(); toast('✅ تم حفظ بياناتك'); navigate('mydata');
+}
 PAGES.parent_mydata=async function(){ setTop('بياناتي','بيانات حسابك');
   const kids=await myChildren();
   return pageHead('بياناتي','بيانات حسابك')+
@@ -4708,9 +4806,23 @@ async function setAtt(sid,status,btn){
   segPick(btn,status==='present'?'done':status==='late'?'part':'no');
   // حدّث نسبة الحضور التقريبية + سجّل في جدول attendance
   const today=new Date().toISOString().slice(0,10);
-  await sb.from('attendance').upsert({student_id:sid,day:today,status},{onConflict:'student_id,day'});
-  // عدّل نسبة الحضور الإجمالية بشكل بسيط
-  if(status==='absent'){ const {data:s}=await sb.from('students').select('attendance').eq('id',sid).single(); if(s)await sb.from('students').update({attendance:Math.max(0,(s.attendance||100)-2)}).eq('id',sid); }
+  const { error:attErr }=await sb.from('attendance').upsert({student_id:sid,day:today,status},{onConflict:'student_id,day'});
+  if(attErr){ toast('تعذّر حفظ الحضور: '+attErr.message); return; }
+  // عدّل نسبة الحضور الإجمالية بشكل بسيط، ونبّه ولي الأمر عند الغياب —
+  // كان غياب الطالب لا يُشعِر ولي الأمر بأي شكل، فيكتشفه فقط لو فتح شريط
+  // آخر ٧ أيام بنفسه في لوحته
+  if(status==='absent'){
+    const {data:s}=await sb.from('students').select('attendance,full_name,login_id,parent_id').eq('id',sid).single();
+    if(s){
+      const { error:updErr }=await sb.from('students').update({attendance:Math.max(0,(s.attendance||100)-2)}).eq('id',sid);
+      if(updErr){ toast('تعذّر تحديث نسبة الحضور: '+updErr.message); }
+      try{
+        const body=`سُجِّل غياب ${esc(s.full_name)} اليوم (${today}).`;
+        if(s.login_id) await pushNotif(s.login_id,'تسجيل غياب',body,'attendance',sid);
+        if(s.parent_id) await pushNotif(s.parent_id,'تسجيل غياب',body,'attendance',sid);
+      }catch(e){}
+    }
+  }
   toast(status==='present'?'✓ حاضر':status==='late'?'متأخر':'غائب');
 }
 async function setHifz(sid,kind,btn){
@@ -4954,36 +5066,18 @@ async function confirmPay(payId, studentId, pathId){
   const lockKey='pay:'+payId; if(_inFlightActions.has(lockKey)) return; _inFlightActions.add(lockKey);
   try{
   if(!confirm('تأكيد هذه الدفعة وتفعيل اشتراك الطالب؟')) return;
-  const nowIso=new Date().toISOString();
-  const today=nowIso.slice(0,10);
-  const { data:st }=await sb.from('students').select('enrollment_status,sub_end,full_name,login_id,parent_id').eq('id',studentId).single();
-  // هل الدفعة دي تجديد ولا التحاق أول؟ نعتمد على وجود طلب التحاق مرتبط بالدفعة نفسها (join_request_id)
-  // بدل حالة الطالب الحالية (enrollment_status)، لأن الحالة ممكن تفضل "active" من بيانات قديمة/تجريبية
-  // حتى لو دي فعلياً أول دفعة حقيقية بتتأكّد له — وده كان بيسبب توريث تاريخ تفعيل قديم غلط.
-  const { data:pay }=await sb.from('payments').select('join_request_id').eq('id',payId).single();
-  const isRenewal = !pay?.join_request_id;
-  // نقطة البداية: من نهاية الاشتراك الحالي إن لم ينتهِ (بنفس توقيته)، وإلا من الآن بالضبط
-  let base=new Date();
-  if(isRenewal && st.sub_end && new Date(st.sub_end)>base) base=new Date(st.sub_end);
-  // شهر ميلادي حقيقي (نفس اليوم في الشهر التالي) بدل +30 يوم ثابتة،
-  // اللي كانت بتختصر الشهور الطويلة (31 يوم) وتُطيل القصيرة (28/29 يوم).
-  const nextEnd=new Date(base.getTime());
-  nextEnd.setMonth(nextEnd.getMonth()+1);
-  const nextEndIso=nextEnd.toISOString();
-  await sb.from('payments').update({ status:'paid', paid_at:nowIso, confirmed_by:ME.id }).eq('id',payId);
-  // للالتحاق الأول (مش تجديد): نُفعّل الاشتراك بتاريخ مؤقّت من الآن، لكن نتركه "غير مثبَّت"
-  // (sub_anchored:false) لحين إنشاء أول حصة فعلية له — فمرور الوقت أثناء انتظار اختيار
-  // المعلم/إنشاء الحلقة (اللي ممكن ياخد أيام) ميقتطعش من أيام اشتراكه الحقيقية.
-  // التجديد مختلف: نقطة البداية أصلاً امتداد لاشتراك سابق مثبَّت فعلاً، فيبقى مثبَّتاً كما هو.
-  await sb.from('students').update({ enrollment_status:'active', sub_start:isRenewal?(st.sub_end||nowIso):nowIso, sub_end:nextEndIso, sub_anchored:isRenewal }).eq('id',studentId);
-  // إشعار فوري لصاحب الحساب (الطالب أو ولي أمره) بالتفعيل، مع توجيهه لاختيار المعلم
+  // نفس المنطق بالضبط (تجديد مقابل التحاق أول، شهر ميلادي حقيقي، sub_anchored) لكن
+  // كعملية واحدة ذرّية على السيرفر (RPC) بدل خطوتين منفصلتين من العميل بلا تحقق خطأ
+  // بينهما — فلا يعود ممكناً أن يُعلَّم الدفع "مؤكَّد" بينما تفعيل الاشتراك يفشل بصمت
+  const { data:res, error }=await sb.rpc('confirm_payment',{ p_payment_id:payId });
+  if(error || !res?.ok){ alert('تعذّر التأكيد: '+(error?.message||res?.error||'')); return; }
   try{
-    const title = isRenewal? '✅ تم تجديد الاشتراك' : '🎉 تم تفعيل اشتراكك';
-    const body = isRenewal? `تم تجديد اشتراك ${esc(st.full_name)} بنجاح، وحلقته مستمرة كما هي.` : `تم تأكيد إيصالك وتفعيل اشتراك ${esc(st.full_name)}. يمكنك الآن اختيار المعلم المناسب من «اختيار معلم».`;
-    if(st.login_id) await pushNotif(st.login_id, title, body, 'enrollment', studentId);
-    if(st.parent_id) await pushNotif(st.parent_id, title, body, 'enrollment', studentId);
+    const title = res.is_renewal? '✅ تم تجديد الاشتراك' : '🎉 تم تفعيل اشتراكك';
+    const body = res.is_renewal? `تم تجديد اشتراك ${esc(res.full_name)} بنجاح، وحلقته مستمرة كما هي.` : `تم تأكيد إيصالك وتفعيل اشتراك ${esc(res.full_name)}. يمكنك الآن اختيار المعلم المناسب من «اختيار معلم».`;
+    if(res.login_id) await pushNotif(res.login_id, title, body, 'enrollment', studentId);
+    if(res.parent_id) await pushNotif(res.parent_id, title, body, 'enrollment', studentId);
   }catch(e){}
-  toast(isRenewal?'✅ تم تجديد الاشتراك':'✅ تم التأكيد وتفعيل الاشتراك');
+  toast(res.is_renewal?'✅ تم تجديد الاشتراك':'✅ تم التأكيد وتفعيل الاشتراك');
   await navigate('confirm');
   } finally { _inFlightActions.delete(lockKey); }
 }
@@ -4991,7 +5085,13 @@ async function rejectPay(payId){
   const lockKey='pay:'+payId; if(_inFlightActions.has(lockKey)) return; _inFlightActions.add(lockKey);
   try{
     if(!confirm('رفض هذا الإيصال؟ سيُطلب من الطالب إعادة الرفع.')) return;
-    await sb.from('payments').update({ status:'rejected' }).eq('id',payId);
+    const { data:res, error }=await sb.rpc('reject_payment',{ p_payment_id:payId });
+    if(error || !res?.ok){ alert('تعذّر الرفض: '+(error?.message||res?.error||'')); return; }
+    try{
+      const body=`تعذّر تأكيد إيصال دفع ${esc(res.full_name)}. راجع صورة الإيصال والبيانات وأعد رفعه من «تجديد اشتراكي».`;
+      if(res.login_id) await pushNotif(res.login_id,'⚠️ إيصال الدفع مرفوض',body,'enrollment',res.student_id);
+      if(res.parent_id) await pushNotif(res.parent_id,'⚠️ إيصال الدفع مرفوض',body,'enrollment',res.student_id);
+    }catch(e){}
     toast('تم رفض الإيصال'); await navigate('confirm');
   } finally { _inFlightActions.delete(lockKey); }
 }
@@ -5038,7 +5138,15 @@ async function rejectSubsidy(reqId){
   const lockKey='subsidy:'+reqId; if(_inFlightActions.has(lockKey)) return; _inFlightActions.add(lockKey);
   try{
     if(!confirm('رفض طلب التخفيض؟')) return;
-    await sb.from('join_requests').update({ status:'rejected', reviewed_by:ME.id }).eq('id',reqId);
+    const { data:res, error }=await sb.rpc('reject_subsidy',{ p_request_id:reqId });
+    if(error || !res?.ok){ alert('تعذّر الرفض: '+(error?.message||res?.error||'')); return; }
+    // كانت هذه الحالة "طريق مسدود" فعلياً: الأسرة تفضل معلَّقة على شاشة الانتظار
+    // بلا أي تفسير أو خطوة تالية — الآن بيوصلها إشعار صريح
+    try{
+      const body=`تعذّرت الموافقة على طلب التخفيض لـ ${esc(res.full_name)}. تواصل مع الإدارة لمعرفة التفاصيل أو لمناقشة خيارات أخرى.`;
+      if(res.login_id) await pushNotif(res.login_id,'طلب التخفيض',body,'enrollment',res.student_id);
+      if(res.parent_id) await pushNotif(res.parent_id,'طلب التخفيض',body,'enrollment',res.student_id);
+    }catch(e){}
     toast('تم رفض الطلب'); await navigate('subsidy');
   } finally { _inFlightActions.delete(lockKey); }
 }
@@ -5418,6 +5526,7 @@ async function doResetPwd(){
   $('#rpBtn').disabled=false; $('#rpBtn').textContent='تعيين كلمة السر';
   if(error){ alert('تعذّر: '+error.message+'\n\nتأكّد من تشغيل سكربت إعادة التعيين في Supabase.'); return; }
   if(data&&data.ok===false){ alert('تعذّر: '+data.error); return; }
+  try{ await sb.rpc('log_admin_action',{ p_action:'reset_password', p_target_table:'auth.users', p_target_id:email, p_details:null }); }catch(e){}
   closeModal();
   $('#modalHost').innerHTML=`<div class="modal-bg show"><div class="modal" style="text-align:center">
     <div class="empty-ic">${mi('check')}</div>
@@ -5472,10 +5581,13 @@ async function saveStudent(editId){
   closeModal(); await navigate('users'); toast(editId?'✅ تم تعديل الطالب':'✅ أُضيف الطالب');
 }
 async function delStudent(id,name){
-  if(!confirm('متأكد من حذف الطالب «'+name+'»؟')) return;
-  const { error }=await sb.from('students').delete().eq('id',id);
-  if(error){ alert('تعذّر الحذف: '+error.message); return; }
-  await navigate('users'); toast('تم حذف الطالب');
+  const reason = prompt('سبب حذف الطالب «'+name+'» (اختياري، يُسجَّل في سجل التدقيق):') || null;
+  if(!confirm('متأكد من حذف الطالب «'+name+'»؟ سيُخفى من كل القوائم فورًا (بلا حذف نهائي للبيانات).')) return;
+  // حذف ناعم (soft-delete) عبر RPC موثوقة بدل DELETE نهائي — تُسجَّل من حذف ومتى وليه
+  // في admin_actions_log، ولا تفقد بيانات المدفوعات/الحضور/الخطط المرتبطة بالطالب
+  const { data, error }=await sb.rpc('soft_delete_student',{ p_student_id:id, p_reason:reason });
+  if(error || !data?.ok){ alert('تعذّر الحذف: '+(error?.message||data?.error||'')); return; }
+  await navigate('users'); toast('تم حذف الطالب (يمكن استرجاعه من قاعدة البيانات عند الحاجة)');
 }
 async function delStaff(id,name){
   if(!confirm('متأكد من حذف العضو «'+name+'» من الطاقم؟\nسيُحوَّل دوره إلى مستخدم عادي.')) return;
@@ -5981,6 +6093,7 @@ function privSessionCard(s, isTeacher, rated){
     </div>
     <div class="ps-actions">
       ${(st.live||st.upcoming)&&s.zoom_link?`<a href="${s.zoom_link}" target="_blank" class="btn-sm ${st.live?'':'gold'}" style="text-decoration:none;text-align:center">${st.live?'دخول ▶':'الرابط'}</a>`:''}
+      ${!isTeacher&&(st.live||st.upcoming)&&!s.zoom_link?`<div style="text-align:center"><span class="chip" style="background:var(--cream);color:var(--muted)">⏳ بانتظار رابط معلمك</span><a href="https://wa.me/${WHATSAPP}?text=${encodeURIComponent('السلام عليكم، رابط حصتي ('+s.title+') لسه ما وصلنيش.')}" target="_blank" rel="noopener" style="display:block;margin-top:4px;font-size:12px;color:var(--emerald)">تواصل مع معلمك ↗</a></div>`:''}
       ${isTeacher&&st.t==='انتهت'&&!rated?`<button class="btn-sm" onclick="rateSessionModal(${s.id},${s.student_id})">${mi('star')} تقييم</button>`:''}
       ${isTeacher&&st.t==='انتهت'?`<button class="btn-sm gold" onclick="newAssignmentModal(${s.group_id},${s.student_id},${s.id})">${mi('pencil')} واجب</button>`:''}
       ${isTeacher?`<button class="btn-sm ghost" onclick="editPrivSession(${s.id})">تعديل</button>`:''}
