@@ -6498,14 +6498,38 @@ async function savePrivSession(groupId, studentId, editId){
   }
   closeModal(); SESSION._activeHalqa=groupId; await navigate('myhalqa'); toast('✅ تم حفظ الحصة');
 }
-// ===== تقييم الحصة (المعلم بضغطات) =====
+// ورد اليوم الحقيقي لطالب مُعيَّن (بمعرّف الطالب student_id، وليس login_id —
+// يخدم المعلم اللي بيقيّم من واجهته هو، بصرف النظر إن كان للطالب حساب دخول أم لا)
+async function qTodayWardForStudent(studentId){
+  const { data:plan } = await sb.from('quran_student_plans').select('*').eq('student_id',studentId).eq('status','active').maybeSingle();
+  if(!plan) return null;
+  const today = qTodayStr();
+  const { data:wards } = await sb.from('quran_plan_wards').select('*').eq('plan_id',plan.id).eq('planned_date',today).eq('is_rest_day',false).order('fortress_code').limit(1);
+  const w = (wards||[])[0]; if(!w) return null;
+  const forts = await fortressesFor(plan.system_id);
+  const fort = (forts||[]).find(f=>f.code===w.fortress_code);
+  return { ward:w, fortName: fort?fort.name:w.fortress_code, fortIcon: fort?fort.icon:'🛡️' };
+}
+// ===== تقييم الحصة (المعلم بضغطات) — ونفس الشاشة الآن تُنهي الحصة وتُحدّث
+// المصدر الحقيقي لتقدّم الطالب (quran_plan_wards/quran_ward_progress) بدل
+// الاكتفاء بدرجة قديمة منفصلة (students.mastery) لا علاقة لها بالورد الفعلي =====
+let RATE_WARD=null, WARD_DECISION=null;
 async function rateSessionModal(sessionId, studentId){
   let e={};
   try{ const { data:existing }=await sb.from('session_ratings').select('*').eq('session_id',sessionId).maybeSingle(); e=existing||{}; }catch(ex){ e={}; }
   RATE_DATA={attendance:e.attendance||null,memorization:e.memorization||null,tajweed:e.tajweed||null,review:e.review||null,interaction:e.interaction||null,behavior:e.behavior||null};
+  RATE_WARD = await qTodayWardForStudent(studentId);
+  WARD_DECISION = null;
   const seg=(field,label,opts)=>`<div class="rate-row"><span class="rate-label">${label}</span><div class="rate-opts" data-field="${field}">${opts.map(o=>`<button class="rate-btn ${e[field]===o[0]?'on':''}" data-val="${o[0]}" onclick="pickRate(this,'${field}')">${o[1]}</button>`).join('')}</div></div>`;
+  const wardBlock = RATE_WARD
+    ? `<div class="rate-row" style="background:var(--cream);border-radius:10px;padding:10px 12px;margin-bottom:10px">
+        <span class="rate-label">${RATE_WARD.fortIcon} ورد اليوم: ${esc(RATE_WARD.fortName)}</span>
+        <div class="rate-opts" data-field="ward"><button class="rate-btn" data-val="done" onclick="pickWardDecision(this,'done')">${mi('check')} تمّ</button><button class="rate-btn" data-val="part" onclick="pickWardDecision(this,'part')">جزئي</button><button class="rate-btn" data-val="review" onclick="pickWardDecision(this,'review')">يحتاج مراجعة</button></div>
+      </div>`
+    : `<div class="rate-row" style="font-size:12.5px;color:var(--muted)">لا يوجد ورد مجدوَل لهذا الطالب اليوم (لا خطة نشطة، أو يوم راحة).</div>`;
   $('#modalHost').innerHTML=`<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal enroll-modal">
     <h3>⭐ تقييم الحصة</h3>
+    ${wardBlock}
     <p style="color:var(--muted);font-size:13px;margin-bottom:16px">قيّم أداء الطالب في هذه الحصة بضغطات سريعة.</p>
     ${seg('attendance','الحضور',[['present','✓ حاضر'],['late','متأخر'],['absent','✗ غائب']])}
     ${seg('memorization','الحفظ',[['excellent','ممتاز'],['good','جيد'],['weak','ضعيف']])}
@@ -6523,6 +6547,11 @@ function pickRate(btn, field){
   btn.classList.add('on');
   RATE_DATA[field]=btn.dataset.val;
 }
+function pickWardDecision(btn, val){
+  btn.parentElement.querySelectorAll('.rate-btn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  WARD_DECISION=val;
+}
 async function saveRating(sessionId, studentId){
   $('#rateBtn').disabled=true; $('#rateBtn').textContent='جارٍ الحفظ...';
   // حساب نقاط
@@ -6532,9 +6561,25 @@ async function saveRating(sessionId, studentId){
   const rec={ session_id:sessionId, student_id:studentId, teacher_id:ME.id, ...RATE_DATA, notes:$('#rateNotes').value.trim()||null, rating_score:ratingScore };
   const { error }=await sb.from('session_ratings').upsert(rec,{onConflict:'session_id'});
   if(error){ $('#rateBtn').disabled=false; $('#rateBtn').textContent='💾 حفظ التقييم'; alert('تعذّر: '+error.message); return; }
-  // تحديث حالة الحصة + درجة الطالب
+  // تحديث حالة الحصة + درجة الطالب (المصدر القديم، لسه محفوظ للتوافق)
   await sb.from('sessions').update({ status:'done' }).eq('id',sessionId);
   if(RATE_DATA.memorization){ const mv=RATE_DATA.memorization==='excellent'?95:RATE_DATA.memorization==='good'?80:60; await sb.from('students').update({ mastery:mv }).eq('id',studentId); }
+  // 🔴 المصدر الرسمي الفعلي: تحديث ورد اليوم الحقيقي في خطة الطالب — كان تقييم
+  // الحصة هنا مرتبطاً فقط بـ students.mastery المنفصل تماماً عن محرك المنهج
+  // (quran_plan_wards/quran_ward_progress) الذي يبنيه المعلم فعلياً. الآن قرار
+  // المعلم في هذه الشاشة (تمّ/جزئي/يحتاج مراجعة) يُسجَّل مباشرة على الورد الحقيقي.
+  if(RATE_WARD && WARD_DECISION){
+    const wardId = RATE_WARD.ward.id;
+    let wErr;
+    if(WARD_DECISION==='done'){
+      ({ error:wErr } = await qMarkWardRPC(wardId, { p_status:'done', p_teacher_mastery:95, p_teacher_approve:true, p_planned_for_date:qTodayStr(), p_actual_date:qTodayStr() }));
+    } else if(WARD_DECISION==='part'){
+      ({ error:wErr } = await qMarkWardRPC(wardId, { p_status:'done', p_teacher_mastery:65, p_teacher_note:'إنجاز جزئي أثناء الحصة', p_teacher_approve:true, p_planned_for_date:qTodayStr(), p_actual_date:qTodayStr() }));
+    } else if(WARD_DECISION==='review'){
+      ({ error:wErr } = await qMarkWardRPC(wardId, { p_teacher_note:'يحتاج مراجعة قبل الاعتماد', p_touch_teacher:true }));
+    }
+    if(wErr) console.error('تعذّر تحديث ورد اليوم من شاشة التقييم:', wErr);
+  }
   // إشعار الطالب وولي الأمر
   const { data:stu }=await sb.from('students').select('login_id,parent_id,full_name').eq('id',studentId).single();
   if(stu?.login_id) await pushNotif(stu.login_id,'⭐ تقييم حصتك','قيّم معلمك حصتك الأخيرة. اطّلع على تقريرك في «حلقتي».','system',sessionId);
