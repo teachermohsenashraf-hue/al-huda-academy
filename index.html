@@ -2512,7 +2512,7 @@ function signupForm(){
   </div>
   <div class="arow">
     <div class="afield"><label>السن <span class="req">*</span></label><input id="suAge" type="number" placeholder="٩"></div>
-    <div class="afield"><label>النوع <span class="req">*</span></label><select id="suGender"><option value="male">ذكر</option><option value="female">أنثى</option></select></div>
+    <div class="afield"><label>النوع <span class="req">*</span></label><select id="suGender"><option value="">— اختر —</option><option value="male">ذكر</option><option value="female">أنثى</option></select></div>
   </div>
   <div class="arow">
     <div class="afield"><label>رقم الهاتف <span class="req">*</span></label>
@@ -2714,6 +2714,7 @@ async function doSignup(){
   if(!age){ toast('أدخل السن'); $('#suAge').focus(); return; }
   if(!phone){ toast('أدخل رقم الهاتف'); $('#suPhone').focus(); return; }
   if(!gov){ toast('أدخل المحافظة/المدينة'); $('#suGov').focus(); return; }
+  if(!$('#suGender').value){ toast('اختر النوع'); $('#suGender').focus(); return; }
   if(!p1){ toast('أدخل كلمة المرور'); $('#suPass3').focus(); return; }
   if(p1.length<6){ toast('كلمة المرور ٦ أحرف على الأقل'); return; }
   if(p1!==p2){ toast('كلمتا المرور غير متطابقتين'); $('#suPass4').focus(); return; }
@@ -2764,8 +2765,30 @@ async function processLinkInvites(){
 async function afterAuth(){
   const { data:{ user } } = await sb.auth.getUser();
   if(!user) return;
-  let { data:prof } = await sb.from('profiles').select('*').eq('id',user.id).single();
-  if(!prof){ await sb.from('profiles').insert({ id:user.id, role:'parent', full_name:user.email.split('@')[0], email:user.email }); ({ data:prof }=await sb.from('profiles').select('*').eq('id',user.id).single()); }
+  // ملاحظة: صفّ profiles يُنشأ فعليًا عبر trigger على auth.users (on_auth_user_created →
+  // handle_new_user)، وهو من يحترم الدور والاسم وباقي بيانات التسجيل الحقيقية. الكود هنا
+  // كان يفترض خطأً أنه المسؤول عن الإنشاء، ويكتب role:'parent' ثابتاً عند الفشل — لا داعي له
+  // في المسار الطبيعي، وكان سيفشل بصمت أصلاً (لا توجد سياسة RLS تسمح لمستخدم عادي بإدراج
+  // صفّه بنفسه). الحالة الوحيدة الواقعية المتبقية: تأخير نادر بين signUp() ولحظة قراءة
+  // afterAuth() قبل اكتمال الـ trigger. نعالجها بإعادة محاولة قصيرة، لا بإدراج بيانات خاطئة.
+  let { data:prof } = await sb.from('profiles').select('*').eq('id',user.id).maybeSingle();
+  for(let attempt=0; !prof && attempt<3; attempt++){
+    await new Promise(r=>setTimeout(r, 400));
+    ({ data:prof } = await sb.from('profiles').select('*').eq('id',user.id).maybeSingle());
+  }
+  if(!prof){
+    // فشل حقيقي (لا الـ trigger أنشأ الصفّ ولا أعادت المحاولات نتيجة) — شاشة خطأ واضحة
+    // بدل تعطّل صامت لاحقاً عند أول استخدام لـ ME.role
+    hideAll(); $('#authScreen').classList.remove('hidden');
+    $('#authScreen').innerHTML = `<div class="auth-card" style="text-align:center;padding:40px 24px">
+      <div class="empty-ic">${mi('warning')}</div>
+      <h3 style="color:var(--navy-deep);margin:10px 0">تعذّر تجهيز حسابك</h3>
+      <p style="color:var(--muted);font-size:14px;line-height:1.9;margin-bottom:18px">تم إنشاء حساب الدخول لكن ملفك الشخصي لم يكتمل بعد. حاول تسجيل الدخول مرة أخرى بعد قليل، أو تواصل مع الإدارة إن استمرت المشكلة.</p>
+      <button class="auth-btn" onclick="location.reload()">إعادة المحاولة</button>
+      <div class="auth-alt" style="margin-top:10px"><a href="https://wa.me/${WHATSAPP}" target="_blank" rel="noopener">تواصل مع الإدارة على واتساب</a></div>
+    </div>`;
+    return;
+  }
   ME=prof;
   // تسجيل/التحقق من جلسة هذا الجهاز (يُنهي الخروج تلقائياً لو أُبطلت عن بُعد)
   ensureSessionRegistered(LAST_AUTH_METHOD);
@@ -8441,20 +8464,23 @@ async function renderWizardInline(){
 
 async function renderWizard(){
   const studentId = QPLAN_STATE.studentId;
-  const { data: stu } = await sb.from('students').select('id,full_name,login_id,quran_path').eq('id',studentId).maybeSingle();
+  const { data: stu } = await sb.from('students').select('id,full_name,login_id,quran_path,plan_type').eq('id',studentId).maybeSingle();
   if(!stu){ return '<div class="card">الطالب غير موجود</div>'; }
 
-  // get linked program -> system
-  let linkedSystem = null;
-  if(stu.quran_path){
-    const { data: prog } = await sb.from('programs').select('id,name,quran_system_id').eq('id',stu.quran_path).maybeSingle();
-    if(prog && prog.quran_system_id){
-      const { data: sys } = await sb.from('quran_systems').select('*').eq('id',prog.quran_system_id).maybeSingle();
-      linkedSystem = sys;
-    }
-  }
+  // ربط النظام بمسار الطالب الفعلي (path_key) ونوع خطته (plan_type) — وليس عبر
+  // جدول programs القديم (كان stu.quran_path نصًا مثل 'amma' يُقارَن بـ programs.id
+  // الرقمي فلا يتطابق أبدًا، فيسقط الاختيار صامتًا على "آخر نظام أُنشئ"). أُصلح هنا
+  // بمطابقة مباشرة على quran_systems.path_key + plan_type، مع تحذير صريح للمعلم
+  // عند عدم وجود تطابق بدل اختيار افتراضي صامت.
+  let linkedSystem = null, pathMismatch = false;
   const { data: allSys } = await sb.from('quran_systems').select('*').eq('status','active').order('created_at',{ascending:false});
   QWIZ_SYSTEMS_CACHE = allSys||[];
+  if(stu.quran_path){
+    const wantedPlanType = stu.plan_type || 'rasokh';
+    linkedSystem = (allSys||[]).find(s=>s.path_key===stu.quran_path && s.plan_type===wantedPlanType)
+      || (allSys||[]).find(s=>s.path_key===stu.quran_path); // نفس المسار بأي نوع خطة، أفضل من لا شيء
+    if(!linkedSystem) pathMismatch = true;
+  }
 
   const step = QPLAN_STATE.step;
   const stepLabels = [
@@ -8467,7 +8493,7 @@ async function renderWizard(){
   const stepsHtml = stepLabels.map(s=>`<div class="qwstep ${step===s.n?'on':step>s.n?'done':''}"><b>${ar(s.n)}</b>${s.t}</div>`).join('');
 
   let body = '';
-  if(step===1){ body = await renderStep1(stu, linkedSystem, allSys||[]); }
+  if(step===1){ body = await renderStep1(stu, linkedSystem, allSys||[], pathMismatch); }
   else if(step===2){ body = renderStep2(); }
   else if(step===3){ body = renderStep3(); }
   else if(step===4){ body = renderStep4(); }
@@ -8479,15 +8505,20 @@ async function renderWizard(){
     `<div class="card" style="padding:22px">${body}</div>`;
 }
 
-async function renderStep1(stu, linkedSystem, allSys){
+async function renderStep1(stu, linkedSystem, allSys, pathMismatch){
   const d = QPLAN_STATE.data;
   if(!d.system_id && linkedSystem) d.system_id = linkedSystem.id;
-  if(!d.system_id && allSys.length) d.system_id = allSys[0].id;
+  // لا اختيار افتراضي صامت بعد اليوم: لو مفيش نظام مرتبط بمسار الطالب فعلاً، نترك
+  // system_id فارغاً ونجبر المعلم على الاختيار يدوياً بدل السقوط على allSys[0].
   const today = new Date().toISOString().slice(0,10);
   if(!d.start_date) d.start_date = today;
 
-  const sysOpts = allSys.map(s=>`<option value="${esc(s.id)}" ${d.system_id===s.id?'selected':''}>${esc(s.name)} (${s.track==='general'?'عام':'حصون'})</option>`).join('');
-  const linkedNote = linkedSystem ? `<div style="background:rgba(27,77,62,0.08);border-inline-start:3px solid var(--emerald);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:var(--emerald-deep)">🔗 برنامج الطالب «${esc(stu.quran_path?'':'') }» مرتبط بنظام: <b>${esc(linkedSystem.name)}</b></div>` : '';
+  const sysOpts = `<option value="">— اختر النظام —</option>` + allSys.map(s=>`<option value="${esc(s.id)}" ${d.system_id===s.id?'selected':''}>${esc(s.name)} (${s.track==='general'?'عام':'حصون'})</option>`).join('');
+  const linkedNote = linkedSystem
+    ? `<div style="background:rgba(27,77,62,0.08);border-inline-start:3px solid var(--emerald);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:var(--emerald-deep)">🔗 مسار الطالب «${esc(stu.quran_path||'')}» (${stu.plan_type==='flexible'?'مرن':'رسوخ'}) مرتبط تلقائياً بنظام: <b>${esc(linkedSystem.name)}</b></div>`
+    : (pathMismatch
+      ? `<div style="background:rgba(178,58,46,0.08);border-inline-start:3px solid var(--danger,#B23A2E);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#8a2c22">⚠️ لا يوجد نظام مُعرَّف لمسار الطالب «${esc(stu.quran_path||'—')}» (${stu.plan_type==='flexible'?'مرن':'رسوخ'}). اختر النظام المناسب يدوياً من القائمة أدناه، أو راجع الإدارة لإضافة النظام الناقص.</div>`
+      : '');
 
   // محطات النظام المختار — يحدد المعلم منها أين يبدأ الطالب فعلياً
   let stations = [];
