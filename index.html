@@ -3853,7 +3853,7 @@ PAGES.parent_hifztrack=async function(){ setTop('متابعة الحفظ الي�
         : `<div class="qcwrange">${esc(w.amount_label||'—')}</div>`;
       const actions = isDone
         ? `<div style="margin-top:10px;font-size:12.5px;color:var(--emerald);font-weight:700">✅ تم الورد</div>`
-        : `<div class="qcwacts"><button class="qa-done" onclick="qMarkWard('${esc(w.id)}','done','${esc(w.planned_date)}')">${mi('check')} أتممت</button><button class="qa-skip" onclick="qMarkWard('${esc(w.id)}','skipped','${esc(w.planned_date)}')">${mi('x')} لم يتم</button></div>`;
+        : `<div class="qcwacts"><button class="qa-done" onclick="qMarkWard('${esc(w.id)}','done','${esc(w.planned_date)}')">${mi('check')} أتممت</button><button class="qa-skip" onclick="qMarkNotDoneModal('${esc(w.id)}','${esc(w.planned_date)}')">${mi('x')} لم يتم</button></div>`;
       return `<div class="qcardward ${klass}" style="--accent:${color}">
         <div class="qcwh">
           <div class="qcwic" style="background:${color}">${icon}</div>
@@ -6574,7 +6574,9 @@ async function saveRating(sessionId, studentId){
     if(WARD_DECISION==='done'){
       ({ error:wErr } = await qMarkWardRPC(wardId, { p_status:'done', p_teacher_mastery:95, p_teacher_approve:true, p_planned_for_date:qTodayStr(), p_actual_date:qTodayStr() }));
     } else if(WARD_DECISION==='part'){
-      ({ error:wErr } = await qMarkWardRPC(wardId, { p_status:'done', p_teacher_mastery:65, p_teacher_note:'إنجاز جزئي أثناء الحصة', p_teacher_approve:true, p_planned_for_date:qTodayStr(), p_actual_date:qTodayStr() }));
+      // status='partial' حالة مستقلة فعليًا الآن، لا 'done' بدرجة أقل — تفريق
+      // حقيقي بين "أتمّه الطالب" و"أنجزه جزئيًا"، لا مجرد رقم إتقان منخفض
+      ({ error:wErr } = await qMarkWardRPC(wardId, { p_status:'partial', p_teacher_mastery:65, p_teacher_note:'إنجاز جزئي أثناء الحصة', p_teacher_approve:true, p_planned_for_date:qTodayStr(), p_actual_date:qTodayStr() }));
     } else if(WARD_DECISION==='review'){
       ({ error:wErr } = await qMarkWardRPC(wardId, { p_teacher_note:'يحتاج مراجعة قبل الاعتماد', p_touch_teacher:true }));
     }
@@ -9456,7 +9458,7 @@ function qTodayCardHtml(w, p, fortMap){
   // زر "مساعدة" أُزيل بناءً على طلب صريح — يبقى فقط "أتممت" و"لم أتم"
   const actions = isDone
     ? `<div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="qward-done-flag" style="margin:0">🎉 تم الورد</span>${masteryHtml}${approvedBadge}</div>${noteHtml}`
-    : `<div class="qcwacts"><button class="qa-done" onclick="qMarkWard('${esc(w.id)}','done','${esc(w.planned_date)}')">${mi('check')} أتممت</button><button class="qa-skip" onclick="qMarkWard('${esc(w.id)}','skipped','${esc(w.planned_date)}')">${mi('x')} لم أتم</button></div>${noteHtml}`;
+    : `<div class="qcwacts"><button class="qa-done" onclick="qMarkWard('${esc(w.id)}','done','${esc(w.planned_date)}')">${mi('check')} أتممت</button><button class="qa-skip" onclick="qMarkNotDoneModal('${esc(w.id)}','${esc(w.planned_date)}')">${mi('x')} لم أتم</button></div>${noteHtml}`;
   return `<div class="qcardward ${klass}" data-ward="${esc(w.id)}" style="--accent:${color}">
     <div class="qcwh">
       <div class="qcwic" style="background:${color}">${icon}</div>
@@ -9769,19 +9771,41 @@ function hasStationBoundaryFinished(hifzWards, station){
    لا نعيد تحميل الصفحة كاملة (كان سبب انتظار ~٢٠ ثانية)، بل نتحقق أن الحفظ نجح
    فعلاً في القاعدة ثم نعيد رسم البطاقة الواحدة موضعياً فقط. لو فشل الحفظ (مثلاً
    منعته صلاحية) نُظهر خطأً حقيقياً بدل رسالة نجاح كاذبة. */
-async function qMarkWard(wardId, status, plannedDate){
+// اختيار سبب عدم الإتمام — مطلوب صراحة قبل تسجيل "لم أتم" بدل تسجيله بلا أي
+// سياق. الأسباب محدودة ومفهومة (تطابق قيد not_done_reason على القاعدة)
+function qMarkNotDoneModal(wardId, plannedDate){
+  $('#modalHost').innerHTML=`<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <h3>ليه ما أتممتش الورد؟</h3>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:12px">اختيارك بيساعد معلمك يفهم الموقف صح ويتصرّف بالمناسب.</p>
+    <div class="qform">
+      <button class="btn-sm ghost" style="width:100%;margin-bottom:6px;text-align:right" onclick="qSubmitNotDone('${esc(wardId)}','${esc(plannedDate||'')}','time_pressure')">⏱️ ضيق وقت</button>
+      <button class="btn-sm ghost" style="width:100%;margin-bottom:6px;text-align:right" onclick="qSubmitNotDone('${esc(wardId)}','${esc(plannedDate||'')}','difficulty')">😕 صعوبة في الحفظ</button>
+      <button class="btn-sm ghost" style="width:100%;margin-bottom:6px;text-align:right" onclick="qSubmitNotDone('${esc(wardId)}','${esc(plannedDate||'')}','absence')">🚫 غياب</button>
+      <button class="btn-sm ghost" style="width:100%;margin-bottom:6px;text-align:right" onclick="qSubmitNotDone('${esc(wardId)}','${esc(plannedDate||'')}','needs_listening')">🎧 يحتاج تسميع مع المعلم</button>
+      <button class="btn-sm ghost" style="width:100%;text-align:right" onclick="qSubmitNotDone('${esc(wardId)}','${esc(plannedDate||'')}','other')">غير ذلك</button>
+    </div>
+    <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إلغاء</button></div>
+  </div></div>`;
+}
+async function qSubmitNotDone(wardId, plannedDate, reason){
+  closeModal();
+  await qMarkWard(wardId, 'skipped', plannedDate||null, reason);
+}
+async function qMarkWard(wardId, status, plannedDate, notDoneReason){
   const today = qTodayStr();
   const pd = plannedDate||today;
   const isEarly = today < pd, isLate = today > pd;
   // نجد البطاقة إمّا عبر data-ward (بطاقات ورد اليوم/المتأخرات)، وإلا عبر زر النداء
   // نفسه (بطاقات صفحة متابعة ولي الأمر التي لا تحمل data-ward) — حتى يعمل الاثنان
   const card = document.querySelector(`.qcardward[data-ward="${wardId}"]`)
-    || document.querySelector(`[onclick*="qMarkWard('${wardId}'"]`)?.closest('.qcardward');
+    || document.querySelector(`[onclick*="qMarkWard('${wardId}'"]`)?.closest('.qcardward')
+    || document.querySelector(`[onclick*="qMarkNotDoneModal('${wardId}'"]`)?.closest('.qcardward');
   if(card){ card.querySelectorAll('button').forEach(b=>b.disabled=true); card.style.opacity='.6'; }
   const { error } = await qMarkWardRPC(wardId, {
     p_status:status, p_planned_for_date:pd, p_actual_date:today,
     p_is_early:isEarly, p_is_late:isLate,
     p_days_offset: Math.round((new Date(pd)-new Date(today))/86400000),
+    p_not_done_reason: notDoneReason||null,
   });
   if(error){
     console.error('qMarkWard failed:',error);
