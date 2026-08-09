@@ -8551,10 +8551,25 @@ async function generatePlanSchedule(planId){
   return { count:wards.length, end:lastDate };
 }
 
-/* ===== صفحة المعلم: قائمة خطط طلابي ===== */
+/* ===== صفحة المعلم: قائمة خطط طلابي — أداة قرار، لا قائمة أسماء فقط =====
+   لكل طالب: المسار والمحطة، حالة صحة الخطة (محسوبة من بيانات حقيقية لا
+   تخميناً)، نسبة الإنجاز الفعلية، عدد المتأخرات، آخر تقييم معلم، موعد
+   الإتمام المتوقع، والإجراء الموصى به. الطلاب بلا خطة نشطة في قسم منفصل
+   أعلى الصفحة، لا مختلطين وسط قائمة المتابعة. */
+function qPlanHealthStatus(plan, lateCount, hasFlaggedData){
+  if(plan.status==='paused') return { key:'paused', label:'⏸️ متوقفة مؤقتاً', color:'var(--gold)', action:'راجع سبب التوقف — استأنف أو أعد الجدولة' };
+  if(plan.status==='needs_reset') return { key:'needs_reset', label:'🔧 تحتاج إعادة ضبط', color:'var(--rose)', action:'راجع الخطة كاملةً وأعد ضبطها' };
+  if(plan.status==='cancelled') return { key:'cancelled', label:'❌ ملغاة', color:'var(--muted)', action:'—' };
+  if(plan.status==='completed') return { key:'completed', label:'🏁 مكتملة', color:'var(--emerald)', action:'—' };
+  // نشطة: الحالة الحقيقية تُحسَب من عدد المتأخرات الفعلي، لا من نسبة إنجاز عامة
+  // قد تبدو جيدة رغم تراكم متأخرات كبير (بالضبط ما حذّر منه الطلب صراحةً)
+  if(hasFlaggedData) return { key:'needs_reset', label:'🔧 تحتاج إعادة ضبط', color:'var(--rose)', action:'بيانات تحتاج مراجعة يدوية — افتح الخطة' };
+  if(lateCount===0) return { key:'healthy', label:'✅ طبيعية', color:'var(--emerald)', action:'لا إجراء مطلوب' };
+  if(lateCount<=3) return { key:'watch', label:'👀 تحتاج متابعة', color:'var(--gold)', action:'راجع المتأخرات ('+lateCount+') قبل تراكمها' };
+  return { key:'rescue', label:'🚑 تحتاج إعادة ضبط', color:'var(--rose)', action:'افتح مركز إنقاذ الخطة فورًا — '+lateCount+' ورد متأخر' };
+}
 PAGES.teacher_qplans = async function(){
-  setTop('خطط طلابي','إدارة خطط القرآن');
-  // students from teacher's groups
+  setTop('خطط طلابي','أداة قرار — لا قائمة أسماء');
   const { data: groups, error } = await sb.from('groups').select('id').eq('teacher_id',ME.id);
   if(error) return pageHead('خطط طلابي','')+loadErrorCard(error);
   const gids = (groups||[]).map(g=>g.id);
@@ -8563,50 +8578,74 @@ PAGES.teacher_qplans = async function(){
     const { data: sts } = await sb.from('students').select('id,full_name,login_id,quran_path').in('group_id',gids);
     students = sts||[];
   }
-
   if(!students.length){
     return pageHead('خطط طلابي','') + `<div class="qnoplan"><div class="nei">🎓</div><h3>لا طلاب بعد</h3><p>سيظهر طلابك هنا بعد توزيعهم على حلقاتك من قبل الإدارة.</p></div>`;
   }
 
   const sids = students.map(s=>s.id);
   const { data: plans } = await sb.from('quran_student_plans').select('*').in('student_id',sids);
-  const planMap = {}; (plans||[]).forEach(p=>{ planMap[p.student_id]=p; });
+  const activePlans = (plans||[]).filter(p=>p.status!=='cancelled');
+  const planMap = {}; activePlans.forEach(p=>{ planMap[p.student_id]=p; });
+  const planIds = activePlans.map(p=>p.id);
+  const today = qTodayStr();
 
-  // counts for wards
-  const planIds = (plans||[]).map(p=>p.id);
-  let progressMap = {};
-  if(planIds.length){
-    const { data: wards } = await sb.from('quran_plan_wards').select('id,plan_id,planned_date').in('plan_id',planIds);
-    const today = new Date().toISOString().slice(0,10);
-    (wards||[]).forEach(w=>{
-      if(!progressMap[w.plan_id]) progressMap[w.plan_id]={total:0,past:0};
-      progressMap[w.plan_id].total++;
-      if(w.planned_date<=today) progressMap[w.plan_id].past++;
-    });
-  }
+  const [wardsResp, stationsResp, sysResp, ratingsResp] = await Promise.all([
+    planIds.length ? sb.from('quran_plan_wards').select('id,plan_id,planned_date,is_rest_day,data_quality_flag').in('plan_id',planIds) : Promise.resolve({data:[]}),
+    sb.from('quran_stations').select('id,name'),
+    sb.from('quran_systems').select('id,name'),
+    sb.from('session_ratings').select('student_id,rating_score,created_at').in('student_id',sids).order('created_at',{ascending:false}),
+  ]);
+  const stationMap = {}; (stationsResp.data||[]).forEach(s=>{ stationMap[s.id]=s.name; });
+  const sysMap = {}; (sysResp.data||[]).forEach(s=>{ sysMap[s.id]=s.name; });
+  const lastRatingMap = {}; (ratingsResp.data||[]).forEach(r=>{ if(!(r.student_id in lastRatingMap)) lastRatingMap[r.student_id]=r; });
 
-  const rows = students.map(s=>{
+  const wardIds = (wardsResp.data||[]).map(w=>w.id);
+  const progs = await qFetchProgress(wardIds, 'ward_id,status');
+  const doneSet = new Set((progs||[]).filter(p=>p.status==='done'||p.status==='partial').map(p=>p.ward_id));
+  const lateMap = {}, flagMap = {}, totalMap = {}, doneMap = {};
+  (wardsResp.data||[]).forEach(w=>{
+    if(w.is_rest_day) return;
+    totalMap[w.plan_id] = (totalMap[w.plan_id]||0)+1;
+    if(doneSet.has(w.id)) doneMap[w.plan_id] = (doneMap[w.plan_id]||0)+1;
+    else if(w.planned_date < today) lateMap[w.plan_id] = (lateMap[w.plan_id]||0)+1;
+    if(w.data_quality_flag) flagMap[w.plan_id] = true;
+  });
+
+  const noPlanStudents = students.filter(s=>!planMap[s.id]);
+  const withPlanStudents = students.filter(s=>planMap[s.id]);
+
+  const noPlanBlock = noPlanStudents.length ? `<div class="card" style="margin-bottom:16px;border-inline-start:3px solid var(--gold)">
+    <div class="ch"><h3>${mi('warning')} يحتاج إنشاء خطة: ${ar(noPlanStudents.length)}</h3></div>
+    ${noPlanStudents.map(s=>`<div class="qstu-row qstu-noplan" data-search="${esc(s.full_name)}" onclick="qOpenWizard('${esc(s.id)}')">
+      <div class="qstu-ava">+</div>
+      <div class="qstu-info"><b>${esc(s.full_name)}</b><small>لا توجد خطة بعد — اضغط لإنشائها</small></div>
+    </div>`).join('')}
+  </div>` : '';
+
+  const rows = withPlanStudents.map(s=>{
     const p = planMap[s.id];
-    if(!p){
-      return `<div class="qstu-row qstu-noplan" data-search="${esc(s.full_name)}" onclick="qOpenWizard('${esc(s.id)}')">
-        <div class="qstu-ava">+</div>
-        <div class="qstu-info"><b>${esc(s.full_name)}</b><small>لا توجد خطة بعد — اضغط لإنشائها</small></div>
-        <div class="qstu-stat"><b>—</b>الخطة</div>
-      </div>`;
-    }
-    const prog = progressMap[p.id] || {total:0,past:0};
-    const pct = prog.total ? Math.round(prog.past/prog.total*100) : 0;
-    const statusLbl = p.status==='active'?'نشطة':p.status==='paused'?'متوقفة':p.status==='completed'?'مكتملة':'ملغاة';
-    return `<div class="qstu-row" data-search="${esc(s.full_name)}" onclick="qOpenStudentPlan('${esc(p.id)}')">
+    const total = totalMap[p.id]||0, done = doneMap[p.id]||0, late = lateMap[p.id]||0;
+    const pct = total ? Math.round(done/total*100) : 0;
+    const health = qPlanHealthStatus(p, late, !!flagMap[p.id]);
+    const rating = lastRatingMap[s.id];
+    const ratingTxt = rating ? (rating.rating_score!=null ? ar(rating.rating_score)+'٪' : '—') : 'لا تقييم بعد';
+    return `<div class="qstu-row" data-search="${esc(s.full_name)}" onclick="qOpenStudentPlan('${esc(p.id)}')" style="border-inline-start:3px solid ${health.color}">
       <div class="qstu-ava">${esc(s.full_name.charAt(0))}</div>
-      <div class="qstu-info"><b>${esc(s.full_name)}</b><small>${statusLbl} · بداية: ${esc(p.start_date)}</small></div>
-      <div class="qstu-stat"><b>${ar(prog.total)}</b>يوم</div>
-      <div class="qstu-stat"><b>${ar(pct)}٪</b>التقدم</div>
-    </div>`;
+      <div class="qstu-info">
+        <b>${esc(s.full_name)}</b>
+        <small>${esc(sysMap[p.system_id]||'—')} · ${esc(stationMap[p.current_station_id]||'—')}</small>
+        <small style="color:${health.color};font-weight:700">${health.label}</small>
+      </div>
+      <div class="qstu-stat"><b>${ar(pct)}٪</b>الإنجاز</div>
+      <div class="qstu-stat"><b style="color:${late?'var(--rose)':'var(--emerald)'}">${ar(late)}</b>متأخر</div>
+      <div class="qstu-stat"><b>${ratingTxt}</b>آخر تقييم</div>
+      <div class="qstu-stat"><b>${esc(p.end_date_target||'—')}</b>الإتمام المتوقع</div>
+    </div>
+    <div style="font-size:12px;color:var(--muted);padding:0 12px 10px;margin-top:-6px">💡 ${esc(health.action)}</div>`;
   }).join('');
 
   const searchBox = students.length>4?`<div class="field" style="max-width:360px;margin-bottom:12px"><input id="qplansSearch" placeholder="🔍 دوّر على طالب..." oninput="filterTeacherHalqat(this.value,'qplansList')"></div>`:'';
-  return pageHead('خطط طلابي','إنشاء ومتابعة خطط القرآن لطلابك') + searchBox + `<div id="qplansList">${rows}</div>`;
+  return pageHead('خطط طلابي','أداة قرار — حالة كل خطة والإجراء الموصى به') + noPlanBlock + searchBox + `<div id="qplansList">${rows}</div>`;
 };
 
 let QPLAN_STATE = { view:'list', studentId:null, planId:null, step:1, data:{} };
@@ -10361,10 +10400,13 @@ PAGES.teacher_qmonitor = async function(){
     });
   }
   const dateLabel = new Date().toLocaleDateString('ar-EG',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-  const rows = students.map(s=>{
+  // نعرض فقط الطلاب ذوي خطط نشطة فعلاً — طلاب بلا خطة مكانهم "خطط طلابي" (قسم
+  // "يحتاج إنشاء خطة")، لا وسط شاشة المتابعة اليومية بعلامة "!" غامضة
+  const activeStudents = students.filter(s=>planMap[s.id]);
+  if(!activeStudents.length) return pageHead('متابعة يومية', esc(dateLabel))+`<div class="qnoplan"><div class="nei">📋</div><h3>لا طلاب بخطط نشطة</h3><p>أنشئ خططاً من «خطط طلابي» أولاً.</p></div>`;
+  const rows = activeStudents.map(s=>{
     const p = planMap[s.id];
     const chatBtn = s.login_id?`<button class="icon-act" title="محادثة ${esc(s.full_name)}" onclick="event.stopPropagation();startChatWith('${s.login_id}','${escJs(s.full_name)}')">${mi('chat')}</button>`:'';
-    if(!p) return `<div class="qstu-row qstu-noplan"><div class="qstu-ava">!</div><div class="qstu-info"><b>${esc(s.full_name)}</b><small>لا خطة نشطة</small></div>${chatBtn}<div class="qstu-stat"><b>—</b></div></div>`;
     const t = todayMap[s.id]||{total:0,done:0};
     const lc = lateMap[s.id]||0;
     const pct = t.total ? Math.round(t.done/t.total*100) : 0;
@@ -10375,16 +10417,29 @@ PAGES.teacher_qmonitor = async function(){
     const breakdown = Object.keys(byFort).length
       ? `<div style="font-size:11.5px;line-height:1.7;margin-top:2px">${doneNames.length?`<span style="color:var(--emerald)">✓ ${doneNames.map(esc).join('، ')}</span>`:''}${doneNames.length&&missNames.length?' · ':''}${missNames.length?`<span style="color:var(--muted)">لم يُنجز: ${missNames.map(esc).join('، ')}</span>`:''}</div>`
       : '';
+    // إجراءات سريعة — بلا تنقّل لصفحة تانية لكل حاجة صغيرة
+    const quickActs = `<div class="row-actions" onclick="event.stopPropagation()">
+      <button class="icon-act" title="ورد اليوم" onclick="qOpenStudentPlan('${esc(p.id)}')">${mi('book')}</button>
+      <button class="icon-act" title="إضافة ملاحظة" onclick="openNote(${s.id},'${escJs(s.full_name)}')">${mi('pencil')}</button>
+      <button class="icon-act" title="إرسال تذكير" onclick="qSendReminder(${s.id},'${escJs(s.full_name)}',${s.login_id?`'${s.login_id}'`:'null'})">${mi('bell')}</button>
+      <button class="icon-act" title="إعادة جدولة" onclick="qRescheduleRemaining('${esc(p.id)}')">${mi('refresh')}</button>
+      ${lc>0?`<button class="icon-act" style="color:var(--rose)" title="مركز إنقاذ الخطة" onclick="qOpenRescueCenter('${esc(p.id)}')">🚑</button>`:''}
+    </div>`;
     return `<div class="qstu-row" data-search="${esc(s.full_name)}" onclick="qOpenStudentPlan('${esc(p.id)}')">
       <div class="qstu-ava">${esc(s.full_name.charAt(0))}</div>
       <div class="qstu-info"><b>${esc(s.full_name)}</b><small>أنجز ${ar(t.done)} من ${ar(t.total)} ورد اليوم ${lateTag}</small>${breakdown}</div>
-      ${chatBtn}
+      ${chatBtn}${quickActs}
       <div class="qstu-stat"><b style="color:${pct>=80?'var(--emerald)':pct>=40?'var(--gold)':'var(--rose)'}">${ar(pct)}٪</b></div>
     </div>`;
   }).join('');
-  const searchBox = students.length>4?`<div class="field" style="max-width:360px;margin-bottom:12px"><input id="qmonitorSearch" placeholder="🔍 دوّر على طالب..." oninput="filterTeacherHalqat(this.value,'qmonitorList')"></div>`:'';
+  const searchBox = activeStudents.length>4?`<div class="field" style="max-width:360px;margin-bottom:12px"><input id="qmonitorSearch" placeholder="🔍 دوّر على طالب..." oninput="filterTeacherHalqat(this.value,'qmonitorList')"></div>`:'';
   return pageHead('متابعة يومية', esc(dateLabel)) + searchBox + `<div id="qmonitorList">${rows}</div>`;
 };
+async function qSendReminder(studentId, studentName, loginId){
+  if(!loginId){ toast('لا يوجد حساب دخول لهذا الطالب لإرسال تذكير له'); return; }
+  await pushNotif(loginId, 'تذكير من معلمك', 'معلمك ذكّرك بمتابعة ورد اليوم في «'+studentName+'». افتح «ورد اليوم» الآن.', 'reminder', studentId);
+  toast('✅ اتبعت التذكير');
+}
 
 /* ─── تقارير الطالب ─── */
 PAGES.student_qreport = async function(){
