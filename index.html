@@ -1646,7 +1646,7 @@ let PENDING_INTENT = null;  // المسار الذي ضغطه الزائر قب�
 let RESET_EMAIL = null;     // البريد أثناء استعادة كلمة المرور بالكود
 
 const $ = s=>document.querySelector(s);
-function toast(m){ const t=$('#toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2400); }
+function toast(m){ const t=$('#toast'); t.textContent=m; t.classList.add('show'); const dur=Math.min(6000,Math.max(2400,(m||'').length*45)); setTimeout(()=>t.classList.remove('show'),dur); }
 const AR='٠١٢٣٤٥٦٧٨٩';
 function ar(n){ return String(n).replace(/[0-9]/g,d=>AR[d]); }
 function pct(n){ return ar(n)+'٪'; }
@@ -2579,6 +2579,14 @@ const PK = {
     opt.user.id = this._b2ab(opt.user.id);
     if(opt.excludeCredentials) opt.excludeCredentials = opt.excludeCredentials.map(c=>({ ...c, id:this._b2ab(c.id) }));
     const cred = await navigator.credentials.create({ publicKey: opt });
+    // 🔴 حالة حقيقية وُثِّقت من مستخدمين فعليين: navigator.credentials.create()
+    // بيرجع resolved بقيمة فارغة (بدل ما يرفض الطلب بخطأ واضح زي NotAllowedError)
+    // على بعض أجهزة أندرويد — الاحتمال الأرجح إن الجهاز عنده بصمة محفوظة على
+    // مستواه هو (Google Password Manager) من محاولة سابقة فشلت في التحقق مع
+    // السيرفر، فيتصادم مع محاولة التسجيل الجديدة. بدل انهيار صامت برسالة
+    // "Cannot read properties of undefined" غير مفهومة، رسالة عربية واضحة
+    // بخطوة الحل الفعلية.
+    if(!cred || !cred.id) throw new Error('credential_empty: جهازك يبدو إنه محفوظ عليه بصمة قديمة لهذا الحساب لم تكتمل مع السيرفر. من إعدادات المتصفح (مدير كلمات المرور/البصمات) احذف أي بصمة قديمة لهذا الموقع، ثم أعد المحاولة.');
     const att = { id:cred.id, rawId:this._ab2b(cred.rawId), type:cred.type,
       response:{ clientDataJSON:this._ab2b(cred.response.clientDataJSON), attestationObject:this._ab2b(cred.response.attestationObject),
         transports: cred.response.getTransports? cred.response.getTransports():undefined },
@@ -2597,6 +2605,7 @@ const PK = {
     opt.challenge = this._b2ab(opt.challenge);
     if(opt.allowCredentials) opt.allowCredentials = opt.allowCredentials.map(c=>({ ...c, id:this._b2ab(c.id) }));
     const asr = await navigator.credentials.get({ publicKey: opt });
+    if(!asr || !asr.id) throw new Error('credential_empty: تعذّر قراءة بصمتك من الجهاز، جرّب تسجّل الدخول بكلمة المرور');
     const assertion = { id:asr.id, rawId:this._ab2b(asr.rawId), type:asr.type,
       response:{ clientDataJSON:this._ab2b(asr.response.clientDataJSON), authenticatorData:this._ab2b(asr.response.authenticatorData),
         signature:this._ab2b(asr.response.signature), userHandle: asr.response.userHandle? this._ab2b(asr.response.userHandle):undefined },
@@ -2657,7 +2666,8 @@ async function pkEnableFromOffer(){
   }catch(e){
     if(btn){ btn.disabled=false; btn.innerHTML=PK_ICON+' تفعيل البصمة'; }
     if(e && (e.name==='NotAllowedError'||e.name==='AbortError')){ pkDismissOffer(); return; }
-    toast('تعذّر التفعيل الآن، يمكنك المحاولة لاحقاً من «الأمان وتسجيل الدخول»');
+    const detail = (e&&(e.message||e.name)||'').replace(/^credential_empty:\s*/,'');
+    toast(detail ? 'تعذّر التفعيل: '+detail : 'تعذّر التفعيل الآن، يمكنك المحاولة لاحقاً من «الأمان وتسجيل الدخول»');
   }
 }
 
@@ -3529,7 +3539,7 @@ async function pkEnableFromSettings(){
   try{ await PK.register(); toast('✅ تم تفعيل الدخول بالبصمة'); navigate('security'); }
   catch(e){ if(btn){ btn.disabled=false; btn.innerHTML=PK_ICON+' تفعيل الدخول بالبصمة'; }
     if(e&&(e.name==='NotAllowedError'||e.name==='AbortError')) return;
-    toast('تعذّر التفعيل: '+(e&&(e.message||e.name)||'?')); }
+    toast('تعذّر التفعيل: '+((e&&(e.message||e.name)||'?')).replace(/^credential_empty:\s*/,'')); }
 }
 async function pkDeleteCred(id){
   if(!confirm('حذف هذا الجهاز؟ لن يستطيع الدخول بالبصمة حتى تعيد تسجيلها.')) return;
