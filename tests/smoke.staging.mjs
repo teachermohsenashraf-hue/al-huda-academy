@@ -211,6 +211,110 @@ async function main() {
   r = await rpc('soft_delete_student', { p_student_id: studentAId, p_reason: 'محاولة غير مصرح بها' }, stuAToken);
   assert(r.body?.ok === false, 'حساب طالب عادي لا يقدر يحذف طالباً: ' + JSON.stringify(r.body));
 
+  // ── 13) المرجع القرآني الحقيقي + القيود المبنية عليه (008/009) ──
+  suite('13) مرجع القرآن (quran_surahs/quran_ayahs) + قيود الحدود');
+  r = await rest(`/quran_surahs?select=surah_no&limit=1000`, {}, adminToken);
+  assert(Array.isArray(r.body) && r.body.length === 114, 'quran_surahs فيه ١١٤ سورة فعليًا: ' + (r.body?.length));
+  r = await rest(`/quran_ayahs?select=id&surah_no=eq.1`, {}, adminToken);
+  assert(Array.isArray(r.body) && r.body.length === 7, 'الفاتحة فيها ٧ آيات فعليًا في المرجع: ' + (r.body?.length));
+  // محاولة إدراج ورد برقم آية غير موجود فعليًا (سورة الفاتحة آية ٩٩ — الفاتحة ٧ آيات بس) — لازم القيد يرفضها
+  r = await rest('/quran_plan_wards', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ plan_id: planId, planned_date: '2099-01-01', day_index: 999, fortress_code: 'new_hifz', surah_no: 1, ayah_from: 1, ayah_to: 99, amount_label: 'اختبار حد غير صالح' }) }, adminToken);
+  assert(r.status >= 400 || r.body?.code, 'ورد بآية غير موجودة فعليًا (الفاتحة:٩٩) رُفض على مستوى القاعدة: status=' + r.status + ' ' + JSON.stringify(r.body).slice(0,150));
+
+  // ── 14) تخفيف حجم الورد بنسبة — دقة حسابية حقيقية بمسافة معرّفات الآيات ──
+  suite('14) quran_reduce_ward_load — دقة رياضية حقيقية');
+  const reduceTestDate = '2099-02-01';
+  r = await rest('/quran_plan_wards', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ plan_id: planId, planned_date: reduceTestDate, day_index: 998, fortress_code: 'new_hifz', surah_no: 78, surah_name: 'النبأ', ayah_from: 1, ayah_to: 20, amount_label: 'النبأ 1-20' }) }, adminToken);
+  const reduceWardId = r.body?.[0]?.id;
+  assert(!!reduceWardId, 'ورد اختبار التخفيف اتعمل: ' + JSON.stringify(r.body));
+  r = await rpc('quran_reduce_ward_load', { p_plan_id: planId, p_percent: 50, p_reason: 'اختبار دخان' }, adminToken);
+  assert(r.body?.ok === true && r.body?.affected_wards >= 1, 'quran_reduce_ward_load نجحت: ' + JSON.stringify(r.body));
+  r = await rest(`/quran_plan_wards?id=eq.${reduceWardId}&select=ayah_to`, {}, adminToken);
+  assert(r.body?.[0]?.ayah_to === 11, 'التخفيض ٥٠٪ لـ"النبأ ١-٢٠" أنتج ١-١١ بالضبط (نفس الحساب المُتحقَّق منه يدويًا وقت البناء): ' + JSON.stringify(r.body));
+
+  // ── 15) أسبوع تثبيت — يوقف الحفظ الجديد فقط، لا المراجعة ──
+  suite('15) quran_consolidation_week');
+  const consStart = '2099-03-02'; // اثنين — يوم دراسة مضمون
+  r = await rest('/quran_plan_wards', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ plan_id: planId, planned_date: consStart, day_index: 997, fortress_code: 'new_hifz', amount_label: 'اختبار تثبيت' }) }, adminToken);
+  const consWardId = r.body?.[0]?.id;
+  r = await rpc('quran_consolidation_week', { p_plan_id: planId, p_start_date: consStart, p_days: 3, p_reason: 'اختبار دخان' }, adminToken);
+  assert(r.body?.ok === true, 'quran_consolidation_week نجحت: ' + JSON.stringify(r.body));
+  r = await rest(`/quran_plan_wards?id=eq.${consWardId}&select=is_rest_day`, {}, adminToken);
+  assert(r.body?.[0]?.is_rest_day === true, 'ورد الحفظ الجديد داخل أسبوع التثبيت تحوّل ليوم راحة فعليًا: ' + JSON.stringify(r.body));
+
+  // ── 16) مركز الإنقاذ — توزيع المتأخرات (نفس الباگ اللي اكتُشف وأُصلح وقت البناء) ──
+  suite('16) مركز الإنقاذ — quran_rescue_summary + quran_spread_lateness (توزيع صحيح فعليًا)');
+  const lateDates = ['2020-01-06', '2020-01-07', '2020-01-08', '2020-01-09', '2020-01-10']; // أيام دراسة، كلها في الماضي البعيد
+  const lateWardIds = [];
+  for (const d of lateDates) {
+    r = await rest('/quran_plan_wards', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ plan_id: planId, planned_date: d, day_index: 900 + lateWardIds.length, fortress_code: 'reading', page_from: 1, page_to: 2, amount_label: 'اختبار متأخر' }) }, adminToken);
+    if (r.body?.[0]?.id) lateWardIds.push(r.body[0].id);
+  }
+  assert(lateWardIds.length === 5, '٥ أوراد متأخرة اختبارية اتعملت: ' + lateWardIds.length);
+  r = await rpc('quran_rescue_summary', { p_plan_id: planId }, adminToken);
+  assert(r.body?.ok === true && r.body?.total >= 5, 'quran_rescue_summary رصد المتأخرات فعليًا: ' + JSON.stringify(r.body));
+  r = await rpc('quran_spread_lateness', { p_plan_id: planId, p_days: 3, p_reason: 'اختبار دخان' }, adminToken);
+  assert(r.body?.ok === true, 'quran_spread_lateness نجحت: ' + JSON.stringify(r.body));
+  r = await rest(`/quran_plan_wards?id=in.(${lateWardIds.join(',')})&select=planned_date`, {}, adminToken);
+  const distinctDates = new Set((r.body || []).map(w => w.planned_date));
+  // ملحوظة: الـ٥ أوراد كلهم من نفس نوع الحصن (reading) — وبما إن migration 014
+  // بتمنع وردين من نفس النوع في نفس اليوم لنفس الخطة، التوزيع الصحيح فعليًا
+  // هو ٥ أيام مختلفة (لا ٣) رغم إن p_days=3 — الدالة تمدّد فتحات هذا النوع
+  // تلقائيًا لتفادي أي تصادم، وهو بالضبط سلوك الإصلاح في migration 016
+  assert(distinctDates.size === 5, 'كل الأوراد المتأخرة (نفس النوع) اتوزّعت على أيام منفصلة تمامًا، بلا أي تصادم مع قيد منع التعارض: توزيع=' + JSON.stringify([...distinctDates]));
+  const allFuture = [...(r.body || [])].every(w => new Date(w.planned_date) >= new Date());
+  assert(allFuture, 'كل التواريخ الجديدة بعد اليوم فعليًا (لا توزيع على الماضي): ' + JSON.stringify(r.body));
+
+  // ── 17) مراجعة علاجية + سجل تعديلات الخطة ──
+  suite('17) quran_add_remedial_ward + quran_plan_edits');
+  r = await rpc('quran_add_remedial_ward', { p_plan_id: planId, p_planned_date: '2099-04-01', p_fortress_code: 'review_near', p_amount_label: 'مراجعة علاجية اختبارية', p_reason: 'اختبار دخان' }, adminToken);
+  assert(r.body?.ok === true && !!r.body?.ward_id, 'quran_add_remedial_ward نجحت: ' + JSON.stringify(r.body));
+  r = await rest(`/quran_plan_edits?plan_id=eq.${planId}&action=eq.add_remedial_ward&select=id`, {}, adminToken);
+  assert(r.body?.length > 0, 'إضافة المراجعة العلاجية سُجِّلت في سجل التعديلات تلقائيًا: ' + JSON.stringify(r.body));
+  r = await rest(`/quran_plan_edits?plan_id=eq.${planId}&action=eq.reduced_ward_load&select=id`, {}, adminToken);
+  assert(r.body?.length > 0, 'تخفيف حجم الورد (خطوة 14) سُجِّل هو الآخر في سجل التعديلات: ' + JSON.stringify(r.body));
+
+  // ── 18) حالة "جزئي" أصبحت حالة مستقلة فعليًا، لا "تمّ" بدرجة أقل ──
+  suite('18) status=partial حالة مستقلة حقيقية');
+  r = await rest('/quran_plan_wards', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ plan_id: planId, planned_date: '2099-05-01', day_index: 996, fortress_code: 'new_hifz', amount_label: 'اختبار جزئي' }) }, adminToken);
+  const partialWardId = r.body?.[0]?.id;
+  r = await rpc('quran_mark_ward', { p_ward_id: partialWardId, p_status: 'partial', p_teacher_mastery: 65, p_teacher_approve: true, p_planned_for_date: '2099-05-01', p_actual_date: today }, adminToken);
+  assert(r.body?.ok === true, 'تسجيل status=partial نجح: ' + JSON.stringify(r.body));
+  r = await rest(`/quran_ward_progress?ward_id=eq.${partialWardId}&select=status`, {}, adminToken);
+  assert(r.body?.[0]?.status === 'partial', 'الحالة المحفوظة = partial فعليًا (لا done): ' + JSON.stringify(r.body));
+  // سبب عدم الإتمام — قيد CHECK يرفض قيمة غير معروفة
+  r = await rest('/quran_plan_wards', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ plan_id: planId, planned_date: '2099-05-02', day_index: 995, fortress_code: 'new_hifz', amount_label: 'اختبار سبب' }) }, adminToken);
+  const reasonWardId = r.body?.[0]?.id;
+  r = await rpc('quran_mark_ward', { p_ward_id: reasonWardId, p_status: 'skipped', p_not_done_reason: 'time_pressure', p_planned_for_date: '2099-05-02', p_actual_date: today }, stuAToken);
+  assert(r.body?.ok === true, 'تسجيل سبب عدم الإتمام نجح: ' + JSON.stringify(r.body));
+  r = await rest(`/quran_ward_progress?ward_id=eq.${reasonWardId}&select=not_done_reason`, {}, adminToken);
+  assert(r.body?.[0]?.not_done_reason === 'time_pressure', 'السبب محفوظ فعليًا: ' + JSON.stringify(r.body));
+
+  // ── 19) طلبات المساعدة — الطالب ينشئ، لا يقدر يقفل طلبه بنفسه، المعلم يقدر ──
+  suite('19) quran_help_requests');
+  r = await rest('/quran_help_requests', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ ward_id: wardId, plan_id: planId, requested_by: stuALoginId, category: 'memorization_difficulty', note: 'اختبار دخان' }) }, stuAToken);
+  const helpReqId = r.body?.[0]?.id;
+  assert(!!helpReqId, 'الطالب قدر ينشئ طلب مساعدة لخطته هو: ' + JSON.stringify(r.body));
+  // الطالب ب (مالوش علاقة بالخطة) لازم يترفض
+  r = await rest('/quran_help_requests', { method: 'POST', body: JSON.stringify({ ward_id: wardId, plan_id: planId, requested_by: stuBLoginId, category: 'other' }) }, stuBToken);
+  assert(r.status >= 400 || (Array.isArray(r.body) && r.body.length === 0), 'طالب مالوش علاقة بالخطة لا يقدر ينشئ طلب مساعدة عليها: status=' + r.status);
+  // الطالب نفسه يحاول يقفل طلبه — لازم يترفض (RLS تقصر الإغلاق على المعلم/الإدارة)
+  r = await rest(`/quran_help_requests?id=eq.${helpReqId}`, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ status: 'resolved' }) }, stuAToken);
+  assert(!Array.isArray(r.body) || r.body.length === 0, 'الطالب لا يقدر يقفل طلب المساعدة بنفسه (لا صفوف اتأثرت): ' + JSON.stringify(r.body));
+  r = await rest(`/quran_help_requests?id=eq.${helpReqId}&select=status`, {}, adminToken);
+  assert(r.body?.[0]?.status === 'open', 'الطلب لسه مفتوح فعليًا بعد محاولة الطالب: ' + JSON.stringify(r.body));
+  // المعلم/الإدارة يقفله — لازم ينجح
+  r = await rest(`/quran_help_requests?id=eq.${helpReqId}`, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ status: 'resolved', resolved_by: adminId, resolved_at: new Date().toISOString() }) }, adminToken);
+  assert(Array.isArray(r.body) && r.body[0]?.status === 'resolved', 'المعلم/الإدارة قدر يقفل الطلب: ' + JSON.stringify(r.body));
+
+  // ── 20) قيد منع تعارض ورد بورد آخر لنفس اليوم ──
+  suite('20) منع تعارض الأوراد لنفس اليوم');
+  const conflictDate = '2099-06-01';
+  r = await rest('/quran_plan_wards', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ plan_id: planId, planned_date: conflictDate, day_index: 994, fortress_code: 'listening', page_from: 1, page_to: 2, amount_label: 'الأول' }) }, adminToken);
+  assert(!!r.body?.[0]?.id, 'أول ورد سماع لليوم اتعمل بنجاح: ' + JSON.stringify(r.body));
+  r = await rest('/quran_plan_wards', { method: 'POST', body: JSON.stringify({ plan_id: planId, planned_date: conflictDate, day_index: 993, fortress_code: 'listening', page_from: 3, page_to: 4, amount_label: 'الثاني (متعارض)' }) }, adminToken);
+  assert(r.status >= 400, 'ورد سماع ثانٍ لنفس اليوم ونفس النوع رُفض على مستوى القاعدة (فهرس فريد جزئي): status=' + r.status + ' ' + JSON.stringify(r.body).slice(0,150));
+
   console.log(`\n────────────────────\n${pass} ناجح، ${fail} فاشل\n`);
   process.exit(fail > 0 ? 1 : 0);
 }
