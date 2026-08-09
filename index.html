@@ -9700,6 +9700,7 @@ async function qRenderFullPlan(planId, role='student'){
   const actBtns = `<div class="qexport-btns">
     <button onclick="qExportPlanPDF('${esc(planId)}')">${mi('printer')} طباعة PDF</button>
     ${role==='teacher'?`<button onclick="qExportPlanExcel('${esc(planId)}')">${mi('chart')} تصدير Excel</button><button onclick="qShowEditPanel('${esc(planId)}')">${mi('gear')} تعديل الخطة</button>`:''}
+    ${role==='teacher' && lateC>0 ? `<button style="background:var(--rose);color:#fff;border-color:var(--rose)" onclick="qOpenRescueCenter('${esc(planId)}')">🚑 مركز إنقاذ الخطة (${ar(lateC)})</button>` : ''}
   </div>`;
   const editPanel = role==='teacher' ? `<div class="qedit-panel" id="qEditPanel_${esc(planId)}">
     <h4>⚙️ تعديل الخطة</h4>
@@ -10187,9 +10188,84 @@ async function qSaveRemedial(planId){
 }
 // سجل تعديلات الخطة — من عدّل، امتى، السبب، وأثره المتوقع. مرئي للمعلم والإدارة
 // وأيضاً للطالب/وليّ الأمر (شفافية) حسب سياسة RLS على الجدول
+// ═══════ مركز إنقاذ الخطة ═══════
+// تجميع المتأخرات حسب النوع والسبب بدل بطاقات حمراء متكررة، مع معاينة الأثر
+// قبل أي اعتماد فعلي — لا معالجة تلقائية بلا موافقة صريحة من المعلم
+const QRESCUE_FORT_AR = { new_hifz:'حفظ جديد', review_near:'مراجعة قريبة', review_far:'مراجعة بعيدة', listening:'سماع', reading:'قراءة وتلاوة' };
+const QRESCUE_REASON_AR = { time_pressure:'ضيق وقت', difficulty:'صعوبة', absence:'غياب', needs_listening:'يحتاج تسميع', other:'غير ذلك', not_recorded:'لم يُسجَّل سبب' };
+async function qOpenRescueCenter(planId){
+  const { data:res, error } = await sb.rpc('quran_rescue_summary', { p_plan_id:planId });
+  if(error || !res?.ok){ toast('تعذّر تحميل مركز الإنقاذ: '+(error?.message||res?.error||'')); return; }
+  const fortRows = Object.entries(res.by_fortress||{}).map(([code,cnt])=>
+    `<div class="qpvrow"><span>${QRESCUE_FORT_AR[code]||code}</span><b style="color:var(--rose)">${ar(cnt)}</b></div>`).join('');
+  const reasonRows = Object.entries(res.by_reason||{}).map(([r,cnt])=>
+    `<div class="qpvrow"><span>${QRESCUE_REASON_AR[r]||r}</span><b>${ar(cnt)}</b></div>`).join('');
+  $('#qmodalHost').innerHTML = `<div class="qmodal" onclick="if(event.target===this)qCloseModal()">
+    <div class="qmbox" style="max-width:520px">
+      <h2>🚑 مركز إنقاذ الخطة</h2>
+      <p class="qmdesc">إجمالي المتأخرات: <b style="color:var(--rose)">${ar(res.total)}</b> ورد</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:14px 0">
+        <div><h4 style="font-size:13px;margin-bottom:6px">حسب النوع</h4><div class="qpv">${fortRows||'<div class="qpvrow"><span>—</span></div>'}</div></div>
+        <div><h4 style="font-size:13px;margin-bottom:6px">حسب السبب</h4><div class="qpv">${reasonRows||'<div class="qpvrow"><span>—</span></div>'}</div></div>
+      </div>
+      <h4 style="font-size:13px;margin:14px 0 8px">قرارات ممكنة</h4>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="btn-sm" onclick="qRescuePreviewSpread('${esc(planId)}')">📅 توزيع المتأخرات على أيام</button>
+        <button class="btn-sm ghost" onclick="qRescueReduceLoad('${esc(planId)}')">📉 تخفيف حجم الورد القادم</button>
+        <button class="btn-sm ghost" onclick="qRescueConsolidation('${esc(planId)}')">⏸️ أسبوع تثبيت (إيقاف الحفظ الجديد)</button>
+        <button class="btn-sm ghost" onclick="qCloseModal();qAddRemedialModal('${esc(planId)}')">➕ مراجعة علاجية</button>
+        <button class="btn-sm ghost" onclick="qCloseModal();navigate(SESSION.page)">✏️ تعديل يدوي دقيق (من الخطة الكاملة)</button>
+      </div>
+      <div style="text-align:end;margin-top:14px"><button class="btn ghost" onclick="qCloseModal()">إغلاق</button></div>
+    </div>
+  </div>`;
+}
+async function qRescuePreviewSpread(planId){
+  const days = +(prompt('توزيع المتأخرات على كام يوم دراسة؟','3')||0);
+  if(!days || days<=0){ return; }
+  const { data:preview, error } = await sb.rpc('quran_preview_spread_lateness', { p_plan_id:planId, p_days:days });
+  if(error || !preview?.ok){ toast('تعذّر حساب المعاينة: '+(error?.message||preview?.error||'')); return; }
+  $('#qmodalHost').innerHTML = `<div class="qmodal" onclick="if(event.target===this)qCloseModal()">
+    <div class="qmbox">
+      <h2>معاينة أثر التوزيع</h2>
+      <div class="qpv" style="margin-top:10px">
+        <div class="qpvrow"><span>عدد الأوراد المتأثرة</span><b>${ar(preview.affected_wards)}</b></div>
+        <div class="qpvrow"><span>موعد الإتمام الحالي</span><b>${preview.current_target_date||'—'}</b></div>
+        <div class="qpvrow"><span>موعد الإتمام المتوقع بعد التوزيع</span><b style="color:var(--gold)">${preview.projected_target_date}</b></div>
+      </div>
+      <div class="field" style="margin-top:12px"><label>السبب <span class="hint">(يُسجَّل في سجل التعديلات)</span></label><input id="qRescueSpreadReason" placeholder="مثلاً: تعثّر بسبب امتحانات مدرسية"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+        <button class="btn ghost" onclick="qCloseModal()">إلغاء</button>
+        <button class="btn" onclick="qRescueDoSpread('${esc(planId)}',${days})">${mi('check')} اعتماد التوزيع</button>
+      </div>
+    </div>
+  </div>`;
+}
+async function qRescueDoSpread(planId, days){
+  const reason = $('#qRescueSpreadReason')?.value.trim() || null;
+  const { data:res, error } = await sb.rpc('quran_spread_lateness', { p_plan_id:planId, p_days:days, p_reason:reason });
+  if(error || !res?.ok){ toast('تعذّر: '+(error?.message||res?.error||'')); return; }
+  qCloseModal(); toast('✅ اتوزّعت '+ar(res.affected_wards)+' ورد متأخر'); navigate(SESSION.page);
+}
+async function qRescueReduceLoad(planId){
+  const percent = +(prompt('تخفيف حجم الحفظ القادم بنسبة كام٪؟ (مثلاً 30)','30')||0);
+  if(!percent || percent<=0 || percent>=100){ toast('نسبة غير صحيحة'); return; }
+  const reason = prompt('السبب (يُسجَّل في سجل التعديلات):') || null;
+  const { data:res, error } = await sb.rpc('quran_reduce_ward_load', { p_plan_id:planId, p_percent:percent, p_reason:reason });
+  if(error || !res?.ok){ toast('تعذّر: '+(error?.message||res?.error||'')); return; }
+  qCloseModal(); toast('✅ اتخفّف حجم '+ar(res.affected_wards)+' ورد قادم'); navigate(SESSION.page);
+}
+async function qRescueConsolidation(planId){
+  const days = +(prompt('أسبوع تثبيت — كام يوم؟','7')||0);
+  if(!days || days<=0){ return; }
+  const reason = prompt('السبب (يُسجَّل في سجل التعديلات):') || null;
+  const { data:res, error } = await sb.rpc('quran_consolidation_week', { p_plan_id:planId, p_start_date:qTodayStr(), p_days:days, p_reason:reason });
+  if(error || !res?.ok){ toast('تعذّر: '+(error?.message||res?.error||'')); return; }
+  qCloseModal(); toast('✅ أسبوع تثبيت من '+res.start_date+' إلى '+res.end_date); navigate(SESSION.page);
+}
 async function qShowEditHistory(planId){
   const { data:rows } = await sb.from('quran_plan_edits').select('*, actor:profiles!quran_plan_edits_actor_id_fkey(full_name)').eq('plan_id',planId).order('created_at',{ascending:false}).limit(50);
-  const ACTION_AR = { status_changed:'تغيير حالة الخطة', ward_edited:'تعديل ورد يوم بعينه', rescheduled_remaining:'إعادة جدولة المتبقي', caught_up:'استدراك (تقديم الخطة)', station_transition:'انتقال لمحطة جديدة', add_remedial_ward:'إضافة مراجعة علاجية' };
+  const ACTION_AR = { status_changed:'تغيير حالة الخطة', ward_edited:'تعديل ورد يوم بعينه', rescheduled_remaining:'إعادة جدولة المتبقي', caught_up:'استدراك (تقديم الخطة)', station_transition:'انتقال لمحطة جديدة', add_remedial_ward:'إضافة مراجعة علاجية', reduced_ward_load:'تخفيف حجم الورد', consolidation_week:'أسبوع تثبيت', pace_changed:'تغيير الوتيرة', spread_lateness:'توزيع المتأخرات' };
   const html = (rows||[]).length ? (rows||[]).map(r=>`<div style="padding:10px 4px;border-bottom:1px dashed var(--line)">
       <div style="display:flex;justify-content:space-between;gap:8px"><b style="font-size:13.5px;color:var(--navy-deep)">${esc(ACTION_AR[r.action]||r.action)}</b><span style="color:var(--muted);font-size:11.5px;white-space:nowrap">${pkAgo(r.created_at)}</span></div>
       <div style="font-size:12px;color:var(--muted);margin-top:2px">بواسطة ${esc(r.actor?.full_name||'—')}${r.reason?' — السبب: '+esc(r.reason):''}</div>
