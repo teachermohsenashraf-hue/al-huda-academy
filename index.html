@@ -8526,10 +8526,18 @@ async function generatePlanSchedule(planId){
     if(i>maxIter-2) break;
   }
 
-  // 5) Insert wards in batches
+  // 5) Insert wards in batches — باستبعاد أي (تاريخ + نوع حصن) موجود بالفعل لنفس
+  // الخطة أولاً. حماية ضد تعارض ورد بورد آخر لنفس اليوم: لو ورد محفوظ سلفاً (مثلاً
+  // أُنجز مبكرًا وتم الإبقاء عليه عمدًا عند إعادة الجدولة/الانتقال) موجود على نفس
+  // التاريخ ونفس الحصن، لا نضيف نسخة ثانية متعارضة معه.
+  const { data: existingWards } = await sb.from('quran_plan_wards').select('planned_date,fortress_code').eq('plan_id',planId);
+  const existingKeys = new Set((existingWards||[]).map(w=>w.planned_date+'|'+w.fortress_code));
+  const dedupedWards = wards.filter(w=>!existingKeys.has(w.planned_date+'|'+w.fortress_code));
+  const skipped = wards.length - dedupedWards.length;
+  if(skipped>0) console.warn('generatePlanSchedule: تخطّى '+skipped+' ورد كان سيتعارض مع أوراد محفوظة بالفعل (على الأرجح مُنجَزة مبكرًا)');
   const batchSize = 500;
-  for(let i=0; i<wards.length; i+=batchSize){
-    const batch = wards.slice(i,i+batchSize);
+  for(let i=0; i<dedupedWards.length; i+=batchSize){
+    const batch = dedupedWards.slice(i,i+batchSize);
     const { error } = await sb.from('quran_plan_wards').insert(batch);
     if(error) throw new Error('تعذّر إدراج الأوراد: '+error.message);
   }
@@ -10017,12 +10025,19 @@ async function qRescheduleRemaining(planId){
   if(!confirm('سيتم إعادة توزيع الأوراد المتبقية بدءاً من اليوم. هل توافق؟')) return;
   const reason = prompt('سبب إعادة الجدولة (اختياري، يُسجَّل في سجل التعديلات):') || null;
   const today = qTodayStr();
-  // Mark old future wards for deletion and re-generate
+  // Mark old future wards for deletion and re-generate — لكن مع استثناء أي ورد
+  // مُنجَز فعلاً (إتمام مبكر) من الحذف، حفاظًا على "لا تفقد الخطة التقدم السابق"
   const { data: futureWards } = await sb.from('quran_plan_wards').select('id').eq('plan_id',planId).gt('planned_date',today);
   if(futureWards && futureWards.length){
     const ids = futureWards.map(w=>w.id);
-    await qChunkedDelete('quran_ward_progress','ward_id',ids);
-    await qChunkedDelete('quran_plan_wards','id',ids);
+    const doneProgs = await qFetchProgress(ids, 'ward_id,status');
+    const doneIds = new Set((doneProgs||[]).filter(p=>p.status==='done').map(p=>p.ward_id));
+    const deletableIds = ids.filter(id=>!doneIds.has(id));
+    if(doneIds.size) toast('ℹ️ '+ar(doneIds.size)+' ورد مُنجَز مبكرًا اتحفظ ولم يُعَد جدولته');
+    if(deletableIds.length){
+      await qChunkedDelete('quran_ward_progress','ward_id',deletableIds);
+      await qChunkedDelete('quran_plan_wards','id',deletableIds);
+    }
   }
   // Update plan start_date to today to regenerate
   const { data: plan } = await sb.from('quran_student_plans').select('*').eq('id',planId).maybeSingle();
@@ -10172,8 +10187,16 @@ async function qDoTransition(planId, nextStationId){
   const { data: futureWards } = await sb.from('quran_plan_wards').select('id').eq('plan_id',planId).gte('planned_date',today);
   if(futureWards?.length){
     const ids = futureWards.map(w=>w.id);
-    await qChunkedDelete('quran_ward_progress','ward_id',ids);
-    await qChunkedDelete('quran_plan_wards','id',ids);
+    // نفس مبدأ qRescheduleRemaining: لا نحذف أي ورد أُنجز فعلاً (بما فيه ورد
+    // اليوم لو أنجزه الطالب قبل ما يعتمد المعلم الانتقال) — نحافظ على تقدّمه
+    const doneProgs = await qFetchProgress(ids, 'ward_id,status');
+    const doneIds = new Set((doneProgs||[]).filter(p=>p.status==='done').map(p=>p.ward_id));
+    const deletableIds = ids.filter(id=>!doneIds.has(id));
+    if(doneIds.size) toast('ℹ️ '+ar(doneIds.size)+' ورد مُنجَز اتحفظ من المحطة السابقة');
+    if(deletableIds.length){
+      await qChunkedDelete('quran_ward_progress','ward_id',deletableIds);
+      await qChunkedDelete('quran_plan_wards','id',deletableIds);
+    }
   }
   await sb.from('quran_student_plans').update({ current_station_id:nextStationId, start_date:today, updated_at:new Date().toISOString() }).eq('id',planId);
   try {
