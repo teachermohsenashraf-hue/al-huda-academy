@@ -323,6 +323,8 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 .chat-list{border-inline-end:1px solid var(--line);overflow-y:auto}
 .chat-item{display:flex;align-items:center;gap:12px;padding:15px 16px;cursor:pointer;border-bottom:1px solid var(--line);transition:.2s}
 .chat-item:hover,.chat-item.on{background:var(--cream)}
+.chat-item.has-unread{background:linear-gradient(to left,rgba(46,125,91,0.06),transparent)}
+.chat-item.has-unread .cmeta b{color:var(--emerald-deep,#1B4D3E)}
 .chat-item .cav{width:42px;height:42px;border-radius:50%;background:linear-gradient(140deg,var(--emerald),var(--emerald-deep));display:grid;place-items:center;color:#fff;font-family:'Amiri';flex:none}
 .chat-item .cmeta{flex:1;min-width:0}
 .chat-item .cmeta b{font-size:14px;color:var(--navy-deep);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -6015,34 +6017,132 @@ async function chatPage(){ setTop('الرسائل','تواصل مباشر');
   const otherIds=[...new Set(list.map(otherIdOf).filter(Boolean))];
   if(list.length && (!SESSION.activeChat||!list.find(c=>c.id===SESSION.activeChat))) SESSION.activeChat=list[0].id;
   const active=list.find(c=>c.id===SESSION.activeChat);
-  // بعد معرفة المحادثات، الثلاثة استعلامات المتبقية مستقلة عن بعضها — بالتوازي:
-  // أسماء الأطراف + رسائل المحادثة النشطة + طلاب "جدد" (للمعلم)
-  const [profsRes, msgsRes, newStudRes] = await Promise.all([
+  const chatIds = list.map(c=>c.id);
+  // ─── بالتوازي: أسماء الأطراف + رسائل المحادثة النشطة + طلاب جدد (للمعلم) +
+  //   آخر رسالة في كل محادثة (لبناء المعاينة والوقت في قائمة المحادثات على اليسار)
+  const [profsRes, msgsRes, newStudRes, recentRes] = await Promise.all([
     otherIds.length ? sb.from('profiles').select('id,full_name,role').in('id',otherIds) : Promise.resolve({data:[]}),
     active ? sb.from('messages').select('*').eq('chat_id',active.id).order('created_at') : Promise.resolve({data:[]}),
     ME.role==='teacher' ? sb.from('students').select('login_id,parent_id').eq('chosen_teacher_id',ME.id).is('group_id',null) : Promise.resolve({data:[]}),
+    // آخر ٥٠ رسالة عبر كل محادثاتي — تكفي لآخر رسالة في كل محادثة تقريباً بلا استعلام لكل محادثة على حدة
+    chatIds.length ? sb.from('messages').select('chat_id,sender_id,body,created_at').in('chat_id',chatIds).order('created_at',{ascending:false}).limit(Math.max(50, chatIds.length*3)) : Promise.resolve({data:[]}),
   ]);
   let otherMap={}; (profsRes.data||[]).forEach(p=>{ otherMap[p.id]={ name:p.full_name, role:p.role }; });
   let newStudentIds=new Set(); (newStudRes.data||[]).forEach(s=>{ if(s.login_id) newStudentIds.add(s.login_id); if(s.parent_id) newStudentIds.add(s.parent_id); });
   const msgs = msgsRes.data||[];
+  const recent = recentRes.data||[];
+  // آخر رسالة في كل محادثة
+  const lastMsgByChat = {};
+  recent.forEach(m=>{ if(!lastMsgByChat[m.chat_id]) lastMsgByChat[m.chat_id]=m; });
+  // عد الرسائل غير المقروءة لكل محادثة — يعتمد على "آخر مشاهدة" مخزّن محلياً
+  // بدل عمود قاعدة بيانات، لأنه لا يوجد read_at في جدول messages وإضافة عمود
+  // جديد الآن ستمس RLS ومسارات كتابة كثيرة — التخزين المحلي يعطي نفس الأثر
+  // البصري بلا مخاطر schema.
+  const seenKey = cid => 'chat_seen_'+cid;
+  const lastSeen = cid => { try{ return localStorage.getItem(seenKey(cid))||''; }catch(e){ return ''; } };
+  const unreadOf = c => recent.filter(m=>m.chat_id===c.id && m.sender_id!==ME.id && m.created_at>(lastSeen(c.id)||'2000-01-01')).length;
+  // بمجرد فتح المحادثة النشطة، اعتبرها مقروءة على هذا الجهاز (يمسح الشارة فوراً)
+  if(active) try{ localStorage.setItem(seenKey(active.id), new Date().toISOString()); }catch(e){}
+
   const chatName=(c)=>{ const oid=otherIdOf(c); const info=otherMap[oid]; return info?info.name:(c.title||'محادثة'); };
-  const chatBadge=(c)=>{
+  const roleLabel=(c)=>{
     const oid=otherIdOf(c);
-    if(oid&&newStudentIds.has(oid)) return '<span class="chip gold" style="font-size:10px;margin-inline-start:6px">طالب جديد</span>';
+    if(oid&&newStudentIds.has(oid)) return 'طالب جديد • اضغط لبدء التعارف';
     const info=otherMap[oid];
-    return info&&info.role?`<span style="font-size:11px;color:var(--muted);margin-inline-start:6px">${esc(roleAr(info.role))}</span>`:'';
+    return info&&info.role?roleAr(info.role):'';
+  };
+  const fmtChatTime = ts => {
+    if(!ts) return '';
+    const d = new Date(ts); const now = new Date();
+    const sameDay = d.toDateString()===now.toDateString();
+    if(sameDay) return d.toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});
+    const daysAgo = Math.floor((now - d)/86400000);
+    if(daysAgo===1) return 'أمس';
+    if(daysAgo<7) return d.toLocaleDateString('ar-EG',{weekday:'long'});
+    return d.toLocaleDateString('ar-EG',{day:'numeric',month:'short'});
+  };
+  const initials = (name) => {
+    const parts = String(name||'').trim().split(/\s+/);
+    return (parts[0]?parts[0][0]:'')+(parts[1]?parts[1][0]:'');
   };
   if(active) chatSubscribeRealtime(active.id, 'chatBody', renderMainBubble); // تحديث لحظي للرسائل الواردة
+
+  // زر مساعد يظهر للطالب فقط لو عنده ورد اليوم — يرسل رسالة مربوطة بالورد
+  // مباشرة (بدل ما الطالب يكتب رقم السورة والآية يدوياً في نص حر)
+  const linkWardBtn = ME.role==='student' ? `<button class="btn ghost btn-sm" onclick="chatAttachToday()" title="رسالة مرتبطة بورد اليوم">📖 رسالة عن وردي اليوم</button>` : '';
+
+  const otherName = active ? chatName(active) : '';
+  const otherRole = active ? roleLabel(active) : '';
+
   return pageHead('الرسائل','محادثاتك')+
-  `<div style="margin-bottom:14px"><button class="btn" onclick="newChatModal()">+ محادثة جديدة</button></div>
+  `<div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center"><button class="btn" onclick="newChatModal()">+ محادثة جديدة</button>${list.length>6?`<input id="chatListSearch" placeholder="🔎 ابحث في محادثاتك..." oninput="chatFilterList(this.value)" style="flex:1;min-width:180px;padding:9px 14px;border:1px solid var(--line);border-radius:20px;background:#fff;font-size:13px">`:''}</div>
   <div class="chat-wrap">
-    <div class="chat-list">${list.length?list.map(c=>{ const nm=chatName(c); return `<div class="chat-item ${active&&c.id===active.id?'on':''}" onclick="openChat(${c.id})"><div class="cav">${esc(nm.slice(0,2))}</div><div class="cmeta"><b>${esc(nm)} ${chatBadge(c)}</b><span>اضغط للفتح</span></div></div>`; }).join(''):'<p style="color:var(--muted);padding:14px;font-size:13.5px">لا محادثات. ابدأ واحدة جديدة.</p>'}</div>
+    <div class="chat-list" id="chatList">${list.length?list.map(c=>{
+      const nm=chatName(c);
+      const lm=lastMsgByChat[c.id];
+      const unread=unreadOf(c);
+      const isOn = active && c.id===active.id;
+      const preview = lm ? (lm.sender_id===ME.id?'أنت: ':'') + String(lm.body||'').replace(/\s+/g,' ').slice(0,55) : 'اضغط لبدء المحادثة';
+      const time = lm ? fmtChatTime(lm.created_at) : '';
+      const isNewStud = newStudentIds.has(otherIdOf(c));
+      return `<div class="chat-item ${isOn?'on':''} ${unread>0?'has-unread':''}" data-name="${esc(nm.toLowerCase())}" onclick="openChat(${c.id})">
+        <div class="cav">${esc(initials(nm)||nm.slice(0,2))}</div>
+        <div class="cmeta">
+          <div style="display:flex;align-items:center;gap:6px;justify-content:space-between"><b>${esc(nm)}</b>${time?`<span class="cmeta-time" style="font-size:11px;color:var(--muted);font-weight:normal;flex:none">${esc(time)}</span>`:''}</div>
+          <div style="display:flex;align-items:center;gap:6px;justify-content:space-between"><span style="font-size:12px;color:${unread>0?'var(--navy-deep)':'var(--muted)'};font-weight:${unread>0?'600':'normal'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1">${esc(preview)}</span>${unread>0?`<span class="chat-unread" style="background:var(--emerald,#2E7D5B);color:#fff;font-size:10.5px;font-weight:700;min-width:20px;height:20px;padding:0 6px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;flex:none">${ar(unread)}</span>`:(isNewStud?'<span class="chip gold" style="font-size:10px;flex:none">جديد</span>':'')}</div>
+        </div>
+      </div>`;
+    }).join(''):`<div style="padding:24px 18px;text-align:center;color:var(--muted)"><div style="font-size:36px;margin-bottom:8px">💬</div><b style="color:var(--navy-deep);font-size:14px">لا محادثات بعد</b><div style="font-size:12.5px;margin-top:6px;line-height:1.7">ابدأ محادثة جديدة من زر «+ محادثة جديدة» أعلاه — ${ME.role==='student'?'ستجد معلمك في القائمة':(ME.role==='parent'?'ستجد معلمي أبنائك في القائمة':(ME.role==='teacher'?'ستجد الإدارة والإشراف في القائمة':'كل الأدوار المسموحة تظهر في القائمة'))}.</div></div>`}</div>
     <div class="chat-main">${active?`
-      <div class="chat-head"><div class="cav">${esc(chatName(active).slice(0,2))}</div><div><b>${esc(chatName(active))} ${chatBadge(active)}</b><small>محادثة</small></div></div>
-      <div class="chat-body" id="chatBody">${msgs.length?msgs.map(renderMainBubble).join(''):'<p style="color:var(--muted);text-align:center;margin-top:30px">ابدأ المحادثة بأول رسالة 👋</p>'}</div>
-      <div class="chat-input"><input id="chatInput" placeholder="اكتب رسالتك..." onkeydown="if(event.key==='Enter')sendMsg()"><button onclick="sendMsg()">${mi('arrowRight')}</button></div>
-    `:'<div style="display:grid;place-items:center;height:100%;color:var(--muted)">اختر محادثة أو ابدأ واحدة جديدة</div>'}</div>
+      <div class="chat-head">
+        <div class="cav">${esc(initials(otherName)||otherName.slice(0,2))}</div>
+        <div style="flex:1;min-width:0"><b>${esc(otherName)}</b><small>${esc(otherRole||'محادثة')}</small></div>
+      </div>
+      <div class="chat-body" id="chatBody">${msgs.length?msgs.map(renderMainBubble).join(''):`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--muted);text-align:center;padding:20px"><div style="font-size:42px;margin-bottom:10px">✉️</div><b style="color:var(--navy-deep);font-size:14px">ابدأ المحادثة بأول رسالة</b><div style="font-size:12.5px;margin-top:6px;line-height:1.7">اكتب رسالتك في الحقل أسفل، ورسالتك ستصل مباشرة إلى ${esc(otherName)}${otherRole?' ('+esc(otherRole)+')':''}.</div></div>`}</div>
+      <div class="chat-input">
+        ${linkWardBtn}
+        <input id="chatInput" placeholder="اكتب رسالتك..." onkeydown="if(event.key==='Enter')sendMsg()">
+        <button onclick="sendMsg()" title="إرسال" aria-label="إرسال">${mi('arrowRight')}</button>
+      </div>
+    `:`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--muted);text-align:center;padding:30px"><div style="font-size:52px;margin-bottom:12px;opacity:0.5">💬</div><b style="color:var(--navy-deep);font-size:15px">اختر محادثة من القائمة</b><div style="font-size:13px;margin-top:8px">أو ابدأ محادثة جديدة من الزر أعلاه.</div></div>`}</div>
   </div>`;
+}
+// تصفية قائمة المحادثات محلياً (بدون إعادة استعلام) عبر الاسم المخزّن في data-name
+function chatFilterList(q){
+  const s = String(q||'').trim().toLowerCase();
+  document.querySelectorAll('#chatList .chat-item').forEach(el=>{
+    const nm = el.dataset.name||'';
+    el.style.display = (!s || nm.includes(s)) ? '' : 'none';
+  });
+}
+// إرفاق ورد اليوم لرسالة الطالب — تعتمد على بيانات الورد المنظمة من الخطة،
+// لا نص حر. لو الطالب مليوش خطة اليوم، نخبره بدل ما نرسل رسالة فارغة السياق.
+async function chatAttachToday(){
+  if(ME.role!=='student'){ return; }
+  try{
+    const s = await myStudentRow();
+    if(!s){ toast('لم نتمكن من قراءة خطتك'); return; }
+    const today = new Date(); const iso = today.toISOString().slice(0,10);
+    const { data:plan } = await sb.from('quran_student_plans').select('id').eq('student_id',s.id).eq('status','active').maybeSingle();
+    if(!plan){ toast('لا خطة قرآنية نشطة لديك — لا يمكن ربط الرسالة بورد اليوم'); return; }
+    const { data:wards } = await sb.from('quran_plan_wards').select('fortress_code,surah_no,ayah_from,surah_no_to,ayah_to,is_rest_day').eq('plan_id',plan.id).eq('planned_date',iso).limit(10);
+    const real = (wards||[]).filter(w=>!w.is_rest_day);
+    if(!real.length){ toast('لا ورد لك اليوم'); return; }
+    const surahName = async (n) => { try{ const { data } = await sb.from('quran_surahs').select('name_ar').eq('surah_no',n).maybeSingle(); return data?.name_ar||('سورة '+ar(n)); }catch(e){ return 'سورة '+ar(n); } };
+    const fortAr = { new_hifz:'حفظ جديد', near_review:'مراجعة قريبة', far_review:'مراجعة بعيدة', listening:'سماع', remedial:'مراجعة علاجية' };
+    const lines = [];
+    for(const w of real){
+      const sn = await surahName(w.surah_no);
+      const rangeTxt = (w.surah_no_to && w.surah_no_to!==w.surah_no)
+        ? `${sn}:${ar(w.ayah_from)} – سورة أخرى:${ar(w.ayah_to||1)}`
+        : `${sn} — الآيات ${ar(w.ayah_from)}–${ar(w.ayah_to||w.ayah_from)}`;
+      lines.push(`• ${fortAr[w.fortress_code]||w.fortress_code}: ${rangeTxt}`);
+    }
+    const prefill = `السلام عليكم، بخصوص وردي اليوم (${today.toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long'})}):\n${lines.join('\n')}\n\n`;
+    const inp = document.getElementById('chatInput');
+    if(inp){ inp.value = prefill; inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
+    else { toast('افتح محادثة أولاً'); }
+  }catch(e){ toast('تعذّر إرفاق ورد اليوم'); }
 }
 // فقاعة رسالة مشتركة بين المحادثة الرئيسية وشات الحلقة — الفرق الوحيد بينهما هو
 // شكل الترويسة فوق رسائل الطرف الآخر (main: الدور فقط، halqa: الاسم + الدور
