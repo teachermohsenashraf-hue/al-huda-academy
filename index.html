@@ -345,6 +345,21 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
    الحاوية (dvh على متصفحات/أجهزة معيّنة)، شريط الكتابة يفضل مثبّتاً في أسفل
    الشاشة المرئية ولا يختفي أبداً خلف الرسائل مهما طال عددها */
 .chat-input{padding:14px 18px;border-top:1px solid var(--line);display:flex;gap:10px;flex-shrink:0;position:sticky;bottom:0;background:#fff;z-index:2}
+/* فاصل يوم داخل قائمة الرسائل — طراز واتساب: كبسولة مركزية شفافة، خفيفة الظل،
+   لا تنافس محتوى الرسالة نفسها بصرياً */
+.chat-day-sep{display:flex;justify-content:center;margin:8px 0 4px;position:relative}
+.chat-day-sep::before{content:"";position:absolute;top:50%;inset-inline:0;height:1px;background:linear-gradient(to inline-end,transparent,var(--line),transparent);z-index:0}
+.chat-day-sep span{position:relative;z-index:1;background:rgba(255,255,255,0.9);color:var(--muted);font-size:11.5px;font-weight:700;padding:5px 14px;border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,0.04);border:1px solid var(--line)}
+/* شريط مساعد فوق حقل الإدخال — لطلب "رسالة عن ورد اليوم" (للطالب) */
+.chat-tool-bar{display:flex;align-items:center;gap:12px;padding:11px 16px;margin:0;background:linear-gradient(to inline-end,rgba(46,125,91,0.08),rgba(46,125,91,0.02));border-top:1px solid var(--line);cursor:pointer;transition:.2s}
+.chat-tool-bar:hover{background:linear-gradient(to inline-end,rgba(46,125,91,0.14),rgba(46,125,91,0.05))}
+.chat-tool-bar:focus{outline:2px solid var(--emerald,#2E7D5B);outline-offset:-2px}
+.chat-tool-bar .ctb-ic{width:38px;height:38px;border-radius:11px;background:var(--emerald,#2E7D5B);color:#fff;display:grid;place-items:center;flex:none;box-shadow:0 2px 6px rgba(46,125,91,0.25)}
+.chat-tool-bar .ctb-ic svg{width:20px;height:20px}
+.chat-tool-bar .ctb-txt{flex:1;min-width:0;line-height:1.4}
+.chat-tool-bar .ctb-txt b{display:block;color:var(--navy-deep);font-size:13.5px;margin-bottom:2px}
+.chat-tool-bar .ctb-txt span{display:block;color:var(--muted);font-size:11.5px}
+.chat-tool-bar .ctb-go{color:var(--emerald,#2E7D5B);font-size:18px;font-weight:700;flex:none}
 .chat-input input{flex:1;border:1px solid var(--line);border-radius:30px;padding:12px 18px;font-size:14px;background:var(--cream)}
 .chat-input button{border:none;width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,var(--emerald),var(--emerald-deep));color:#fff;font-size:18px;cursor:pointer}
 
@@ -6128,9 +6143,14 @@ async function chatPage(){ setTop('الرسائل','تواصل مباشر');
   };
   if(active) chatSubscribeRealtime(active.id, 'chatBody', renderMainBubble); // تحديث لحظي للرسائل الواردة
 
-  // زر مساعد يظهر للطالب فقط لو عنده ورد اليوم — يرسل رسالة مربوطة بالورد
-  // مباشرة (بدل ما الطالب يكتب رقم السورة والآية يدوياً في نص حر)
-  const linkWardBtn = ME.role==='student' ? `<button class="btn ghost btn-sm" onclick="chatAttachToday()" title="رسالة مرتبطة بورد اليوم">📖 رسالة عن وردي اليوم</button>` : '';
+  // شريط مساعد يظهر للطالب فقط: يعبّي حقل الرسالة بورد اليوم منسقاً (بدل ما
+  // الطالب يكتب رقم السورة والآية يدوياً في نص حر). صار قطعة بارزة فوق حقل
+  // الإدخال بدل زر صغير مبهم داخل السطر — أسهل ملاحظة وأوضح غرضاً.
+  const linkWardBtn = ME.role==='student' ? `<div class="chat-tool-bar" onclick="chatAttachToday()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();chatAttachToday();}">
+    <div class="ctb-ic">${mi('book')}</div>
+    <div class="ctb-txt"><b>اسأل معلمك عن وردي اليوم</b><span>يعبّي رسالتك بورد اليوم منسّقاً (سورة + آيات + نوع الحصن)</span></div>
+    <div class="ctb-go">←</div>
+  </div>` : '';
 
   const otherName = active ? chatName(active) : '';
   const otherRole = active ? roleLabel(active) : '';
@@ -6159,9 +6179,9 @@ async function chatPage(){ setTop('الرسائل','تواصل مباشر');
         <div class="cav">${esc(initials(otherName)||otherName.slice(0,2))}</div>
         <div style="flex:1;min-width:0"><b>${esc(otherName)}</b><small>${esc(otherRole||'محادثة')}</small></div>
       </div>
-      <div class="chat-body" id="chatBody">${msgs.length?msgs.map(renderMainBubble).join(''):`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--muted);text-align:center;padding:20px"><div style="font-size:42px;margin-bottom:10px">✉️</div><b style="color:var(--navy-deep);font-size:14px">ابدأ المحادثة بأول رسالة</b><div style="font-size:12.5px;margin-top:6px;line-height:1.7">اكتب رسالتك في الحقل أسفل، ورسالتك ستصل مباشرة إلى ${esc(otherName)}${otherRole?' ('+esc(otherRole)+')':''}.</div></div>`}</div>
+      <div class="chat-body" id="chatBody">${msgs.length?renderMessagesWithDays(msgs, renderMainBubble):`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--muted);text-align:center;padding:20px"><div style="font-size:42px;margin-bottom:10px">✉️</div><b style="color:var(--navy-deep);font-size:14px">ابدأ المحادثة بأول رسالة</b><div style="font-size:12.5px;margin-top:6px;line-height:1.7">اكتب رسالتك في الحقل أسفل، ورسالتك ستصل مباشرة إلى ${esc(otherName)}${otherRole?' ('+esc(otherRole)+')':''}.</div></div>`}</div>
+      ${linkWardBtn}
       <div class="chat-input">
-        ${linkWardBtn}
         <input id="chatInput" placeholder="اكتب رسالتك..." onkeydown="if(event.key==='Enter')sendMsg()">
         <button onclick="sendMsg()" title="إرسال" aria-label="إرسال">${mi('arrowRight')}</button>
       </div>
@@ -6217,13 +6237,41 @@ function renderBubble(m, kind){
   return `<div class="bubble ${m.sender_id===ME.id?'me':'them'}">${label}${esc(m.body)}<span class="tm">${new Date(m.created_at).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})}</span>${m.sender_id===ME.id?`<button style="border:none;background:none;cursor:pointer;opacity:.65;padding:0;margin-inline-start:6px;vertical-align:middle" title="تعديل الرسالة" onclick="editMyMessage(${m.id},'${escJs(m.body)}','${kind}')">${mi('pencil')}</button>`:''}</div>`;
 }
 function renderMainBubble(m){ return renderBubble(m,'main'); }
+// فاصل يوم بأسلوب واتساب — "اليوم" / "أمس" / اسم اليوم لآخر أسبوع / تاريخ كامل
+function chatDayLabel(ts){
+  if(!ts) return '';
+  const d = new Date(ts); const now = new Date();
+  const dOnly = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const nOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const days = Math.round((nOnly - dOnly)/86400000);
+  if(days<=0) return 'اليوم';
+  if(days===1) return 'أمس';
+  if(days<7) return d.toLocaleDateString('ar-EG',{weekday:'long'});
+  if(d.getFullYear()===now.getFullYear()) return d.toLocaleDateString('ar-EG',{day:'numeric',month:'long'});
+  return d.toLocaleDateString('ar-EG',{day:'numeric',month:'long',year:'numeric'});
+}
+function chatDayKey(ts){ if(!ts) return ''; const d=new Date(ts); return d.getFullYear()+'-'+d.getMonth()+'-'+d.getDate(); }
+// يحوّل قائمة رسائل إلى HTML مع إدراج فاصل يوم كلما تغيّر اليوم بين رسالتين متتاليتين
+function renderMessagesWithDays(msgs, renderFn){
+  if(!msgs || !msgs.length) return '';
+  let out = ''; let lastKey = '';
+  for(const m of msgs){
+    const k = chatDayKey(m.created_at);
+    if(k !== lastKey){
+      out += `<div class="chat-day-sep" data-daykey="${esc(k)}"><span>${esc(chatDayLabel(m.created_at))}</span></div>`;
+      lastKey = k;
+    }
+    out += renderFn(m);
+  }
+  return out;
+}
 function openChat(id){ SESSION.activeChat=id; navigate(SESSION.page); }
 async function sendMsg(){ const inp=$('#chatInput'); const t=inp.value.trim(); if(!t)return;
   const { error }=await insertMessageResilient({chat_id:SESSION.activeChat,sender_id:ME.id,sender_role:ME.role,body:t});
   if(error){ alert('تعذّر الإرسال: '+error.message); return; }
   inp.value='';
   const { data:msgs }=await sb.from('messages').select('*').eq('chat_id',SESSION.activeChat).order('created_at');
-  $('#chatBody').innerHTML=(msgs||[]).map(renderMainBubble).join('');
+  $('#chatBody').innerHTML=renderMessagesWithDays(msgs||[], renderMainBubble);
   $('#chatBody').scrollTop=$('#chatBody').scrollHeight;
   notifyOtherChatParties(SESSION.activeChat, t);
 }
@@ -6251,6 +6299,14 @@ function chatSubscribeRealtime(chatId, bodyElId, renderFn){
         const m = payload && payload.new; if(!m || m.sender_id===ME.id) return; // رسائلنا نضيفها فوراً يدوياً وقت الإرسال
         const body = document.getElementById(bodyElId); if(!body) return;
         const empty = body.querySelector('p'); if(empty) empty.remove();
+        // إن كان يوم الرسالة الوارد مختلفاً عن آخر يوم مرسوم، أضف فاصل يوم قبلها
+        // (يحدث لو ظلّ المستخدم مفتوحاً على المحادثة حتى تغيّر التاريخ عند منتصف الليل)
+        const seps = body.querySelectorAll('.chat-day-sep'); const lastSep = seps[seps.length-1];
+        const newKey = chatDayKey(m.created_at);
+        const lastKey = lastSep ? (lastSep.getAttribute('data-daykey')||'') : '';
+        if(newKey !== lastKey){
+          body.insertAdjacentHTML('beforeend', `<div class="chat-day-sep" data-daykey="${esc(newKey)}"><span>${esc(chatDayLabel(m.created_at))}</span></div>`);
+        }
         body.insertAdjacentHTML('beforeend', renderFn(m));
         body.scrollTop = body.scrollHeight;
       })
@@ -6270,10 +6326,10 @@ async function editMyMessage(msgId, oldBody, kind){
   toast('✅ تم تعديل الرسالة');
   if(kind==='halqa'){
     const ctx=SESSION._halqaChat;
-    if(ctx&&ctx.chatId){ const { data:msgs }=await sb.from('messages').select('*').eq('chat_id',ctx.chatId).order('created_at'); const body=$('#halqaChatBody'); if(body) body.innerHTML=(msgs||[]).map(renderHalqaBubble).join(''); }
+    if(ctx&&ctx.chatId){ const { data:msgs }=await sb.from('messages').select('*').eq('chat_id',ctx.chatId).order('created_at'); const body=$('#halqaChatBody'); if(body) body.innerHTML=renderMessagesWithDays(msgs||[], renderHalqaBubble); }
   } else {
     const { data:msgs }=await sb.from('messages').select('*').eq('chat_id',SESSION.activeChat).order('created_at');
-    const body=$('#chatBody'); if(body) body.innerHTML=(msgs||[]).map(renderMainBubble).join('');
+    const body=$('#chatBody'); if(body) body.innerHTML=renderMessagesWithDays(msgs||[], renderMainBubble);
   }
 }
 // بدء محادثة جديدة: يختار المستخدم طرفاً حقيقياً حسب دوره
@@ -6739,7 +6795,7 @@ async function halqaChatBox(g, student, isTeacher){
   SESSION._halqaChat={ groupId:g.id, parties, chatId:chat?.id||null };
   if(chat) chatSubscribeRealtime(chat.id, 'halqaChatBody', renderHalqaBubble); // تحديث لحظي للرسائل الواردة
   return `<div class="halqa-chat">
-    <div class="halqa-chat-body" id="halqaChatBody">${msgs.length?msgs.map(renderHalqaBubble).join(''):'<p style="color:var(--muted);text-align:center;margin-top:40px">ابدأ المحادثة 👋<br><span style="font-size:12px">نسّقا مواعيد الحصص وتابعا الحفظ هنا.</span></p>'}</div>
+    <div class="halqa-chat-body" id="halqaChatBody">${msgs.length?renderMessagesWithDays(msgs, renderHalqaBubble):'<p style="color:var(--muted);text-align:center;margin-top:40px">ابدأ المحادثة 👋<br><span style="font-size:12px">نسّقا مواعيد الحصص وتابعا الحفظ هنا.</span></p>'}</div>
     <div class="chat-input"><input id="halqaChatInput" placeholder="اكتب رسالتك..." onkeydown="if(event.key==='Enter')sendHalqaMsg()"><button onclick="sendHalqaMsg()">${mi('arrowRight')} </button></div>
   </div>`;
 }
@@ -6759,7 +6815,7 @@ async function sendHalqaMsg(){
   inp.value='';
   const { data:msgs }=await sb.from('messages').select('*').eq('chat_id',chatId).order('created_at');
   const body=$('#halqaChatBody');
-  body.innerHTML=(msgs||[]).map(renderHalqaBubble).join('');
+  body.innerHTML=renderMessagesWithDays(msgs||[], renderHalqaBubble);
   body.scrollTop=body.scrollHeight;
   notifyOtherChatParties(chatId, t);
 }
