@@ -6350,7 +6350,7 @@ async function renderHalqaPage(g, student, isTeacher){
   ] = await Promise.all([
     sb.from('sessions').select('*').eq('group_id',g.id).order('session_date',{ascending:true}),
     sb.from('session_ratings').select('session_id,created_at').eq('student_id',student.id).order('created_at',{ascending:false}),
-    sb.from('assignments').select('id,status').eq('student_id',student.id).catch(()=>({data:[]})),
+    sb.from('assignments').select('id,status').eq('student_id',student.id).then(x=>x, ()=>({data:[]})),
     // رسائل غير مقروءة: نستخدم chats/messages؛ لو الجداول موجودة سنعدّها بعد جلب معرّف المحادثة
     Promise.resolve(null),
   ]);
