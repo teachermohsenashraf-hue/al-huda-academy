@@ -18,8 +18,8 @@ import {
   verifyRegistrationResponse,
   generateAuthenticationOptions,
   verifyAuthenticationResponse,
-} from "npm:@simplewebauthn/server@10.0.1";
-import { isoBase64URL, isoUint8Array } from "npm:@simplewebauthn/server@10.0.1/helpers";
+} from "npm:@simplewebauthn/server@11.0.0";
+import { isoBase64URL, isoUint8Array } from "npm:@simplewebauthn/server@11.0.0/helpers";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
