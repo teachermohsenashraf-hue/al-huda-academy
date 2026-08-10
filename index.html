@@ -137,7 +137,10 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 .rbar .l span svg{width:15px;height:15px;vertical-align:-3px;margin-inline-end:4px}
 .ch h3 svg{width:17px;height:17px;vertical-align:-3px;margin-inline-end:5px}
 .btn svg,.btn.ghost svg{width:16px;height:16px;vertical-align:-3px;margin-inline-end:5px}
-.stat .v{font-family:'Amiri';font-size:30px;color:var(--navy-deep);line-height:1}
+/* الأرقام الإحصائية بخط Tajawal بدل Amiri — الأرقام في Amiri الزخرفي كانت أقل
+   وضوحاً للقراءة السريعة، وهذه أعداد ينظر إليها المستخدم بسرعة (ليست عناوين
+   تربوية). Amiri محفوظ للعناوين الرئيسية وآيات القرآن نفسها فقط. */
+.stat .v{font-family:'Tajawal','Cairo',sans-serif;font-weight:700;font-size:30px;color:var(--navy-deep);line-height:1;letter-spacing:-0.5px}
 .stat .k{font-size:13px;color:var(--muted);margin-top:4px}
 .stat .trend{position:absolute;top:18px;left:18px;font-size:12px;font-weight:700;padding:3px 9px;border-radius:20px}
 .trend.up{color:var(--emerald);background:rgba(27,77,62,0.1)}
@@ -377,6 +380,45 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
   .side.open ~ .side-backdrop,.side-backdrop.show{display:block;opacity:1}
 }
 .side-backdrop{display:none}
+/* ═══════════════════════════════════════════════════════════════════════
+   الشريط الجانبي — وضع "الأيقونات فقط" (شاشات متوسطة تلقائيًا،
+   ديسكتوب باختيار المستخدم). العرض ٧٦ بكسل بدل ٢٥٨، النصوص تختفي،
+   والأيقونات تُوسّط. تلميح الاسم يظهر عبر خاصية title الأصلية.
+   ═══════════════════════════════════════════════════════════════════════ */
+@media(min-width:861px) and (max-width:1180px){
+  body:not(.side-expanded) .side{width:76px}
+  body:not(.side-expanded) .main{margin-inline-start:76px}
+  body:not(.side-expanded) .side .brand .name,
+  body:not(.side-expanded) .side .ml,
+  body:not(.side-expanded) .side a .lbl,
+  body:not(.side-expanded) .side .foot .lbl,
+  body:not(.side-expanded) .side .foot .cp{ display:none }
+  body:not(.side-expanded) .side .brand{ padding:16px 8px; justify-content:center }
+  body:not(.side-expanded) .side .brand .mark{ width:44px; height:44px }
+  body:not(.side-expanded) .side a{ justify-content:center; padding:12px 8px; gap:0 }
+  body:not(.side-expanded) .side .foot{ padding:10px 8px }
+  body:not(.side-expanded) .side .foot .home-btn,
+  body:not(.side-expanded) .side .foot .switch{ padding:10px; justify-content:center; gap:0 }
+}
+@media(min-width:1181px){
+  body.side-collapsed .side{width:76px}
+  body.side-collapsed .main{margin-inline-start:76px}
+  body.side-collapsed .side .brand .name,
+  body.side-collapsed .side .ml,
+  body.side-collapsed .side a .lbl,
+  body.side-collapsed .side .foot .lbl,
+  body.side-collapsed .side .foot .cp{ display:none }
+  body.side-collapsed .side .brand{ padding:16px 8px; justify-content:center }
+  body.side-collapsed .side .brand .mark{ width:44px; height:44px }
+  body.side-collapsed .side a{ justify-content:center; padding:12px 8px; gap:0 }
+  body.side-collapsed .side .foot{ padding:10px 8px }
+  body.side-collapsed .side .foot .home-btn,
+  body.side-collapsed .side .foot .switch{ padding:10px; justify-content:center; gap:0 }
+}
+/* زر طي الشريط الجانبي — يظهر على الديسكتوب فقط (>1180px) */
+.side-toggle{display:none;background:none;border:none;font-size:20px;cursor:pointer;color:var(--emerald-deep);padding:6px 10px;border-radius:8px;transition:.2s}
+.side-toggle:hover{background:rgba(46,125,91,0.08)}
+@media(min-width:1181px){ .side-toggle{display:inline-flex;align-items:center;justify-content:center} }
 @media(max-width:540px){.roles-pick{grid-template-columns:1fr}}
 
 /* ============ Landing + Auth + Setup ============ */
@@ -1451,7 +1493,7 @@ body.has-update-banner{padding-top:52px}
     <div class="side-backdrop" id="sideBackdrop" onclick="side_toggleMobile()"></div>
     <div class="main">
       <div class="topbar">
-        <div style="display:flex;align-items:center;gap:12px"><button class="mtoggle" onclick="side_toggleMobile()">☰</button><div class="hello"><h2 id="topTitle">أكاديمية الهدى</h2><p id="topSub"></p></div></div>
+        <div style="display:flex;align-items:center;gap:12px"><button class="mtoggle" onclick="side_toggleMobile()">☰</button><button class="side-toggle" onclick="side_toggleCollapse()" title="طي/فرد الشريط الجانبي" aria-label="طي الشريط الجانبي">☰</button><div class="hello"><h2 id="topTitle">أكاديمية الهدى</h2><p id="topSub"></p></div></div>
         <div class="tools"><div class="msg-shortcut" onclick="navigate('chat')" title="الرسائل" style="position:relative;cursor:pointer;display:inline-flex;width:auto;height:auto"><span style="font-size:21px">💬</span><span id="chatBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:#E74C3C;color:#fff;border-radius:50%;width:18px;height:18px;font-size:11px;font-weight:700;align-items:center;justify-content:center"></span></div><div class="bell-wrap" onclick="showNotifications()" style="position:relative;cursor:pointer"><span style="font-size:22px">🔔</span><span id="notifBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:#E74C3C;color:#fff;border-radius:50%;width:18px;height:18px;font-size:11px;font-weight:700;align-items:center;justify-content:center"></span></div><div class="uava" id="topAva">ه</div></div>
       </div>
       <div class="content"><div id="pageHost" class="page active"></div></div>
@@ -3073,10 +3115,22 @@ function replayTour(){ TOUR_STEP=0; renderTour(); }
 
 function buildShell(){
   const m=MENUS[ME.role]; const side=$('#sidebar'); side.className='side '+m.skin;
+  // نلفّ النصوص في span.lbl حتى نستطيع إخفاءها في وضع الشريط الضيّق (طي إلى أيقونات فقط)
+  // دون فقد الأيقونة نفسها؛ واصفة title تعطي تلميحًا أصليًا في وضع الطي.
   let h=`<div class="brand"><div class="mark"><img src="assets/logo-icon.png" alt="أكاديمية الهدى" style="width:100%;height:100%;object-fit:contain;border-radius:inherit"></div><div class="name">أكاديمية الهدى<small>${m.title}</small></div></div><nav class="menu">`;
-  m.sections.forEach(s=>{ h+=`<div class="ml">${s.label}</div>`; s.items.forEach(([k,i,l])=>h+=`<a data-page="${k}" onclick="navigate('${k}')"><span class="i">${i}</span> ${l}</a>`); });
-  h+=`</nav><div class="foot"><button class="home-btn" onclick="replayTour()">${mi('cap')} الجولة التعريفية</button><button class="home-btn" onclick="window.open('landing.html','_blank')">${mi('home')} الصفحة الرئيسية</button><button class="switch" onclick="logout()">${mi('refresh')} تسجيل الخروج</button><div class="cp">${esc(ME.full_name)}</div></div>`;
+  m.sections.forEach(s=>{
+    h+=`<div class="ml">${s.label}</div>`;
+    s.items.forEach(([k,i,l])=>h+=`<a data-page="${k}" title="${esc(l)}" onclick="navigate('${k}')"><span class="i">${i}</span><span class="lbl">${l}</span></a>`);
+  });
+  h+=`</nav><div class="foot">`+
+    `<button class="home-btn" onclick="replayTour()" title="الجولة التعريفية"><span class="i">${mi('cap')}</span><span class="lbl">الجولة التعريفية</span></button>`+
+    `<button class="home-btn" onclick="window.open('landing.html','_blank')" title="الصفحة الرئيسية"><span class="i">${mi('home')}</span><span class="lbl">الصفحة الرئيسية</span></button>`+
+    `<button class="switch" onclick="logout()" title="تسجيل الخروج"><span class="i">${mi('refresh')}</span><span class="lbl">تسجيل الخروج</span></button>`+
+    `<div class="cp">${esc(ME.full_name)}</div>`+
+  `</div>`;
   side.innerHTML=h;
+  // نطبّق تفضيل المستخدم لطي الشريط الجانبي على الديسكتوب لو كان قد اختاره من قبل
+  try{ if(localStorage.getItem('side_collapsed')==='1') document.body.classList.add('side-collapsed'); }catch(e){}
   const av=$('#topAva'); av.textContent=ME.initials||'ه';
   av.style.background=ME.role==='admin'?'linear-gradient(140deg,var(--gold),var(--gold-light))':(ME.role==='parent'||ME.role==='supervisor')?'linear-gradient(140deg,var(--navy),var(--navy-deep))':'linear-gradient(140deg,var(--emerald),var(--emerald-deep))';
   if(ME.role==='admin')av.style.color='var(--navy-deep)';
@@ -3134,6 +3188,13 @@ async function navigate(page){
 }
 function setTop(t,s){ $('#topTitle').textContent=t; $('#topSub').textContent=s||''; }
 function side_toggleMobile(){ $('#sidebar').classList.toggle('open'); }
+// طي/فرد الشريط الجانبي على الديسكتوب — نحفظ التفضيل محلياً حتى يظل مطبّقاً
+// عبر التنقّل بين الصفحات وإعادة التحميل. على الشاشات المتوسطة يُطبَّق الطي
+// تلقائياً بلا حاجة لهذا الزر.
+function side_toggleCollapse(){
+  document.body.classList.toggle('side-collapsed');
+  try{ localStorage.setItem('side_collapsed', document.body.classList.contains('side-collapsed')?'1':'0'); }catch(e){}
+}
 
 /* مكوّنات */
 function statCard(si,c,v,k,tr,trc){ return `<div class="stat">${tr?`<div class="trend ${trc||'up'}">${tr}</div>`:''}<div class="si ${c}">${si}</div><div class="v">${v}</div><div class="k">${k}</div></div>`; }
