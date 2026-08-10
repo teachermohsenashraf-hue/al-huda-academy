@@ -6337,18 +6337,56 @@ async function noPlanYetCard(s){
   return `<div class="qnoplan"><div class="nei">🕋</div><h3>تواصل مع معلمك ${t?esc(t.full_name):''}</h3><p>حلقتك جاهزة، وباقي إن معلمك ينشئ خطتك القرآنية حتى تظهر لك هنا.</p>${t?`<button class="btn" style="margin-top:14px" onclick="startChatWith('${t.id}','${escJs(t.full_name)}')">${mi('chat')} محادثة معلمي</button>`:''}</div>`;
 }
 // عرض صفحة الحلقة المشتركة
+// أعيدت هيكلة رأس الصفحة: أعلاها الآن "بطل الحصة القادمة" ببطاقة قرارية
+// كاملة (تاريخ/وقت/مدة/معلم/رابط دخول + أضف إلى التقويم + اطلب تغيير الموعد)
+// بدل شريط "موعد الحلقة الثابت" النصي غير القابل للقرار.
+// كذلك تحمل التبويبات الأربعة الآن شارات عد لما يستحق الانتباه: واجبات
+// معلّقة، رسائل غير مقروءة، تقييمات، وحصص لم تُقيَّم بعد للمعلم.
 async function renderHalqaPage(g, student, isTeacher){
-  // الحصص
-  const { data:ses }=await sb.from('sessions').select('*').eq('group_id',g.id).order('session_date',{ascending:true});
-  const sessions=ses||[];
-  // التقييمات (لمعرفة المُقيَّمة)
-  const sesIds=sessions.map(x=>x.id);
-  let ratedIds=new Set();
-  if(sesIds.length){ const { data:rs }=await sb.from('session_ratings').select('session_id').in('session_id',sesIds); (rs||[]).forEach(r=>ratedIds.add(r.session_id)); }
-  const upcoming=sessions.filter(s=>{ const st=privSessionStatus(s); return st.upcoming||st.live; }); // تصاعدي: الأقرب أولاً
-  const past=sessions.filter(s=>privSessionStatus(s).t==='انتهت').reverse(); // الأحدث أولاً
-  // اسم نظام خطة الطالب (رسوخ/المرن) ليظهر للمعلم مع اسم الطالب — بدل ما يعرف
-  // نوع النظام إلا لو فتح صفحة الخطة نفسها، فيوضّح له نوع الحلقة من أول نظرة
+  // ─── جلب البيانات بالتوازي (كانت كلها متسلسلة قبل ذلك — كل تبويب يحتاج
+  // بعضها؛ نحسبها مرة هنا ونمرّرها للسياق) ───
+  const [
+    sesRes, ratingsRes, asgsRes, unreadChatRes,
+  ] = await Promise.all([
+    sb.from('sessions').select('*').eq('group_id',g.id).order('session_date',{ascending:true}),
+    sb.from('session_ratings').select('session_id,created_at').eq('student_id',student.id).order('created_at',{ascending:false}),
+    sb.from('assignments').select('id,status').eq('student_id',student.id).catch(()=>({data:[]})),
+    // رسائل غير مقروءة: نستخدم chats/messages؛ لو الجداول موجودة سنعدّها بعد جلب معرّف المحادثة
+    Promise.resolve(null),
+  ]);
+  const sessions = sesRes.data || [];
+  const ratings = ratingsRes.data || [];
+  const asgs = (asgsRes && asgsRes.data) || [];
+  const ratedIds = new Set(ratings.map(r=>r.session_id));
+
+  // ─── شارات التبويبات ───
+  const pendingAsgCount = asgs.filter(a => a.status!=='done' && a.status!=='missed').length;
+  const doneSesTotal = sessions.filter(s => privSessionStatus(s).t==='انتهت').length;
+  const unratedForTeacher = isTeacher ? sessions.filter(s => privSessionStatus(s).t==='انتهت' && !ratedIds.has(s.id)).length : 0;
+  // آخر تقييم مقارنة بآخر مشاهدة الطالب للتقارير — يُخزَّن في localStorage
+  const lastSeenKey = 'halqa_reports_seen_' + student.id;
+  const lastSeen = (typeof localStorage!=='undefined' && localStorage.getItem(lastSeenKey)) || '';
+  const newRatingsCount = !isTeacher ? ratings.filter(r => r.created_at > lastSeen).length : 0;
+  // رسائل غير مقروءة في محادثة الحلقة
+  let unreadChatCount = 0;
+  try{
+    const { data:halqaChats } = await sb.from('chats').select('id').eq('halqa_id',g.id);
+    if(halqaChats && halqaChats.length){
+      const chatIds = halqaChats.map(c=>c.id);
+      const seenChatKey = 'halqa_chat_seen_' + g.id;
+      const lastChatSeen = (typeof localStorage!=='undefined' && localStorage.getItem(seenChatKey)) || '';
+      const { data:msgs } = await sb.from('messages').select('id,sender_id,created_at').in('chat_id',chatIds).gt('created_at', lastChatSeen || '2000-01-01');
+      unreadChatCount = (msgs||[]).filter(m => m.sender_id !== ME.id).length;
+    }
+  }catch(e){}
+
+  // ─── الحصة القادمة (البطل) ───
+  const upcoming = sessions.filter(s=>{ const st=privSessionStatus(s); return st.upcoming||st.live; });
+  const past = sessions.filter(s=>privSessionStatus(s).t==='انتهت').reverse();
+  const next = upcoming[0] || null;
+  const teacherName = g.teacher ? g.teacher.full_name : '';
+
+  // ─── اسم نظام خطة الطالب (للمعلم) ───
   let sysLabel='';
   if(isTeacher && student){
     try{
@@ -6358,22 +6396,70 @@ async function renderHalqaPage(g, student, isTeacher){
   }
   // نخزّن سياق الحلقة ليستخدمه التحميل الكسول للتبويبات الثقيلة عند الطلب
   SESSION._halqaCtx = { g, student, isTeacher, ratedIds, sessions };
-  return pageHead(g.name, isTeacher?('طالب: '+student.full_name+sysLabel):('معلمك: '+(g.teacher?g.teacher.full_name:'—')))+
-  `<div class="card" style="margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
-    <div style="display:flex;align-items:center;gap:8px;font-size:13.5px"><span style="font-size:18px">${mi('calendar')}</span><b>موعد الحلقة الثابت:</b> ${esc(g.meet_time||'لم يُحدَّد بعد')}</div>
-    ${isTeacher?`<button class="btn-sm ghost" onclick="editHalqaSchedule(${g.id})">${mi('pencil')} تعديل الموعد</button>`:''}
-  </div>
+
+  // بطاقة بطل الحصة القادمة — قابلة للقرار (تدخل/تقويم/تغيير موعد)
+  let heroHtml;
+  if(next){
+    const st = privSessionStatus(next);
+    const sdate = next.session_date;
+    const stime = (next.session_time||'').slice(0,5);
+    const startsAt = next.starts_at ? new Date(next.starts_at) : new Date(sdate+'T'+(stime||'12:00'));
+    const diffMs = startsAt.getTime() - Date.now();
+    const diffMin = Math.round(diffMs/60000);
+    let timeRemain = st.live ? '🔴 مباشرة الآن' : '';
+    if(!timeRemain){
+      if(diffMin > 0){
+        if(diffMin < 60) timeRemain = 'يبدأ خلال ' + ar(diffMin) + ' دقيقة';
+        else if(diffMin < 60*24) timeRemain = 'يبدأ خلال ' + ar(Math.floor(diffMin/60)) + ' ساعة';
+        else timeRemain = 'بعد ' + ar(Math.floor(diffMin/60/24)) + ' يوم';
+      }
+    }
+    const dateStr = sdate ? new Date(sdate).toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long'}) : '—';
+    const durMin = next.duration_min || 30;
+    const bg = st.live ? 'linear-gradient(135deg,#c92e2e,#e74c3c)' : 'linear-gradient(135deg,var(--emerald-dark,#1B4D3E),var(--emerald,#2E7D5B))';
+    heroHtml = `<div class="card" style="margin-bottom:16px;background:${bg};color:#fff;border:none">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:14px">
+        <div style="flex:1;min-width:220px">
+          <div style="font-size:12.5px;opacity:0.85;font-weight:600">${isTeacher?'الحصة القادمة':'حصتك القادمة'}</div>
+          <h2 style="font-family:Amiri,serif;font-size:26px;margin:6px 0 4px;color:#fff">${esc(next.title || 'حصة الحلقة')}</h2>
+          <div style="font-size:14px;opacity:0.95;margin-bottom:4px">📅 ${esc(dateStr)}${stime?' • '+esc(fmt12h(stime)):''} • ${ar(durMin)} دقيقة</div>
+          ${!isTeacher && teacherName ? `<div style="font-size:13.5px;opacity:0.9">👤 مع ${esc(teacherName)}</div>` : ''}
+          ${timeRemain ? `<div style="font-size:13px;margin-top:8px;background:rgba(255,255,255,0.15);display:inline-block;padding:4px 10px;border-radius:8px;font-weight:700">${esc(timeRemain)}</div>` : ''}
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          ${next.zoom_link ? `<a class="btn gold" href="${esc(next.zoom_link)}" target="_blank" rel="noopener" style="text-decoration:none">${st.live?'دخول الحصة الآن ▶':'رابط الدخول'}</a>` : (isTeacher?'':`<span style="background:rgba(255,255,255,0.15);padding:8px 14px;border-radius:10px;font-size:13px">⏳ بانتظار رابط معلمك</span>`)}
+          <button class="btn ghost" style="background:rgba(255,255,255,0.12);border-color:transparent;color:#fff" onclick="halqaAddToCalendar(${next.id})">🗓️ أضف إلى التقويم</button>
+          ${!isTeacher ? `<button class="btn ghost" style="background:rgba(255,255,255,0.12);border-color:transparent;color:#fff" onclick="halqaRequestReschedule(${next.id})">تغيير الموعد</button>` : ''}
+        </div>
+      </div>
+    </div>`;
+  } else {
+    heroHtml = `<div class="card" style="margin-bottom:16px;text-align:center;padding:24px">
+      <div style="font-size:34px;margin-bottom:8px">📅</div>
+      <b style="color:var(--navy-deep);font-size:15px">${isTeacher?'لا حصص قادمة مجدولة':'لا حصص قادمة الآن'}</b>
+      <div style="color:var(--muted);font-size:13px;margin-top:6px">${isTeacher?'اضغط «إضافة حصة» أسفل لجدولة القادم.':'سيجدول معلمك حصتك القادمة قريباً — سيصلك تنبيه فور جدولتها.'}</div>
+      ${g.meet_time?`<div style="margin-top:10px;font-size:12.5px;color:var(--muted)"><b>موعد الحلقة الثابت:</b> ${esc(g.meet_time)}</div>`:''}
+    </div>`;
+  }
+
+  // شارة رقمية بجانب اسم التبويب
+  const badge = (n, kind) => n>0 ? `<span class="ht-badge ${kind||''}" style="display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:${kind==='urgent'?'#E74C3C':'var(--gold,#c9a227)'};color:#fff;font-size:11px;font-weight:700;margin-inline-start:6px">${ar(n)}</span>` : '';
+
+  return pageHead(g.name, isTeacher?('طالب: '+student.full_name+sysLabel):('معلمك: '+(g.teacher?g.teacher.full_name:'—'))) +
+  heroHtml +
+  `${g.meet_time && next ? `<div style="font-size:12.5px;color:var(--muted);margin-bottom:12px;text-align:center">موعد الحلقة الثابت: ${esc(g.meet_time)}${isTeacher?` • <button class="btn-sm ghost" style="padding:2px 8px;font-size:12px" onclick="editHalqaSchedule(${g.id})">تعديل</button>`:''}</div>` : (isTeacher && !next ? `<div style="text-align:center;margin-bottom:12px"><button class="btn-sm ghost" onclick="editHalqaSchedule(${g.id})">${mi('pencil')} ${g.meet_time?'تعديل موعد الحلقة':'تحديد موعد الحلقة الثابت'}</button></div>` : '')}
   <div class="halqa-tabs">
-    <button class="ht-tab on" data-t="sessions" onclick="halqaTab('sessions')">${mi('video')} الحصص</button>
-    <button class="ht-tab" data-t="homework" onclick="halqaTab('homework')">${mi('pencil')} الواجبات</button>
-    <button class="ht-tab" data-t="chat" onclick="halqaTab('chat')">${mi('chat')} المحادثة</button>
-    <button class="ht-tab" data-t="reports" onclick="halqaTab('reports')">${mi('chart')} التقارير</button>
+    <button class="ht-tab on" data-t="sessions" onclick="halqaTab('sessions')">${mi('video')} الحصص${badge(isTeacher?unratedForTeacher:0,'urgent')}</button>
+    <button class="ht-tab" data-t="homework" onclick="halqaTab('homework')">${mi('pencil')} الواجبات${badge(pendingAsgCount)}</button>
+    <button class="ht-tab" data-t="chat" onclick="halqaTab('chat')">${mi('chat')} المحادثة${badge(unreadChatCount,'urgent')}</button>
+    <button class="ht-tab" data-t="reports" onclick="halqaTab('reports')">${mi('chart')} التقارير${badge(newRatingsCount)}</button>
   </div>
   <!-- تبويب الحصص -->
   <div class="halqa-pane" data-pane="sessions">
     ${isTeacher?`<div style="margin-bottom:16px"><button class="btn" onclick="newPrivSession(${g.id},${student.id})">+ إضافة حصة جديدة</button></div>`:''}
-    ${upcoming.length?`<div class="card" style="margin-bottom:16px"><div class="ch"><h3>الحصص القادمة</h3></div><div class="priv-sessions-list">${upcoming.map(s=>privSessionCard(s,isTeacher,ratedIds.has(s.id))).join('')}</div></div>`:''}
-    ${past.length?`<div class="card"><div class="ch"><h3>الحصص السابقة</h3></div><div class="priv-sessions-list">${past.map(s=>privSessionCard(s,isTeacher,ratedIds.has(s.id))).join('')}</div></div>`:''}
+    ${past[0] && ratedIds.has(past[0].id) ? `<div class="card" style="margin-bottom:16px;background:rgba(46,125,91,0.05);border-inline-start:3px solid var(--emerald,#2E7D5B)"><div class="ch"><h3 style="font-size:14.5px">ملخص آخر حصة</h3><button class="more" onclick="halqaTab('reports')">التقييم الكامل ←</button></div><div style="font-size:13px;color:var(--muted);line-height:1.8">آخر حصة تمّت وقيّمها معلمك — راجع التفاصيل من تبويب التقارير.</div></div>` : ''}
+    ${upcoming.length>1?`<div class="card" style="margin-bottom:16px"><div class="ch"><h3>الحصص القادمة الأخرى</h3></div><div class="priv-sessions-list">${upcoming.slice(1).map(s=>privSessionCard(s,isTeacher,ratedIds.has(s.id))).join('')}</div></div>`:''}
+    ${past.length?`<div class="card"><div class="ch"><h3>الحصص السابقة</h3><span class="tagline-sm">${ar(past.length)} حصة</span></div><div class="priv-sessions-list">${past.slice(0,15).map(s=>privSessionCard(s,isTeacher,ratedIds.has(s.id))).join('')}</div>${past.length>15?`<div style="text-align:center;margin-top:10px;color:var(--muted);font-size:12.5px">أحدث ١٥ حصة سابقة</div>`:''}</div>`:''}
     ${!sessions.length?`<div class="card" style="text-align:center;padding:36px"><div class="empty-ic">${mi('video')}</div><h3 style="color:var(--navy-deep)">لا حصص بعد</h3><p style="color:var(--muted);font-size:14px">${isTeacher?'اضغط «إضافة حصة» لجدولة أول حصة.':'سيجدول معلمك الحصص وتظهر هنا.'}</p></div>`:''}
   </div>
   <!-- التبويبات الثقيلة (الواجبات/المحادثة/التقارير) تُحمَّل عند أول ضغطة فقط،
@@ -6400,7 +6486,82 @@ async function halqaTab(t){
       else if(t==='reports') pane.innerHTML = await halqaReports(ctx.g, ctx.student, ctx.ratedIds, ctx.sessions);
     }catch(e){ pane.dataset.loaded='0'; pane.innerHTML='<div class="card" style="text-align:center;color:#a33;padding:24px">تعذّر التحميل. حاول مرة أخرى.</div>'; }
   }
-  if(t==='chat'){ const b=$('#halqaChatBody'); if(b)b.scrollTop=b.scrollHeight; }
+  if(t==='chat'){
+    const b=$('#halqaChatBody'); if(b)b.scrollTop=b.scrollHeight;
+    // مسح شارة "غير مقروء" عند دخول التبويب (على المتصفح الحالي)
+    if(ctx && ctx.g) try{ localStorage.setItem('halqa_chat_seen_'+ctx.g.id, new Date().toISOString()); }catch(e){}
+    const badge = document.querySelector('.ht-tab[data-t="chat"] .ht-badge'); if(badge) badge.remove();
+  }
+  if(t==='reports'){
+    if(ctx && ctx.student) try{ localStorage.setItem('halqa_reports_seen_'+ctx.student.id, new Date().toISOString()); }catch(e){}
+    const badge = document.querySelector('.ht-tab[data-t="reports"] .ht-badge'); if(badge) badge.remove();
+  }
+}
+// ─── مساعدات صفحة "حلقتي" الجديدة ───────────────────────────────────
+// تنزيل ملف تقويم قياسي (.ics) — يفتحه أي تطبيق تقويم (جوجل/آبل/أوتلوك)
+// بدل الاعتماد على مكتبة خارجية. ننسّق التواريخ بصيغة UTC كما يتطلب المعيار
+// (YYYYMMDDTHHmmssZ). التذكير 30 دقيقة قبل الحصة (VALARM) — قيمة تربوية،
+// يتحكم بها المستخدم في تطبيقه لو أراد.
+function icsEscape(s){ return String(s||'').replace(/([,;\\])/g,'\\$1').replace(/\r?\n/g,'\\n'); }
+function icsDownload({ title, startsAt, durationMin, description, location, filename }){
+  const start = new Date(startsAt);
+  const end = new Date(start.getTime() + (durationMin||30)*60000);
+  const fmt = d => d.toISOString().replace(/[-:]/g,'').split('.')[0] + 'Z';
+  const uid = 'alhuda-'+start.getTime()+'-'+Math.floor(Math.random()*1e6)+'@al-huda-academy.vercel.app';
+  const lines = [
+    'BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//AlHuda//AR//EN','CALSCALE:GREGORIAN','METHOD:PUBLISH',
+    'BEGIN:VEVENT',
+    'UID:'+uid,
+    'DTSTAMP:'+fmt(new Date()),
+    'DTSTART:'+fmt(start),
+    'DTEND:'+fmt(end),
+    'SUMMARY:'+icsEscape(title),
+    'DESCRIPTION:'+icsEscape(description||''),
+    'LOCATION:'+icsEscape(location||'حصة أونلاين'),
+    'BEGIN:VALARM','TRIGGER:-PT30M','ACTION:DISPLAY','DESCRIPTION:'+icsEscape(title||'حصة'),'END:VALARM',
+    'END:VEVENT','END:VCALENDAR',
+  ];
+  const blob = new Blob([lines.join('\r\n')], { type:'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = (filename||'session') + '.ics';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+}
+async function halqaAddToCalendar(sessionId){
+  const ctx = SESSION._halqaCtx;
+  if(!ctx) return;
+  const s = ctx.sessions.find(x=>x.id===sessionId);
+  if(!s || !s.session_date){ toast('لا يمكن إضافة حصة بلا موعد محدد'); return; }
+  const stime = (s.session_time||'12:00').slice(0,5);
+  const startsAt = s.starts_at || (s.session_date+'T'+stime+':00');
+  const teacherName = ctx.g.teacher ? ctx.g.teacher.full_name : '';
+  icsDownload({
+    title: s.title || ('حصة '+ctx.g.name),
+    startsAt,
+    durationMin: s.duration_min || 30,
+    description: (teacherName ? 'المعلم: '+teacherName+'\n' : '') + (s.zoom_link ? 'رابط الحصة: '+s.zoom_link : 'رابط الحصة سيصلك من معلمك'),
+    location: s.zoom_link || 'حصة أونلاين',
+    filename: 'halqa-session-'+sessionId,
+  });
+  toast('📅 تم تنزيل ملف الحصة — افتحه لإضافته لتقويمك');
+}
+async function halqaRequestReschedule(sessionId){
+  const ctx = SESSION._halqaCtx;
+  if(!ctx || ctx.isTeacher) return;
+  const s = ctx.sessions.find(x=>x.id===sessionId);
+  if(!s){ return; }
+  const dateStr = s.session_date ? new Date(s.session_date).toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long'}) : '';
+  const stime = s.session_time ? (' الساعة '+fmt12h((s.session_time||'').slice(0,5))) : '';
+  const prefill = `السلام عليكم أستاذي، هل يمكن نقل حصة ${dateStr}${stime} إلى موعد آخر؟ الأسباب: `;
+  // نفتح تبويب المحادثة ونملأ حقل الإدخال — لا نُرسل تلقائياً حتى يُفصح الطالب عن السبب
+  halqaTab('chat');
+  // انتظر رسم تبويب المحادثة (التحميل الكسول)، ثم املأ الحقل وركّز عليه
+  setTimeout(()=>{
+    const inp = document.getElementById('halqaChatInput');
+    if(inp){ inp.value = prefill; inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
+    else { toast('اكتب رسالة تغيير الموعد لمعلمك في تبويب المحادثة'); }
+  }, 400);
 }
 // محادثة الحلقة (بين الطالب/ولي الأمر والمعلم)
 async function halqaChatBox(g, student, isTeacher){
