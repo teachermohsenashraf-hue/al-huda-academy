@@ -350,16 +350,6 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 .chat-day-sep{display:flex;justify-content:center;margin:8px 0 4px;position:relative}
 .chat-day-sep::before{content:"";position:absolute;top:50%;inset-inline:0;height:1px;background:linear-gradient(to inline-end,transparent,var(--line),transparent);z-index:0}
 .chat-day-sep span{position:relative;z-index:1;background:rgba(255,255,255,0.9);color:var(--muted);font-size:11.5px;font-weight:700;padding:5px 14px;border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,0.04);border:1px solid var(--line)}
-/* شريط مساعد فوق حقل الإدخال — لطلب "رسالة عن ورد اليوم" (للطالب) */
-.chat-tool-bar{display:flex;align-items:center;gap:12px;padding:11px 16px;margin:0;background:linear-gradient(to left,rgba(46,125,91,0.10),rgba(46,125,91,0.03));border-top:1px solid var(--line);cursor:pointer;transition:.2s;flex-shrink:0}
-.chat-tool-bar:hover{background:linear-gradient(to left,rgba(46,125,91,0.18),rgba(46,125,91,0.06))}
-.chat-tool-bar:focus{outline:2px solid var(--emerald,#2E7D5B);outline-offset:-2px}
-.chat-tool-bar .ctb-ic{width:38px;height:38px;border-radius:11px;background:var(--emerald,#2E7D5B);color:#fff;display:grid;place-items:center;flex:none;box-shadow:0 2px 6px rgba(46,125,91,0.25)}
-.chat-tool-bar .ctb-ic svg{width:20px;height:20px}
-.chat-tool-bar .ctb-txt{flex:1;min-width:0;line-height:1.4}
-.chat-tool-bar .ctb-txt b{display:block;color:var(--navy-deep);font-size:13.5px;margin-bottom:2px}
-.chat-tool-bar .ctb-txt span{display:block;color:var(--muted);font-size:11.5px}
-.chat-tool-bar .ctb-go{color:var(--emerald,#2E7D5B);font-size:18px;font-weight:700;flex:none}
 .chat-input input{flex:1;border:1px solid var(--line);border-radius:30px;padding:12px 18px;font-size:14px;background:var(--cream)}
 .chat-input button{border:none;width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,var(--emerald),var(--emerald-deep));color:#fff;font-size:18px;cursor:pointer}
 
@@ -6143,15 +6133,6 @@ async function chatPage(){ setTop('الرسائل','تواصل مباشر');
   };
   if(active) chatSubscribeRealtime(active.id, 'chatBody', renderMainBubble); // تحديث لحظي للرسائل الواردة
 
-  // شريط مساعد يظهر للطالب فقط: يعبّي حقل الرسالة بورد اليوم منسقاً (بدل ما
-  // الطالب يكتب رقم السورة والآية يدوياً في نص حر). صار قطعة بارزة فوق حقل
-  // الإدخال بدل زر صغير مبهم داخل السطر — أسهل ملاحظة وأوضح غرضاً.
-  const linkWardBtn = ME.role==='student' ? `<div class="chat-tool-bar" onclick="chatAttachToday()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();chatAttachToday();}">
-    <div class="ctb-ic">${mi('book')}</div>
-    <div class="ctb-txt"><b>اسأل معلمك عن وردي اليوم</b><span>يعبّي رسالتك بورد اليوم منسّقاً (سورة + آيات + نوع الحصن)</span></div>
-    <div class="ctb-go">←</div>
-  </div>` : '';
-
   const otherName = active ? chatName(active) : '';
   const otherRole = active ? roleLabel(active) : '';
 
@@ -6180,7 +6161,6 @@ async function chatPage(){ setTop('الرسائل','تواصل مباشر');
         <div style="flex:1;min-width:0"><b>${esc(otherName)}</b><small>${esc(otherRole||'محادثة')}</small></div>
       </div>
       <div class="chat-body" id="chatBody">${msgs.length?renderMessagesWithDays(msgs, renderMainBubble):`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--muted);text-align:center;padding:20px"><div style="font-size:42px;margin-bottom:10px">✉️</div><b style="color:var(--navy-deep);font-size:14px">ابدأ المحادثة بأول رسالة</b><div style="font-size:12.5px;margin-top:6px;line-height:1.7">اكتب رسالتك في الحقل أسفل، ورسالتك ستصل مباشرة إلى ${esc(otherName)}${otherRole?' ('+esc(otherRole)+')':''}.</div></div>`}</div>
-      ${linkWardBtn}
       <div class="chat-input">
         <input id="chatInput" placeholder="اكتب رسالتك..." onkeydown="if(event.key==='Enter')sendMsg()">
         <button onclick="sendMsg()" title="إرسال" aria-label="إرسال">${mi('arrowRight')}</button>
@@ -6195,35 +6175,6 @@ function chatFilterList(q){
     const nm = el.dataset.name||'';
     el.style.display = (!s || nm.includes(s)) ? '' : 'none';
   });
-}
-// إرفاق ورد اليوم لرسالة الطالب — تعتمد على بيانات الورد المنظمة من الخطة،
-// لا نص حر. لو الطالب مليوش خطة اليوم، نخبره بدل ما نرسل رسالة فارغة السياق.
-async function chatAttachToday(){
-  if(ME.role!=='student'){ return; }
-  try{
-    const s = await myStudentRow();
-    if(!s){ toast('لم نتمكن من قراءة خطتك'); return; }
-    const today = new Date(); const iso = today.toISOString().slice(0,10);
-    const { data:plan } = await sb.from('quran_student_plans').select('id').eq('student_id',s.id).eq('status','active').maybeSingle();
-    if(!plan){ toast('لا خطة قرآنية نشطة لديك — لا يمكن ربط الرسالة بورد اليوم'); return; }
-    const { data:wards } = await sb.from('quran_plan_wards').select('fortress_code,surah_no,ayah_from,surah_no_to,ayah_to,is_rest_day').eq('plan_id',plan.id).eq('planned_date',iso).limit(10);
-    const real = (wards||[]).filter(w=>!w.is_rest_day);
-    if(!real.length){ toast('لا ورد لك اليوم'); return; }
-    const surahName = async (n) => { try{ const { data } = await sb.from('quran_surahs').select('name_ar').eq('surah_no',n).maybeSingle(); return data?.name_ar||('سورة '+ar(n)); }catch(e){ return 'سورة '+ar(n); } };
-    const fortAr = { new_hifz:'حفظ جديد', near_review:'مراجعة قريبة', far_review:'مراجعة بعيدة', listening:'سماع', remedial:'مراجعة علاجية' };
-    const lines = [];
-    for(const w of real){
-      const sn = await surahName(w.surah_no);
-      const rangeTxt = (w.surah_no_to && w.surah_no_to!==w.surah_no)
-        ? `${sn}:${ar(w.ayah_from)} – سورة أخرى:${ar(w.ayah_to||1)}`
-        : `${sn} — الآيات ${ar(w.ayah_from)}–${ar(w.ayah_to||w.ayah_from)}`;
-      lines.push(`• ${fortAr[w.fortress_code]||w.fortress_code}: ${rangeTxt}`);
-    }
-    const prefill = `السلام عليكم، بخصوص وردي اليوم (${today.toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long'})}):\n${lines.join('\n')}\n\n`;
-    const inp = document.getElementById('chatInput');
-    if(inp){ inp.value = prefill; inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
-    else { toast('افتح محادثة أولاً'); }
-  }catch(e){ toast('تعذّر إرفاق ورد اليوم'); }
 }
 // فقاعة رسالة مشتركة بين المحادثة الرئيسية وشات الحلقة — الفرق الوحيد بينهما هو
 // شكل الترويسة فوق رسائل الطرف الآخر (main: الدور فقط، halqa: الاسم + الدور
