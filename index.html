@@ -467,6 +467,38 @@ details.rate-classic[open] summary{margin-bottom:8px;color:var(--navy-deep)}
 .path-chip input{display:none}
 .path-chip.on{background:var(--emerald,#2E7D5B);color:#fff;border-color:var(--emerald,#2E7D5B)}
 .field .hint{font-size:11px;color:var(--muted);font-weight:normal;margin-inline-start:6px}
+/* ═══ خطة مساري الخفيفة ═══ */
+.sr-hero{margin-bottom:14px;display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:linear-gradient(135deg,#1B4D3E,#2E7D5B);color:#fff;border:none}
+.sr-hero-info{flex:1;min-width:220px}
+.sr-path-name{font-size:12.5px;opacity:0.85;font-weight:600;margin-bottom:4px}
+.sr-station{font-family:'Amiri',serif;font-size:24px;color:#fff;margin:0 0 6px;line-height:1.3}
+.sr-position{font-size:13.5px;opacity:0.95;margin-bottom:6px}
+.sr-position b{color:var(--gold-light,#e0b649);font-weight:700}
+.sr-status{font-size:12.5px;font-weight:700;background:rgba(255,255,255,0.12);display:inline-block;padding:5px 12px;border-radius:10px;color:#fff!important}
+.sr-hero-cta{flex:none}
+.sr-accum{margin-bottom:14px;background:rgba(212,180,68,0.08);border-inline-start:3px solid var(--gold,#c9a227);display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.sr-accum-info{flex:1;min-width:220px}
+.sr-accum-info p{color:var(--muted);font-size:13px;line-height:1.8;margin-top:4px}
+.sr-accum-acts{display:flex;gap:8px;flex-wrap:wrap;flex:none}
+.sr-week{margin-bottom:14px}
+.sr-week-body{display:flex;flex-direction:column;gap:10px}
+.sr-day{background:var(--cream);border-radius:12px;padding:10px 14px}
+.sr-day.sr-today{background:rgba(46,125,91,0.08);border:1px solid rgba(46,125,91,0.20)}
+.sr-day.sr-rest{background:rgba(0,0,0,0.03)}
+.sr-day-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.sr-day-h b{color:var(--navy-deep);font-size:13.5px}
+.sr-day-h span{color:var(--muted);font-size:11.5px;font-weight:600}
+.sr-day.sr-rest .sr-day-h{margin-bottom:0}
+.sr-ward{display:flex;align-items:center;gap:10px;padding:8px 10px;background:#fff;border-radius:10px;margin-bottom:6px;flex-wrap:wrap}
+.sr-ward:last-child{margin-bottom:0}
+.sr-ward-type{font-size:11.5px;font-weight:700;padding:3px 10px;border-radius:9px;flex:none}
+.sr-ward-range{flex:1;min-width:120px;color:var(--navy-deep);font-size:12.5px;line-height:1.6}
+.sr-ward-stat{font-size:11px;font-weight:700;padding:2px 8px;border-radius:8px;flex:none}
+.sr-stat-done{background:rgba(46,125,91,0.14);color:#1B4D3E}
+.sr-stat-part{background:rgba(201,162,39,0.18);color:#8a6f18}
+.sr-stat-not_done,.sr-stat-late{background:rgba(231,76,60,0.12);color:#c92e2e}
+.sr-stat-pending{background:rgba(0,0,0,0.06);color:var(--muted)}
+.sr-details{margin-bottom:14px}
 /* فاصل يوم داخل قائمة الرسائل — طراز واتساب: كبسولة مركزية شفافة، خفيفة الظل،
    لا تنافس محتوى الرسالة نفسها بصرياً */
 .chat-day-sep{display:flex;justify-content:center;margin:8px 0 4px;position:relative}
@@ -8323,14 +8355,11 @@ const HUSOON_BRIEF=[
 PAGES.student_roadmap=async function(){
   const s=await myStudentRow(); if(!s) return noJourneyMsg('student');
   if(s.enrollment_status!=='active') return enrollGateMsg(s.enrollment_status);
-  // 🔴 دمج بناءً على طلب صريح: "خطتي الكاملة" أُزيلت — بمجرد ما يبقى للطالب خطة
-  // حقيقية أنشأها المعلم، "خطة مساري" تتحوّل تلقائياً لعرض نفس التفاصيل اليومية
-  // الفعلية (بدل الخطة الاسترشادية العامة)، فمفيش داعي لصفحتين منفصلتين
   const realPlan = await myActivePlan();
   if(realPlan){
     setTop('خطة مساري','');
-    applyAbsenceShift(realPlan); // مهمة صيانة في الخلفية (لا تُنتظَر)
-    return await qRenderFullPlan(realPlan.id, 'student');
+    applyAbsenceShift(realPlan); // صيانة خلفية لا تُنتظَر
+    return await sRoadmapLite(realPlan, s);
   }
   setTop('خطة مساري','خطة متوقعة لسير المسار ومدته');
   if(!s.quran_path) return `<div class="card" style="text-align:center;padding:36px"><div class="empty-ic">${mi('map')}</div><h3 style="color:var(--navy-deep)">لم تختر مساراً بعد</h3><p style="color:var(--muted)">اذهب إلى «مساري» واختر مسارك لتظهر خطته.</p></div>`;
@@ -8344,6 +8373,237 @@ PAGES.student_roadmap=async function(){
   (rm.detailed?renderDetailedRoadmap(rm):renderBriefRoadmap(rm))+
   `<div class="roadmap-note">📌 هذه خطة استرشادية مرنة. معلمك في حلقتك الخاصة قد يعدّلها حسب مستواك وسرعتك. الثبات اليومي أهمّ من السرعة. 🌱</div>`;
 };
+// ═══ خطة مساري الخفيفة (spec: ملخص فوري + خطة الأسبوع + التفاصيل عند الطلب) ═══
+// كانت الصفحة تستدعي qRenderFullPlan الذي يجلب نافذة أيام كاملة + سجل تقدّم + بوصلة
+// + كل الأدوات — ثقيل ولا يحتاجه الطالب أول ما يفتح. الآن نُظهر ملخصاً فورياً،
+// نافذة أسبوع واحد فقط للأوراد القادمة، ونؤجّل تحميل السجل والأدوات حتى يطلبها.
+async function sRoadmapLite(plan, student){
+  const today = qTodayStr();
+  const in7   = new Date(Date.now()+6*86400000).toISOString().slice(0,10);
+  // كل الاستعلامات بالتوازي — كلها خفيفة بحد أدنى من الأعمدة والصفوف
+  const [dashR, wardsR, sysR, stationR, lastHifzR, sysFortsR, surahsR] = await Promise.all([
+    sb.rpc('quran_plan_dashboard', { p_plan_id: plan.id }).catch(()=>({data:null,error:1})),
+    sb.from('quran_plan_wards')
+      .select('id,fortress_code,surah_no,ayah_from,ayah_to,pages,amount_label,planned_date,is_rest_day')
+      .eq('plan_id',plan.id).gte('planned_date',today).lte('planned_date',in7)
+      .order('planned_date').order('fortress_code'),
+    sb.from('quran_systems').select('name,path_key').eq('id',plan.system_id).maybeSingle(),
+    plan.current_station_id ? sb.from('quran_stations').select('*').eq('id',plan.current_station_id).maybeSingle() : Promise.resolve({data:null}),
+    sb.from('quran_plan_wards').select('surah_no,surah_name,ayah_to,amount_label,planned_date')
+      .eq('plan_id',plan.id).eq('fortress_code','new_hifz').not('surah_no','is',null)
+      .lte('planned_date',today).order('planned_date',{ascending:false}).limit(1).maybeSingle().catch(()=>({data:null})),
+    fortressesFor(plan.system_id),
+    sb.from('quran_surahs').select('surah_no,name_ar').order('surah_no'),
+  ]);
+  const dash = (dashR && dashR.data && !dashR.data.error) ? dashR.data : null;
+  const wards = wardsR.data || [];
+  const sys = sysR?.data; const station = stationR?.data;
+  const lastHifz = lastHifzR?.data;
+  const fortMap = {}; (sysFortsR||[]).forEach(f=>{ fortMap[f.code]=f; });
+  const surahName = {}; (surahsR.data||[]).forEach(s2=>{ surahName[s2.surah_no] = s2.name_ar; });
+  // تقدّم الأوراد في نافذة الأسبوع فقط (لا نجلب سجل قديم)
+  const wardIds = wards.filter(w=>!w.is_rest_day).map(w=>w.id);
+  const progs = wardIds.length ? (await qFetchProgress(wardIds, 'ward_id,status,is_late,is_early')) : [];
+  const progMap = {}; (progs||[]).forEach(p=>{ progMap[p.ward_id]=p; });
+
+  // ─── بيانات الملخص ───
+  const todayWards = (dash && dash.today_wards) || [];
+  const todayTotal = todayWards.length;
+  const todayDone  = todayWards.filter(w => w.progress && w.progress.status==='done').length;
+  const lateCount  = (dash && dash.late_count) || 0;
+  const path = QURAN_PATHS.find(p=>p.id===student.quran_path) || {};
+  // موقع الطالب الحالي: آخر ورد حفظ سابق فيه سورة/آية معلومة
+  let positionText = 'لم يبدأ حفظ بعد';
+  if(lastHifz){
+    const sn = surahName[lastHifz.surah_no] || lastHifz.surah_name || ('سورة '+ar(lastHifz.surah_no));
+    positionText = sn + (lastHifz.ayah_to ? ' — حتى الآية ' + ar(lastHifz.ayah_to) : '');
+  }
+  // حالة الخطة بجملة إنسانية
+  let statusLine, statusColor;
+  if(plan.status !== 'active'){ statusLine = 'خطتك متوقفة مؤقتاً'; statusColor = '#8a6f18'; }
+  else if(lateCount >= 20){ statusLine = 'خطتك تحتاج ترتيباً هادئاً'; statusColor = '#c9a227'; }
+  else if(lateCount > 0){ statusLine = 'خطتك مستقرة — يوجد ما يستحق ترتيباً بسيطاً'; statusColor = '#c9a227'; }
+  else{ statusLine = 'خطتك مستقرة — استمر بارك الله فيك'; statusColor = '#2E7D5B'; }
+  // اسم المحطة الحالي بجملة قصيرة
+  const stationLabel = station ? station.name : 'محطة قيد التحضير';
+  // زر رئيسي واحد: افتح ورد اليوم (أو خطتك جاهزة)
+  const mainCta = todayTotal>0 && todayDone<todayTotal
+    ? `<button class="btn gold" style="font-size:15px;padding:12px 24px" onclick="navigate('qtoday')">${mi('book')} افتح ورد اليوم</button>`
+    : todayTotal>0 && todayDone===todayTotal
+      ? `<button class="btn ghost" onclick="navigate('qtoday')">${mi('check')} اليوم منجز — استعرض</button>`
+      : `<button class="btn ghost" onclick="navigate('qtoday')">${mi('book')} استعرض خطتي</button>`;
+
+  const heroHtml = `<div class="card sr-hero">
+    <div class="sr-hero-info">
+      <div class="sr-path-name">${path.icon?esc(path.icon)+' ':''}${esc(path.name || sys?.name || 'مسارك')}</div>
+      <h2 class="sr-station">${esc(stationLabel)}</h2>
+      <div class="sr-position">أنت الآن في: <b>${esc(positionText)}</b></div>
+      <div class="sr-status" style="color:${statusColor}">${esc(statusLine)}</div>
+    </div>
+    <div class="sr-hero-cta">${mainCta}</div>
+  </div>`;
+
+  // ─── بطاقة "ترتيب التراكم" — هادئة، ليست عقابية ───
+  const accumCard = lateCount > 0 ? `<div class="card sr-accum">
+    <div class="sr-accum-info">
+      <b style="color:var(--navy-deep);font-size:15px">خطتك تحتاج ترتيباً هادئاً</b>
+      <p>ورد اليوم جاهز، وبعده يمكنك طلب مساعدة معلمك لترتيب ما سبق. لست وحدك — كل رحلة فيها فترات.</p>
+    </div>
+    <div class="sr-accum-acts">
+      <button class="btn ghost" onclick="_sRoadmapArrange('${esc(plan.id)}')">عرض خطة الترتيب</button>
+      <button class="btn ghost" onclick="_sRoadmapAskHelp('${esc(plan.id)}')">${mi('chat')} اطلب مساعدة معلمي</button>
+    </div>
+  </div>` : '';
+
+  // ─── خطة هذا الأسبوع ───
+  const dayLabel = (iso) => {
+    if(iso === today) return 'اليوم';
+    const tomorrow = new Date(Date.now()+86400000).toISOString().slice(0,10);
+    if(iso === tomorrow) return 'غداً';
+    const d = new Date(iso);
+    return d.toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long'});
+  };
+  const fortShort = { new_hifz:'حفظ جديد', near_review:'مراجعة قريبة', far_review:'مراجعة بعيدة', listening:'سماع', reading:'قراءة', remedial:'مراجعة علاجية' };
+  const wardsByDate = {};
+  wards.forEach(w=>{ (wardsByDate[w.planned_date] = wardsByDate[w.planned_date] || []).push(w); });
+  const weekDatesSorted = Object.keys(wardsByDate).sort();
+  const weekBody = weekDatesSorted.length ? weekDatesSorted.map(dt => {
+    const dayWards = wardsByDate[dt];
+    if(dayWards.every(w=>w.is_rest_day)){
+      return `<div class="sr-day sr-rest"><div class="sr-day-h"><b>${esc(dayLabel(dt))}</b><span>يوم راحة 🌿</span></div></div>`;
+    }
+    const cards = dayWards.filter(w=>!w.is_rest_day).map(w => {
+      const p = progMap[w.id];
+      const stat = p?.status==='done' ? { cls:'done', label:'تم' }
+                 : p?.status==='partial' ? { cls:'part', label:'جزئي' }
+                 : p?.status==='not_done' ? { cls:'not_done', label:'لم يُتم' }
+                 : (dt < today ? { cls:'late', label:'يحتاج إعادة' } : { cls:'pending', label:'لم يبدأ' });
+      const sName = w.surah_no ? (surahName[w.surah_no] || ('سورة '+ar(w.surah_no))) : (w.amount_label || '—');
+      const range = w.surah_no
+        ? `${esc(sName)}${w.ayah_from?' — الآيات '+ar(w.ayah_from)+(w.ayah_to&&w.ayah_to!==w.ayah_from?'–'+ar(w.ayah_to):''):''}`
+        : esc(w.amount_label || '—');
+      const fort = fortMap[w.fortress_code] || {};
+      const fortColor = fort.color || qFortColor(w.fortress_code);
+      const openBtn = dt === today ? `<button class="btn-sm" style="background:${fortColor};color:#fff" onclick="navigate('qtoday')">${mi('book')} افتح</button>` : '';
+      return `<div class="sr-ward">
+        <span class="sr-ward-type" style="background:${fortColor}22;color:${fortColor}">${esc(fortShort[w.fortress_code] || w.fortress_code)}</span>
+        <span class="sr-ward-range">${range}</span>
+        <span class="sr-ward-stat sr-stat-${stat.cls}">${esc(stat.label)}</span>
+        ${openBtn}
+      </div>`;
+    }).join('');
+    return `<div class="sr-day ${dt===today?'sr-today':''}"><div class="sr-day-h"><b>${esc(dayLabel(dt))}</b><span>${ar(dayWards.filter(w=>!w.is_rest_day).length)} ورد</span></div>${cards}</div>`;
+  }).join('') : `<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">لا أوراد في الأيام السبعة القادمة — قد تكون كلها أيام راحة أو الخطة انتهت.</div>`;
+
+  const weekCard = `<div class="card sr-week">
+    <div class="ch"><h3>${mi('calendar')} خطة هذا الأسبوع</h3><span class="tagline-sm">${ar(weekDatesSorted.length)} يوم قادم</span></div>
+    <div class="sr-week-body">${weekBody}</div>
+    <div style="text-align:center;margin-top:12px">
+      <button class="btn ghost" onclick="_sRoadmapLoadMore('${esc(plan.id)}')" id="srMoreBtn">عرض أسبوع آخر</button>
+    </div>
+  </div>`;
+
+  // ─── تفاصيل المسار والسجل (كسولة — لا تُحمَّل الآن) ───
+  const detailsCard = `<div class="card sr-details">
+    <div class="ch"><h3>${mi('map')} تفاصيل المسار والسجل</h3></div>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:12px">حدود المحطة، نسبة التقدم، الأيام السابقة، وسجل تعديلات المعلم — تظهر عند الطلب حتى تبقى الصفحة سريعة.</p>
+    <button class="btn ghost" onclick="_sRoadmapLoadFull('${esc(plan.id)}')" id="srFullBtn">عرض التفاصيل والسجل</button>
+    <div id="srFullHost" style="margin-top:14px"></div>
+  </div>`;
+
+  // نُخزن سياق الصفحة للتحميل التدريجي
+  SESSION._srLite = { planId: plan.id, weekEnd: in7, sysName: sys?.name || '', stationName: stationLabel };
+
+  return heroHtml + accumCard + weekCard + detailsCard;
+}
+// تحميل أسبوع إضافي عند الطلب — لا نُعيد رسم الصفحة، فقط نلحق أيام جديدة
+async function _sRoadmapLoadMore(planId){
+  const ctx = SESSION._srLite; if(!ctx || ctx.planId !== planId) return;
+  const btn = document.getElementById('srMoreBtn'); if(btn){ btn.disabled=true; btn.textContent='جارٍ التحميل...'; }
+  const from = new Date(new Date(ctx.weekEnd).getTime()+86400000).toISOString().slice(0,10);
+  const to   = new Date(new Date(ctx.weekEnd).getTime()+7*86400000).toISOString().slice(0,10);
+  const { data: wards } = await sb.from('quran_plan_wards')
+    .select('id,fortress_code,surah_no,ayah_from,ayah_to,pages,amount_label,planned_date,is_rest_day')
+    .eq('plan_id',planId).gte('planned_date',from).lte('planned_date',to)
+    .order('planned_date').order('fortress_code');
+  ctx.weekEnd = to;
+  if(!wards || !wards.length){
+    if(btn){ btn.disabled=true; btn.textContent='لا مزيد من الأوراد'; btn.style.opacity='0.5'; }
+    return;
+  }
+  const [progs, surahsR] = await Promise.all([
+    qFetchProgress(wards.filter(w=>!w.is_rest_day).map(w=>w.id), 'ward_id,status'),
+    sb.from('quran_surahs').select('surah_no,name_ar'),
+  ]);
+  const progMap = {}; (progs||[]).forEach(p=>{ progMap[p.ward_id]=p; });
+  const surahName = {}; (surahsR.data||[]).forEach(s=>{ surahName[s.surah_no]=s.name_ar; });
+  const today = qTodayStr();
+  const dayLabel = (iso) => {
+    if(iso===today) return 'اليوم';
+    const d = new Date(iso);
+    return d.toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long'});
+  };
+  const fortShort = { new_hifz:'حفظ جديد', near_review:'مراجعة قريبة', far_review:'مراجعة بعيدة', listening:'سماع', reading:'قراءة', remedial:'مراجعة علاجية' };
+  const byDate = {};
+  wards.forEach(w=>{ (byDate[w.planned_date] = byDate[w.planned_date] || []).push(w); });
+  const html = Object.keys(byDate).sort().map(dt => {
+    const dayWards = byDate[dt];
+    if(dayWards.every(w=>w.is_rest_day)){
+      return `<div class="sr-day sr-rest"><div class="sr-day-h"><b>${esc(dayLabel(dt))}</b><span>يوم راحة 🌿</span></div></div>`;
+    }
+    const cards = dayWards.filter(w=>!w.is_rest_day).map(w=>{
+      const p = progMap[w.id];
+      const stat = p?.status==='done' ? { cls:'done', label:'تم' }
+                 : p?.status==='partial' ? { cls:'part', label:'جزئي' }
+                 : { cls:'pending', label:'لم يبدأ' };
+      const sName = w.surah_no ? (surahName[w.surah_no] || ('سورة '+ar(w.surah_no))) : (w.amount_label || '—');
+      const range = w.surah_no
+        ? `${esc(sName)}${w.ayah_from?' — الآيات '+ar(w.ayah_from)+(w.ayah_to&&w.ayah_to!==w.ayah_from?'–'+ar(w.ayah_to):''):''}`
+        : esc(w.amount_label || '—');
+      const fortColor = qFortColor(w.fortress_code);
+      return `<div class="sr-ward">
+        <span class="sr-ward-type" style="background:${fortColor}22;color:${fortColor}">${esc(fortShort[w.fortress_code] || w.fortress_code)}</span>
+        <span class="sr-ward-range">${range}</span>
+        <span class="sr-ward-stat sr-stat-${stat.cls}">${esc(stat.label)}</span>
+      </div>`;
+    }).join('');
+    return `<div class="sr-day"><div class="sr-day-h"><b>${esc(dayLabel(dt))}</b><span>${ar(dayWards.filter(w=>!w.is_rest_day).length)} ورد</span></div>${cards}</div>`;
+  }).join('');
+  const host = document.querySelector('.sr-week-body');
+  if(host) host.insertAdjacentHTML('beforeend', html);
+  if(btn){ btn.disabled=false; btn.textContent='عرض أسبوع آخر'; }
+}
+// تفاصيل المسار الكاملة — تُحمَّل عند طلب المستخدم فقط
+async function _sRoadmapLoadFull(planId){
+  const host = document.getElementById('srFullHost'); const btn = document.getElementById('srFullBtn');
+  if(!host) return;
+  if(btn){ btn.disabled=true; btn.textContent='جارٍ التحميل...'; }
+  try{
+    host.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted)">جارٍ تحميل التفاصيل...</div>';
+    host.innerHTML = await qRenderFullPlan(planId, 'student');
+    if(btn) btn.style.display = 'none';
+  }catch(e){
+    host.innerHTML = '<div style="color:#a33;text-align:center;padding:16px">تعذّر تحميل التفاصيل — حاول لاحقاً.</div>';
+    if(btn){ btn.disabled=false; btn.textContent='عرض التفاصيل والسجل'; }
+  }
+}
+// خطة الترتيب: نُرشد الطالب لصفحة ورد اليوم مع بانر مساعد + اقتراح رسالة معلم
+function _sRoadmapArrange(planId){
+  toast('ابدأ من ورد اليوم — بعده اضغط «اطلب مساعدة معلمي» لترتيب ما سبق');
+  setTimeout(()=>navigate('qtoday'), 900);
+}
+async function _sRoadmapAskHelp(planId){
+  // نستخدم نظام طلبات المساعدة القائم — فئة "schedule_issue" هي الأنسب لترتيب التراكم
+  try{
+    const { error } = await sb.from('quran_help_requests').insert({
+      plan_id: planId, category: 'schedule_issue',
+      note: 'يوجد تراكم يحتاج ترتيباً هادئاً — أرجو المساعدة في وضع خطة استدراك.',
+      status: 'open',
+    });
+    if(error){ toast('تعذّر: '+error.message); return; }
+    toast('✅ تم إرسال طلب المساعدة لمعلمك — سيصلك رد قريباً');
+  }catch(e){ toast('حدث خطأ'); }
+}
 function renderDetailedRoadmap(rm){
   return `${rm.prior?`<div class="roadmap-prior"><b>${mi('pin')} ملاحظة عن نقطة البداية:</b><p>${rm.prior}</p></div>`:''}
   <div class="roadmap-rates">
