@@ -8904,7 +8904,7 @@ async function _sRoadmapAskHelp(planId){
   // نستخدم نظام طلبات المساعدة القائم — فئة "schedule_issue" هي الأنسب لترتيب التراكم
   try{
     const { error } = await sb.from('quran_help_requests').insert({
-      plan_id: planId, category: 'schedule_issue',
+      plan_id: planId, requested_by: ME.id, category: 'schedule_issue',
       note: 'يوجد تراكم يحتاج ترتيباً هادئاً — أرجو المساعدة في وضع خطة استدراك.',
       status: 'open',
     });
@@ -11898,7 +11898,7 @@ async function _recovAskTeacher(){
     const plan = await myActivePlan();
     if(!plan){ toast('لا خطة نشطة'); return; }
     const { error } = await sb.from('quran_help_requests').insert({
-      plan_id: plan.id, category:'schedule_issue',
+      plan_id: plan.id, requested_by: ME.id, category:'schedule_issue',
       note:'أطلب ترتيب خطة استعادة للتراكم — أرجو تحديد أوراد مناسبة أسبوعياً بحجم مريح.',
       status:'open',
     });
