@@ -8463,7 +8463,7 @@ async function sRoadmapLite(plan, student){
   const in7   = new Date(Date.now()+6*86400000).toISOString().slice(0,10);
   // كل الاستعلامات بالتوازي — كلها خفيفة بحد أدنى من الأعمدة والصفوف
   const [dashR, wardsR, sysR, stationR, lastHifzR, sysFortsR, surahsR] = await Promise.all([
-    sb.rpc('quran_plan_dashboard', { p_plan_id: plan.id }).catch(()=>({data:null,error:1})),
+    sb.rpc('quran_plan_dashboard', { p_plan_id: plan.id }).then(x=>x, ()=>({data:null,error:1})),
     sb.from('quran_plan_wards')
       .select('id,fortress_code,surah_no,ayah_from,ayah_to,pages,amount_label,planned_date,is_rest_day')
       .eq('plan_id',plan.id).gte('planned_date',today).lte('planned_date',in7)
@@ -8472,7 +8472,7 @@ async function sRoadmapLite(plan, student){
     plan.current_station_id ? sb.from('quran_stations').select('*').eq('id',plan.current_station_id).maybeSingle() : Promise.resolve({data:null}),
     sb.from('quran_plan_wards').select('surah_no,surah_name,ayah_to,amount_label,planned_date')
       .eq('plan_id',plan.id).eq('fortress_code','new_hifz').not('surah_no','is',null)
-      .lte('planned_date',today).order('planned_date',{ascending:false}).limit(1).maybeSingle().catch(()=>({data:null})),
+      .lte('planned_date',today).order('planned_date',{ascending:false}).limit(1).maybeSingle().then(x=>x, ()=>({data:null})),
     fortressesFor(plan.system_id),
     sb.from('quran_surahs').select('surah_no,name_ar').order('surah_no'),
   ]);
