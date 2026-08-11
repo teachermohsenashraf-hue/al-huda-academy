@@ -368,6 +368,30 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 .dashq-row .dashq-txt span{display:block;color:var(--muted);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dashq-row .dashq-act{flex:none}
 .dashq-row .dashq-act .btn,.dashq-row .dashq-act .btn.ghost{padding:7px 14px;font-size:12.5px;border-radius:8px}
+/* ═══ قائمة حلقات المعلم — فلاتر شارات + بطاقات مضغوطة ═══ */
+.grpfilters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center}
+.grpchip{background:#fff;border:1px solid var(--line);border-radius:20px;padding:8px 16px;font-family:'Cairo',sans-serif;font-weight:600;font-size:13px;color:var(--muted);cursor:pointer;transition:.2s;display:inline-flex;align-items:center;gap:6px}
+.grpchip:hover{border-color:var(--emerald);color:var(--emerald-deep,#1B4D3E)}
+.grpchip.on{background:var(--emerald,#2E7D5B);color:#fff;border-color:var(--emerald,#2E7D5B)}
+.grpchip.urgent:not(.on){color:#c92e2e;border-color:rgba(231,76,60,0.35)}
+.grpchip.urgent.on{background:#c92e2e;border-color:#c92e2e;color:#fff}
+.grpchip span{background:rgba(0,0,0,0.08);color:inherit;font-size:11.5px;padding:1px 8px;border-radius:10px;font-weight:700}
+.grpchip.on span{background:rgba(255,255,255,0.22)}
+.grpfilters #tgSearch{flex:1;min-width:180px;padding:9px 14px;border:1px solid var(--line);border-radius:20px;background:#fff;font-size:13px;font-family:'Cairo',sans-serif}
+.grplist{display:flex;flex-direction:column;gap:10px}
+.grpcard{background:#fff;border:1px solid var(--line);border-radius:14px;display:flex;align-items:center;gap:14px;padding:0;overflow:hidden;cursor:pointer;transition:.2s}
+.grpcard:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(0,0,0,0.05);border-color:rgba(46,125,91,0.28)}
+.grpcard .gc-side{width:4px;align-self:stretch;flex:none}
+.grpcard .gc-main{flex:1;min-width:0;padding:14px 4px 14px 14px}
+.grpcard .gc-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+.grpcard .gc-top b{color:var(--navy-deep);font-size:15px;font-weight:700}
+.grpcard .gc-plan{font-size:12px;font-weight:700;padding:2px 10px;border-radius:10px;background:rgba(0,0,0,0.04)}
+.grpcard .gc-meta{color:var(--muted);font-size:12.5px;line-height:1.6}
+.grpcard .gc-badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.grpcard .gc-badge{font-size:11px;font-weight:700;padding:3px 10px;border-radius:9px;line-height:1.5}
+.grpcard .gc-badge.urgent{background:rgba(231,76,60,0.12);color:#c92e2e}
+.grpcard .gc-badge.warn{background:rgba(201,162,39,0.18);color:#8a6f18}
+.grpcard>.btn-sm{margin-inline-end:14px;flex:none;padding:8px 14px;font-size:12.5px;border-radius:8px}
 /* فاصل يوم داخل قائمة الرسائل — طراز واتساب: كبسولة مركزية شفافة، خفيفة الظل،
    لا تنافس محتوى الرسالة نفسها بصرياً */
 .chat-day-sep{display:flex;justify-content:center;margin:8px 0 4px;position:relative}
@@ -5118,31 +5142,161 @@ async function groupCards(gs){ let h='';
   }
 } return h; }
 function openGroup(id){ SESSION.activeGroup=id; navigate('record'); }
-PAGES.teacher_groups=async function(){ setTop('حلقاتي','');
-  const gs=await myGroups();
-  // نجيب جنسية/إقامة كل طالب في حلقة خاصة عشان نقسّم الحلقات لـ٣ أقسام
-  const studentIds=gs.filter(g=>g.is_private&&g.student_id).map(g=>g.student_id);
-  let geoByStudentId={};
-  if(studentIds.length){
-    const { data:studs }=await sb.from('students').select('id,login_id,parent_id').in('id',studentIds);
-    const gmap=await residenceMap(studs||[]);
-    (studs||[]).forEach(s=>{ geoByStudentId[s.id]=gmap[s.id]; });
+PAGES.teacher_groups=async function(){ setTop('حلقاتي','فلترة سريعة للحلقة التي تحتاج انتباهك الآن');
+  const gs = await myGroups();
+  if(!gs.length){
+    return pageHead('حلقاتي','') + `<div class="card" style="text-align:center;padding:40px"><div class="empty-ic">${mi('mosque')}</div><h3 style="color:var(--navy-deep)">لا حلقات مُسندة إليك بعد</h3><p style="color:var(--muted);font-size:14px">لما تُنشأ حلقتك الأولى، ستظهر هنا مع فلاتر التنقل السريع.</p></div>`;
   }
-  const buckets={EG:[],SA:[],other:[]};
+  const gids = gs.map(g=>g.id);
+  const today = qTodayStr();
+  const weekEndIso = new Date(Date.now() + 7*86400000).toISOString().slice(0,10);
+  // ─── جلب كل ما نحتاجه لحساب حالة كل حلقة، بالتوازي ───
+  const [studsR, sessionsR] = await Promise.all([
+    sb.from('students').select('id,full_name,initials,mastery,group_id,quran_path,login_id').in('group_id',gids),
+    sb.from('sessions').select('id,group_id,student_id,session_date,session_time,duration_min,status').in('group_id',gids).neq('status','cancelled').gte('session_date', new Date(Date.now()-30*86400000).toISOString().slice(0,10)).order('session_date',{ascending:true}),
+  ]);
+  const students = studsR.data || [];
+  const sessions = sessionsR.data || [];
+  const studentsByGroup = {}; students.forEach(s=>{ (studentsByGroup[s.group_id]=studentsByGroup[s.group_id]||[]).push(s); });
+  const sids = students.map(s=>s.id);
+  const [plansR, ratingsR] = await Promise.all([
+    sids.length ? sb.from('quran_student_plans').select('id,student_id,status').in('student_id',sids) : Promise.resolve({data:[]}),
+    sessions.length ? sb.from('session_ratings').select('session_id').in('session_id', sessions.map(s=>s.id)) : Promise.resolve({data:[]}),
+  ]);
+  const plans = plansR.data || [];
+  const activePlansByStudent = {}; plans.filter(p=>p.status==='active').forEach(p=>{ activePlansByStudent[p.student_id]=p; });
+  const anyPlanByStudent = {}; plans.forEach(p=>{ if(!anyPlanByStudent[p.student_id]) anyPlanByStudent[p.student_id]=p; });
+  const activePlanIds = Object.values(activePlansByStudent).map(p=>p.id);
+  const ratedIds = new Set((ratingsR.data||[]).map(r=>r.session_id));
+  // الأوراد المتأخرة الحقيقية لكل خطة
+  const trueLateByPlan = {};
+  if(activePlanIds.length){
+    const { data:lateWards } = await sb.from('quran_plan_wards').select('id,plan_id').in('plan_id',activePlanIds).lt('planned_date',today).eq('is_rest_day',false);
+    const wardIds = (lateWards||[]).map(w=>w.id);
+    const done = new Set();
+    if(wardIds.length){
+      const progs = await qFetchProgress(wardIds, 'ward_id,status');
+      (progs||[]).forEach(p=>{ if(p.status==='done'||p.status==='partial') done.add(p.ward_id); });
+    }
+    (lateWards||[]).forEach(w=>{ if(!done.has(w.id)){ trueLateByPlan[w.plan_id]=(trueLateByPlan[w.plan_id]||0)+1; } });
+  }
+  // احسب سياق لكل حلقة: الحصة القادمة، آخر حصة لم تُقيَّم، حالة الخطة، عدد المتأخرات
+  const ctxByGroup = {};
   gs.forEach(g=>{
-    if(g.is_private&&g.student_id) buckets[countryBucket(geoByStudentId[g.student_id])].push(g);
-    else buckets.other.push(g);
+    const gSessions = sessions.filter(s=>s.group_id===g.id);
+    const nextS = gSessions.find(s => {
+      const end = new Date(s.session_date+'T'+((s.session_time||'').slice(0,5)||'00:00'));
+      if(s.duration_min) end.setMinutes(end.getMinutes()+s.duration_min);
+      return end >= new Date();
+    });
+    const unratedPast = gSessions.filter(s => !ratedIds.has(s.id) && new Date(s.session_date+'T'+((s.session_time||'').slice(0,5)||'00:00')) < new Date()).length;
+    const sts = studentsByGroup[g.id] || [];
+    const student = sts[0] || null;
+    const plan = student ? activePlansByStudent[student.id] : null;
+    const anyPlan = student ? anyPlanByStudent[student.id] : null;
+    const lateCount = plan ? (trueLateByPlan[plan.id]||0) : 0;
+    let planState, planStateLabel, planStateColor;
+    if(!student){ planState='no_student'; planStateLabel='بلا طالب'; planStateColor='#999'; }
+    else if(!anyPlan){ planState='no_plan'; planStateLabel='بلا خطة'; planStateColor='#c9a227'; }
+    else if(anyPlan.status !== 'active'){ planState='paused'; planStateLabel='موقوفة'; planStateColor='#8a6f18'; }
+    else if(lateCount >= 10){ planState='rescue'; planStateLabel='تحتاج إنقاذاً'; planStateColor='#c92e2e'; }
+    else if(lateCount > 0){ planState='attention'; planStateLabel='تحتاج متابعة'; planStateColor='#c9a227'; }
+    else{ planState='regular'; planStateLabel='منتظمة'; planStateColor='#2E7D5B'; }
+    // انتباه: حصة اليوم؟ حصة هذا الأسبوع؟
+    const hasToday = gSessions.some(s => s.session_date===today);
+    const hasThisWeek = gSessions.some(s => s.session_date>=today && s.session_date<=weekEndIso);
+    const needsAction = unratedPast>0 || lateCount>0 || planState==='no_plan';
+    ctxByGroup[g.id] = { nextS, unratedPast, student, plan, anyPlan, lateCount, planState, planStateLabel, planStateColor, hasToday, hasThisWeek, needsAction };
   });
-  let cardsHtml='';
-  for(const sec of COUNTRY_SECTIONS){
-    const list=buckets[sec.key];
-    if(!list.length) continue;
-    cardsHtml+=`<div class="section-label"><span class="sl-t">${sec.label} (${ar(list.length)})</span><span class="sl-line"></span></div><div class="list1col">${await groupCards(list)}</div>`;
-  }
-  return pageHead('حلقاتي','كل حلقاتك، مقسّمة حسب دولة الطالب')+
-  `<div class="field" style="max-width:360px;margin-bottom:16px"><input id="teacherHalqaSearch" placeholder="🔍 دوّر على حلقة طالب..." oninput="filterTeacherHalqat(this.value)"></div>
-  <div id="teacherHalqatList">${cardsHtml||'<p style="color:var(--muted)">لا حلقات مُسندة إليك بعد. يسندها المدير.</p>'}</div>`;
+  // شارات الفلاتر — نحسب عدد كل واحدة
+  const cnt = {
+    all: gs.length,
+    today: gs.filter(g=>ctxByGroup[g.id].hasToday).length,
+    week: gs.filter(g=>ctxByGroup[g.id].hasThisWeek).length,
+    action: gs.filter(g=>ctxByGroup[g.id].needsAction).length,
+  };
+  // تخزين السياق للفلترة اللحظية
+  window._TEACHER_GROUPS_CTX = ctxByGroup;
+
+  const filterChips = `<div class="grpfilters">
+    <button class="grpchip on" data-f="all" onclick="tgFilter('all')">الكل <span>${ar(cnt.all)}</span></button>
+    <button class="grpchip" data-f="today" onclick="tgFilter('today')">اليوم <span>${ar(cnt.today)}</span></button>
+    <button class="grpchip" data-f="week" onclick="tgFilter('week')">هذا الأسبوع <span>${ar(cnt.week)}</span></button>
+    <button class="grpchip urgent" data-f="action" onclick="tgFilter('action')">تحتاج تدخلاً <span>${ar(cnt.action)}</span></button>
+    <input id="tgSearch" placeholder="🔍 اسم الطالب..." oninput="tgSearch(this.value)">
+  </div>`;
+
+  // بطاقة الحلقة المضغوطة
+  const groupCard = g => {
+    const c = ctxByGroup[g.id];
+    if(!c.student && !g.is_private){
+      // حلقة عامة قديمة — نستخدم بطاقة مبسطة
+      const sts = studentsByGroup[g.id] || [];
+      return `<div class="grpcard" data-search="${esc(g.name||'')}" data-tags="${g.is_private?'':'group'}" onclick="openGroup(${g.id})">
+        <div class="gc-side" style="background:#2E7D5B"></div>
+        <div class="gc-main"><b>${esc(g.name)}</b><span>${ar(sts.length)} طالب • ${esc(g.meet_time||'—')}</span></div>
+        <button class="btn-sm" onclick="event.stopPropagation();openGroup(${g.id})">إدارة الحلقة</button>
+      </div>`;
+    }
+    const stu = c.student;
+    if(!stu) return '';
+    const pathName_ = stu.quran_path ? pathName(stu.quran_path) : '';
+    const nextLabel = c.nextS ? (() => {
+      const d = new Date(c.nextS.session_date);
+      const isToday = c.nextS.session_date === today;
+      const isTomorrow = c.nextS.session_date === new Date(Date.now()+86400000).toISOString().slice(0,10);
+      const day = isToday ? 'اليوم' : (isTomorrow ? 'غداً' : d.toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'short'}));
+      const t = c.nextS.session_time ? ' • '+fmt12h((c.nextS.session_time||'').slice(0,5)) : '';
+      return day + t;
+    })() : 'لا حصة قادمة';
+    const badges = [];
+    if(c.unratedPast>0) badges.push(`<span class="gc-badge urgent">${ar(c.unratedPast)} حصة تنتظر تقييمك</span>`);
+    if(c.lateCount>0) badges.push(`<span class="gc-badge warn">${ar(c.lateCount)} ورد متأخر</span>`);
+    if(c.planState==='no_plan') badges.push(`<span class="gc-badge warn">بلا خطة</span>`);
+    const tags = [
+      c.hasToday?'today':'',
+      c.hasThisWeek?'week':'',
+      c.needsAction?'action':'',
+    ].filter(Boolean).join(' ');
+    return `<div class="grpcard" data-search="${esc(stu.full_name.toLowerCase())}" data-tags="${tags}" onclick="openPrivHalqa(${g.id})">
+      <div class="gc-side" style="background:${c.planStateColor}"></div>
+      <div class="gc-main">
+        <div class="gc-top"><b>${esc(stu.full_name)}</b><span class="gc-plan" style="color:${c.planStateColor}">${esc(c.planStateLabel)}</span></div>
+        <div class="gc-meta">${pathName_?esc(pathName_)+' • ':''}${esc(nextLabel)}</div>
+        ${badges.length?`<div class="gc-badges">${badges.join('')}</div>`:''}
+      </div>
+      <button class="btn-sm" onclick="event.stopPropagation();openPrivHalqa(${g.id})">إدارة الحلقة</button>
+    </div>`;
+  };
+  // ترتيب: تحتاج تدخلاً أولاً، ثم اليوم، ثم الباقي
+  const sortedGs = [...gs].sort((a,b)=>{
+    const ca=ctxByGroup[a.id], cb=ctxByGroup[b.id];
+    const ka = (ca.needsAction?2:0) + (ca.hasToday?1:0);
+    const kb = (cb.needsAction?2:0) + (cb.hasToday?1:0);
+    return kb-ka;
+  });
+  const cardsHtml = sortedGs.map(groupCard).join('');
+  return pageHead('حلقاتي','') + filterChips + `<div id="teacherHalqatList" class="grplist">${cardsHtml}</div>`;
 };
+// فلترة قائمة حلقات المعلم بالضغط على شارة، دون إعادة استعلام
+function tgFilter(f){
+  document.querySelectorAll('.grpchip').forEach(b=>b.classList.toggle('on', b.dataset.f===f));
+  document.querySelectorAll('#teacherHalqatList .grpcard').forEach(el=>{
+    if(f==='all') el.style.display='';
+    else el.style.display = (el.dataset.tags||'').includes(f) ? '' : 'none';
+  });
+  // إعادة تطبيق نص البحث (لو موجود)
+  const s = document.getElementById('tgSearch'); if(s && s.value.trim()) tgSearch(s.value);
+}
+function tgSearch(q){
+  const nq = (q||'').trim().toLowerCase();
+  const activeFilter = document.querySelector('.grpchip.on')?.dataset.f || 'all';
+  document.querySelectorAll('#teacherHalqatList .grpcard').forEach(el=>{
+    const nameOk = !nq || (el.dataset.search||'').includes(nq);
+    const tagsOk = activeFilter==='all' || (el.dataset.tags||'').includes(activeFilter);
+    el.style.display = (nameOk && tagsOk) ? '' : 'none';
+  });
+}
 function filterTeacherHalqat(q, containerId){
   const nq=(q||'').trim();
   document.querySelectorAll('#'+(containerId||'teacherHalqatList')+' [data-search]').forEach(el=>{
