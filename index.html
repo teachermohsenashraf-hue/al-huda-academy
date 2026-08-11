@@ -8677,7 +8677,7 @@ async function sRoadmapLite(plan, student){
     [dashR, wardsR, sysR, stationR, lastHifzR, sysFortsR, surahsR] = await Promise.all([
       sb.rpc('quran_plan_dashboard', { p_plan_id: plan.id }).then(x=>x, ()=>({data:null,error:1})),
       sb.from('quran_plan_wards')
-        .select('id,fortress_code,surah_no,ayah_from,ayah_to,pages,amount_label,planned_date,is_rest_day')
+        .select('id,fortress_code,surah_no,ayah_from,ayah_to,page_from,page_to,amount_label,planned_date,is_rest_day')
         .eq('plan_id',plan.id).gte('planned_date',today).lte('planned_date',in7)
         .order('planned_date').order('fortress_code'),
       sb.from('quran_systems').select('name,path_key').eq('id',plan.system_id).maybeSingle(),
@@ -8843,7 +8843,7 @@ async function _sRoadmapLoadMore(planId){
   const from = new Date(new Date(ctx.weekEnd).getTime()+86400000).toISOString().slice(0,10);
   const to   = new Date(new Date(ctx.weekEnd).getTime()+7*86400000).toISOString().slice(0,10);
   const { data: wards } = await sb.from('quran_plan_wards')
-    .select('id,fortress_code,surah_no,ayah_from,ayah_to,pages,amount_label,planned_date,is_rest_day')
+    .select('id,fortress_code,surah_no,ayah_from,ayah_to,page_from,page_to,amount_label,planned_date,is_rest_day')
     .eq('plan_id',planId).gte('planned_date',from).lte('planned_date',to)
     .order('planned_date').order('fortress_code');
   ctx.weekEnd = to;
