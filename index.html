@@ -4959,7 +4959,7 @@ PAGES.teacher_dash=async function(){ const nm=ME.full_name.split(' '); setTop('�
     sb.from('students').select('id,full_name,group_id,login_id').in('group_id',gids),
     sb.from('sessions').select('id,group_id,student_id,title,session_date,session_time,duration_min,zoom_link,status').in('group_id',gids).neq('status','cancelled').order('session_date',{ascending:true}),
     sb.from('quran_student_plans').select('id,student_id,status').in('student_id',[0]).then(x=>x, ()=>({data:[]})), // placeholder — نستبدله بعد جلب الطلاب
-    sb.from('homework_submissions').select('id,homework_id,student_id,status,submitted_at').eq('status','done').in('student_id',[0]).then(x=>x, ()=>({data:[]})),
+    Promise.resolve({data:[]}), // placeholder — نجلب الواجبات المعلّقة للمراجعة من assignments بعد جلب الطلاب
   ]);
   const students = studsRes.data || [];
   const sessions = sessionsRes.data || [];
@@ -4970,7 +4970,10 @@ PAGES.teacher_dash=async function(){ const nm=ME.full_name.split(' '); setTop('�
   const [plansR, ratingsR, hwSubR, helpR] = await Promise.all([
     sids.length ? sb.from('quran_student_plans').select('id,student_id,status').in('student_id',sids).eq('status','active') : Promise.resolve({data:[]}),
     (sessions.length ? sb.from('session_ratings').select('session_id').in('session_id', sessions.map(x=>x.id)) : Promise.resolve({data:[]})),
-    sids.length ? sb.from('homework_submissions').select('id,homework_id,student_id,status,submitted_at').eq('status','done').in('student_id',sids).order('submitted_at',{ascending:false}).limit(20) : Promise.resolve({data:[]}),
+    // "واجبات للمراجعة" = واجبات أرسلها الطالب (status=done) ولم يعتمدها المعلم بعد
+    // (review_status is null). المصدر الفعلي هو جدول assignments — homework_submissions
+    // كان مساراً ثانياً مهجوراً، وuseه سابقاً كان يُعيد الصفر لأن الطلاب لا يستخدمونه.
+    sids.length ? sb.from('assignments').select('id,title,student_id,group_id,submitted_at:done_at,requires_proof,proof_url,review_status,status').in('student_id',sids).eq('status','done').is('review_status',null).order('done_at',{ascending:false}).limit(20).then(x=>x, ()=>({data:[]})) : Promise.resolve({data:[]}),
     Promise.resolve({data:[]}), // help requests placeholder — نجلبها بعد planIds
   ]);
   const plans = plansR.data || [];
@@ -4983,7 +4986,7 @@ PAGES.teacher_dash=async function(){ const nm=ME.full_name.split(' '); setTop('�
     planIds.length ? sb.from('quran_plan_wards').select('id,plan_id').in('plan_id',planIds).lt('planned_date',today).eq('is_rest_day',false).then(x=>x, ()=>({data:[]})) : Promise.resolve({data:[]}),
     planIds.length ? sb.from('quran_plan_wards').select('id,plan_id').in('plan_id',planIds).eq('planned_date',today).eq('is_rest_day',false).then(x=>x, ()=>({data:[]})) : Promise.resolve({data:[]}),
     planIds.length ? sb.from('quran_help_requests').select('id,plan_id,category,created_at').in('plan_id',planIds).eq('status','open').order('created_at',{ascending:false}).limit(10).then(x=>x, ()=>({data:[]})) : Promise.resolve({data:[]}),
-    hwSubs.length ? sb.from('homework').select('id,title').in('id', hwSubs.map(h=>h.homework_id)) : Promise.resolve({data:[]}),
+    Promise.resolve({data:[]}), // العناوين موجودة على الصف نفسه الآن (assignments.title) — لا استعلام إضافي
   ]);
   // احسب المتأخرات (بعد استبعاد ما تم إنجازه)
   const allLateIds = (lateWardsR.data||[]).map(w=>w.id);
@@ -5013,9 +5016,9 @@ PAGES.teacher_dash=async function(){ const nm=ME.full_name.split(' '); setTop('�
     const end = new Date(start.getTime() + (s.duration_min||30)*60000);
     return end >= new Date();
   });
-  // الواجبات في انتظار المراجعة
-  const hwTitles = {}; (hwListR.data||[]).forEach(h=>{ hwTitles[h.id]=h.title; });
+  // الواجبات في انتظار المراجعة — الآن كل صف يحمل عنوانه بنفسه (assignments)
   const pendingHw = hwSubs.filter(h => studentById[h.student_id]).slice(0,8);
+  const hwTitles = {}; pendingHw.forEach(h=>{ hwTitles[h.id]=h.title; });
   // طلبات المساعدة المفتوحة
   const helpRequests = (helpRR.data||[]).map(h => {
     const plan = plans.find(p=>p.id===h.plan_id);
@@ -5078,8 +5081,8 @@ PAGES.teacher_dash=async function(){ const nm=ME.full_name.split(' '); setTop('�
     queue.push({
       urgency: 60, kind:'hw', icon:mi('pencil'), color:'var(--emerald,#2E7D5B)',
       title: `${stu.full_name} سلّم واجباً`,
-      subtitle: hwTitles[h.homework_id] || 'واجب',
-      action: `<button class="btn ghost" onclick="event.stopPropagation();navigate('groups')">راجع الواجب</button>`,
+      subtitle: h.title || 'واجب',
+      action: `<button class="btn ghost" onclick="event.stopPropagation();openPrivHalqa(${h.group_id});setTimeout(()=>halqaTab('homework'),300)">راجع الواجب</button>`,
     });
   });
   queue.sort((a,b)=>b.urgency-a.urgency);
@@ -7264,9 +7267,33 @@ const ASG_KINDS={ youtube:['▶️','يوتيوب'], pdf:['📄','PDF'], video:[
 async function halqaHomework(g, student, isTeacher){
   let asgs=[];
   try{ const { data }=await sb.from('assignments').select('*').eq('group_id',g.id).order('created_at',{ascending:false}); asgs=data||[]; }catch(e){}
+  // لولي الأمر أو الطالب: نخفي الواجبات المخصّصة "للطالب فقط" إذا كان المُشاهد وليّ أمر
+  const isParent = ME.role === 'parent';
+  if(!isTeacher){
+    asgs = asgs.filter(a => {
+      if(a.visibility === 'student' && isParent) return false;
+      return true;
+    });
+  }
+  // حالة كل واجب — تجمع status + review_status + due_date + requires_proof في تسمية واحدة
+  const today = qTodayStr();
+  const compute = (a) => {
+    const past = a.due_date && a.due_date < today && a.status!=='done' && a.status!=='missed';
+    if(a.status === 'done' && a.review_status === 'approved')       return { key:'approved',       label:'تم اعتماده',       color:'#1B4D3E' };
+    if(a.status === 'done' && a.review_status === 'needs_revision') return { key:'needs_revision', label:'يحتاج إعادة',      color:'#e07a1f' };
+    if(a.status === 'done' && !a.review_status)                     return { key:'awaiting_review',label:'ينتظر مراجعة المعلم', color:'#c9a227' };
+    if(a.status === 'missed')                                       return { key:'missed',         label:'لم يُؤدَّ',         color:'#c92e2e' };
+    if(past)                                                        return { key:'late',           label:'متأخر',            color:'#c92e2e' };
+    return { key:'pending', label:'بانتظار الأداء', color:'#8a6f18' };
+  };
   let html='';
   if(isTeacher){
-    html+=`<div style="margin-bottom:16px"><button class="btn" onclick="newAssignmentModal(${g.id},${student.id})">+ إضافة واجب جديد</button></div>`;
+    // عدّاد سريع أعلى القائمة — من يحتاج مراجعة الآن
+    const awaiting = asgs.filter(a => compute(a).key === 'awaiting_review').length;
+    html+=`<div style="margin-bottom:16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <button class="btn" onclick="newAssignmentModal(${g.id},${student.id})">+ إضافة واجب جديد</button>
+      ${awaiting?`<span class="chip" style="background:rgba(201,162,39,0.18);color:#8a6f18;font-weight:700">${ar(awaiting)} ينتظر مراجعتك</span>`:''}
+    </div>`;
   }
   if(!asgs.length){
     html+=`<div class="card" style="text-align:center;padding:36px"><div class="empty-ic">${mi('pencil')}</div><h3 style="color:var(--navy-deep)">لا واجبات بعد</h3><p style="color:var(--muted);font-size:14px">${isTeacher?'اضغط «إضافة واجب» لرفع أول واجب (فيديو، PDF، صوت، رابط...).':'سيرفع معلمك الواجبات وتظهر هنا لتؤدّيها.'}</p></div>`;
@@ -7275,14 +7302,27 @@ async function halqaHomework(g, student, isTeacher){
   html+=`<div class="hw-list">${asgs.map(a=>{
     const k=ASG_KINDS[a.kind]||ASG_KINDS.link;
     const dateStr=a.due_date?new Date(a.due_date).toLocaleDateString('ar-EG',{day:'numeric',month:'long'}):'';
-    const statusChip=a.status==='done'?'<span class="chip g">تمّ ✓</span>':a.status==='missed'?'<span class="chip r">لم يُؤدَّ</span>':'<span class="chip gold">بانتظار الأداء</span>';
-    return `<div class="hw-card ${a.status}">
-      <div class="hw-head"><div class="hw-icon">${k[0]}</div><div class="hw-info"><b>${esc(a.title)}</b><span>${k[1]}${dateStr?' • '+dateStr:''}</span></div>${statusChip}</div>
+    const st = compute(a);
+    const statusChip = `<span class="chip" style="background:${st.color}22;color:${st.color};font-weight:700">${esc(st.label)}</span>`;
+    const proofChip = a.requires_proof ? `<span class="chip" style="background:rgba(46,125,91,0.10);color:#1B4D3E;font-size:10.5px">يتطلب إثبات</span>` : '';
+    const visibilityChip = a.visibility === 'student' ? `<span class="chip" style="background:rgba(0,0,0,0.05);color:var(--muted);font-size:10.5px">للطالب فقط</span>` : '';
+    // ملاحظة مراجعة المعلم — تظهر إذا رجع الواجب للإعادة
+    const revisionNote = st.key === 'needs_revision' && a.notes ? '' : '';
+    return `<div class="hw-card ${a.status||''}">
+      <div class="hw-head"><div class="hw-icon">${k[0]}</div><div class="hw-info"><b>${esc(a.title)}</b><span>${k[1]}${dateStr?' • '+dateStr:''}</span><div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap">${proofChip}${visibilityChip}</div></div>${statusChip}</div>
       ${a.notes?`<p class="hw-notes">${esc(a.notes)}</p>`:''}
+      ${a.proof_url?`<div style="margin-top:8px;padding:8px 12px;background:rgba(46,125,91,0.06);border-radius:8px;font-size:12.5px"><b>الإثبات المرفوع:</b> <a href="${esc(a.proof_url)}" target="_blank" rel="noopener" style="color:var(--emerald);word-break:break-all">${esc(a.proof_url)}</a></div>`:''}
       <div class="hw-actions">
         ${a.url?`<a href="${a.url}" target="_blank" class="btn-sm">${a.kind==='youtube'?'▶️ مشاهدة':'فتح المرفق'}</a>`:''}
         ${a.kind==='youtube'&&ytId(a.url)?`<button class="btn-sm ghost" onclick="playYt('${ytId(a.url)}')">تشغيل هنا</button>`:''}
-        ${!isTeacher?`<button class="btn-sm ${a.status==='done'?'':'gold'}" onclick="markAssignment(${a.id},'done',${g.id})">${mi('check')} تم الواجب</button><button class="btn-sm ${a.status==='missed'?'':'ghost'}" onclick="markAssignment(${a.id},'missed',${g.id})">${mi('x')} لم يتم</button>`:''}
+        ${!isTeacher && st.key !== 'approved' ? `
+          <button class="btn-sm ${st.key==='awaiting_review'?'':'gold'}" onclick="submitAssignmentAsStudent(${a.id},${g.id},${a.requires_proof?'true':'false'})">${mi('check')} ${st.key==='awaiting_review'?'أرسل الإثبات مجدداً':(a.requires_proof?'إرسال الإثبات':'تم الواجب')}</button>
+          ${st.key==='pending' || st.key==='late'?`<button class="btn-sm ghost" onclick="markAssignment(${a.id},'missed',${g.id})">${mi('x')} لم أستطع</button>`:''}
+        ` : ''}
+        ${isTeacher && st.key === 'awaiting_review' ? `
+          <button class="btn-sm" onclick="reviewAssignment(${a.id},${g.id},'approved')">${mi('check')} اعتماد</button>
+          <button class="btn-sm ghost" onclick="reviewAssignment(${a.id},${g.id},'needs_revision')">إعادة</button>
+        ` : ''}
         ${isTeacher?`<button class="btn-sm ghost" onclick="delAssignment(${a.id},${g.id})">حذف</button>`:''}
       </div>
       ${a.kind==='youtube'?`<div id="yt-${a.id}" class="hw-player"></div>`:''}
@@ -7298,41 +7338,149 @@ function playYt(vid){
 function newAssignmentModal(groupId, studentId, sessionId){
   $('#modalHost').innerHTML=`<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal">
     <h3>${mi('pencil')} إضافة واجب جديد</h3>
-    <p style="color:var(--muted);font-size:13px;margin-bottom:14px;line-height:1.7">ارفع واجباً للطالب: ورد سماع (يوتيوب)، PDF، فيديو، صوت، أو رابط درايف.</p>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:14px;line-height:1.7">ارفع واجباً للطالب: ورد سماع (يوتيوب)، PDF، فيديو، صوت، قراءة، أو تسميع.</p>
     <div class="field"><label>عنوان الواجب <span class="req">*</span></label><input id="agTitle" placeholder="مثال: استمع لسورة الملك بصوت الحصري"></div>
-    <div class="field"><label>نوع المرفق</label>
-      <select id="agKind"><option value="youtube">▶️ يوتيوب (ورد سماع)</option><option value="pdf">📄 ملف PDF</option><option value="video">🎬 فيديو</option><option value="audio">🎧 ملف صوتي</option><option value="drive">📁 رابط درايف</option><option value="link">🔗 رابط آخر</option></select>
+    <div class="field"><label>نوع الواجب</label>
+      <select id="agKind">
+        <option value="youtube">▶️ يوتيوب (ورد سماع)</option>
+        <option value="listening">🎧 تسميع للمعلم</option>
+        <option value="reading">📖 قراءة</option>
+        <option value="pdf">📄 ملف PDF</option>
+        <option value="video">🎬 فيديو</option>
+        <option value="audio">🎧 ملف صوتي</option>
+        <option value="drive">📁 رابط درايف</option>
+        <option value="link">🔗 رابط آخر</option>
+      </select>
     </div>
-    <div class="field"><label>الرابط <span class="req">*</span></label><input id="agUrl" placeholder="https://..."></div>
-    <div class="field"><label>ملاحظات (اختياري)</label><textarea id="agNotes" rows="2" placeholder="تعليمات إضافية للطالب..."></textarea></div>
-    <div class="field"><label>تاريخ التسليم (اختياري)</label><input id="agDue" type="date"></div>
+    <div class="field"><label>الرابط <span class="hint">(اختياري لواجبات القراءة/التسميع)</span></label><input id="agUrl" placeholder="https://..."></div>
+    <div class="field"><label>تعليمات واضحة للطالب</label><textarea id="agNotes" rows="3" placeholder="تفاصيل ما هو مطلوب بالضبط..."></textarea></div>
+    <div class="field"><label>تاريخ التسليم</label><input id="agDue" type="date" min="${qTodayStr()}"></div>
+    <div class="field" style="background:var(--cream);border-radius:10px;padding:10px 12px;margin-bottom:8px">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:0"><input type="checkbox" id="agRequiresProof"> يتطلب رفع إثبات من الطالب (رابط صوت/صورة/فيديو)</label>
+      <div style="font-size:11.5px;color:var(--muted);margin-top:4px;line-height:1.6">لو مُفعَّل، الطالب مش هيقدر يقفل الواجب بمجرد ضغطة "تم" — لازم يلصق رابط الإثبات، وأنت هتُراجع وتعتمد.</div>
+    </div>
+    <div class="field"><label>الرؤية</label>
+      <select id="agVisibility">
+        <option value="student_and_parent">للطالب وولي الأمر</option>
+        <option value="student">للطالب فقط</option>
+      </select>
+    </div>
     <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إلغاء</button><button class="btn" id="agBtn" onclick="saveAssignment(${groupId},${studentId},${sessionId||0})">رفع الواجب</button></div>
   </div></div>`;
 }
 async function saveAssignment(groupId, studentId, sessionId){
   const title=$('#agTitle').value.trim(), url=$('#agUrl').value.trim(), kind=$('#agKind').value;
-  if(!title||!url){ toast('أكمل العنوان والرابط'); return; }
+  const requiresProof = $('#agRequiresProof').checked;
+  const visibility = $('#agVisibility').value;
+  const noteContent = $('#agNotes').value.trim();
+  const due = $('#agDue').value || null;
+  // القراءة والتسميع يمكن ألا يكون لهما رابط؛ باقي الأنواع يجب أن يكون فيها رابط
+  const kindNeedsUrl = !['reading','listening'].includes(kind);
+  if(!title){ toast('أكمل عنوان الواجب'); return; }
+  if(kindNeedsUrl && !url){ toast('أدخل رابط الواجب أو غيّر نوعه لقراءة/تسميع'); return; }
   $('#agBtn').disabled=true; $('#agBtn').textContent='جارٍ الرفع...';
-  const rec={ group_id:groupId, student_id:studentId, teacher_id:ME.id, title, kind, url, notes:$('#agNotes').value.trim()||null, due_date:$('#agDue').value||null, status:'pending' };
-  if(sessionId) rec.session_id=sessionId;
-  const { error }=await sb.from('assignments').insert(rec);
-  if(error){ $('#agBtn').disabled=false; $('#agBtn').textContent='رفع الواجب'; alert('تعذّر: '+error.message+'\n\nتأكّد من تشغيل سكربت الواجبات في Supabase.'); return; }
-  // إشعار الطالب وولي الأمر
-  const { data:stu }=await sb.from('students').select('login_id,parent_id,full_name').eq('id',studentId).single();
-  if(stu?.login_id) await pushNotif(stu.login_id,'📝 واجب جديد','رفع معلمك واجب «'+title+'». ادخل حلقتك لأدائه.','homework',groupId);
-  if(stu?.parent_id) await pushNotif(stu.parent_id,'📝 واجب جديد لـ'+stu.full_name,'واجب جديد: «'+title+'».','homework',groupId);
+  const rec = {
+    group_id:groupId, student_id:studentId, teacher_id:ME.id,
+    title, kind, url: url || null, notes: noteContent || null,
+    due_date: due, status:'pending',
+    requires_proof: requiresProof, visibility,
+  };
+  if(sessionId) rec.session_id = sessionId;
+  // إنقاذ متوافق: لو migration 018 لسه ما اتشغّلتش، نُسقط الحقول الجديدة ونحفظ عادي
+  let { error } = await sb.from('assignments').insert(rec);
+  if(error && /column .* does not exist|schema cache/i.test(error.message||'')){
+    const fb = { ...rec }; delete fb.requires_proof; delete fb.visibility;
+    ({ error } = await sb.from('assignments').insert(fb));
+    if(!error) toast('تنبيه: طبّق migration 018 لدعم "إثبات الواجب" و"الرؤية".');
+  }
+  if(error){ $('#agBtn').disabled=false; $('#agBtn').textContent='رفع الواجب'; alert('تعذّر: '+error.message); return; }
+  // إشعار الطالب وولي الأمر — نحترم الرؤية
+  const { data:stu }=await sb.from('students').select('login_id,parent_id,full_name').eq('id',studentId).maybeSingle();
+  if(stu?.login_id) await pushNotif(stu.login_id,'📝 واجب جديد','رفع معلمك واجب «'+title+'»'+(due?' — التسليم '+due:''),'homework',groupId);
+  if(stu?.parent_id && visibility !== 'student') await pushNotif(stu.parent_id,'📝 واجب جديد لـ'+stu.full_name,'واجب جديد: «'+title+'»'+(due?' — التسليم '+due:''),'homework',groupId);
   closeModal(); SESSION._activeHalqa=groupId; await navigate('myhalqa');
   setTimeout(()=>halqaTab('homework'),150); toast('✅ تم رفع الواجب');
 }
-async function markAssignment(id, status, groupId){
-  const { error }=await sb.from('assignments').update({ status, done_at: status==='done'?new Date().toISOString():null }).eq('id',id);
+// إتمام واجب من جهة الطالب — لو يتطلب إثباتاً نطلب الرابط في نافذة صغيرة
+async function submitAssignmentAsStudent(id, groupId, requiresProof){
+  if(requiresProof){
+    $('#modalHost').innerHTML = `<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal">
+      <h3>إثبات إنجاز الواجب</h3>
+      <p style="color:var(--muted);font-size:13px;margin-bottom:12px;line-height:1.7">الصق رابط الإثبات — تسجيل صوتي/فيديو من درايف أو ملف رفعته لأي خدمة استضافة.</p>
+      <div class="field"><label>الرابط <span class="req">*</span></label><input id="proofUrl" placeholder="https://..." type="url"></div>
+      <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إلغاء</button><button class="btn" onclick="_saveAssignmentProof(${id},${groupId})">إرسال</button></div>
+    </div></div>`;
+    return;
+  }
+  await _completeAssignment(id, groupId, null);
+}
+async function _saveAssignmentProof(id, groupId){
+  const url = ($('#proofUrl')?.value||'').trim();
+  if(!url){ toast('أدخل رابط الإثبات'); return; }
+  if(!/^https?:\/\//i.test(url)){ toast('الرابط لازم يبدأ بـ http أو https'); return; }
+  await _completeAssignment(id, groupId, url);
+}
+async function _completeAssignment(id, groupId, proofUrl){
+  const patch = { status:'done', done_at: new Date().toISOString() };
+  if(proofUrl !== null) patch.proof_url = proofUrl;
+  // إعادة التسليم بعد "يحتاج إعادة" — نمسح review_status عشان يرجع للمراجعة من جديد
+  patch.review_status = null; patch.reviewed_at = null; patch.reviewed_by = null;
+  let { error } = await sb.from('assignments').update(patch).eq('id',id);
+  if(error && /column .* does not exist|schema cache/i.test(error.message||'')){
+    const fb = { status:'done', done_at:patch.done_at };
+    ({ error } = await sb.from('assignments').update(fb).eq('id',id));
+  }
   if(error){ alert('تعذّر: '+error.message); return; }
-  // إشعار المعلم بحالة الطالب
-  try{ const { data:a }=await sb.from('assignments').select('teacher_id,title').eq('id',id).single();
+  try{
+    const { data:a } = await sb.from('assignments').select('teacher_id,title').eq('id',id).maybeSingle();
+    if(a?.teacher_id) await pushNotif(a.teacher_id,'✅ أُدّي واجب','أدّى الطالب واجب «'+a.title+'»'+(proofUrl?' وأرفق إثباتاً':''),'homework',groupId);
+  }catch(e){}
+  closeModal();
+  SESSION._activeHalqa=groupId; await navigate('myhalqa'); setTimeout(()=>halqaTab('homework'),150);
+  toast('✅ تم الإرسال — سيراجعه المعلم');
+}
+async function markAssignment(id, status, groupId){
+  const { error } = await sb.from('assignments').update({ status, done_at: status==='done'?new Date().toISOString():null }).eq('id',id);
+  if(error){ alert('تعذّر: '+error.message); return; }
+  try{
+    const { data:a } = await sb.from('assignments').select('teacher_id,title').eq('id',id).maybeSingle();
     if(a?.teacher_id) await pushNotif(a.teacher_id, status==='done'?'✅ أُدّي واجب':'⚠️ واجب لم يُؤدَّ', (status==='done'?'أدّى الطالب واجب «':'لم يؤدِّ الطالب واجب «')+a.title+'»','homework',groupId);
   }catch(e){}
   SESSION._activeHalqa=groupId; await navigate('myhalqa'); setTimeout(()=>halqaTab('homework'),150);
-  toast(status==='done'?'أحسنت! تم تسجيل إنجازك ✓':'سُجّل أنك لم تؤدِّ الواجب بعد');
+  toast(status==='done'?'أحسنت! تم تسجيل إنجازك ✓':'سُجّل أنك لم تؤدِّ الواجب');
+}
+// مراجعة معلم لواجب أرسله الطالب — تعتمد أو تعيده مع طلب تحسين
+async function reviewAssignment(id, groupId, decision){
+  let note = null;
+  if(decision === 'needs_revision'){
+    note = prompt('ما الذي يحتاج تحسينه؟ (يُرسل للطالب)');
+    if(note === null) return;
+    if(!note.trim()){ toast('اكتب ملاحظة موجزة للطالب'); return; }
+  }
+  const patch = { review_status: decision, reviewed_at: new Date().toISOString(), reviewed_by: ME.id };
+  // لو "يحتاج إعادة" نضيف الملاحظة على notes بأداة فاصل واضح، عشان الطالب يشوفها
+  if(decision === 'needs_revision' && note){
+    const { data:cur } = await sb.from('assignments').select('notes').eq('id',id).maybeSingle();
+    const prev = (cur?.notes || '').trim();
+    patch.notes = (prev ? prev + '\n\n' : '') + '— مراجعة المعلم: ' + note.trim();
+    patch.status = 'pending'; // يرجع للطالب ليعيد
+  }
+  let { error } = await sb.from('assignments').update(patch).eq('id',id);
+  if(error && /column .* does not exist|schema cache/i.test(error.message||'')){
+    toast('طبّق migration 018 قبل المراجعة'); return;
+  }
+  if(error){ alert('تعذّر: '+error.message); return; }
+  // إشعار الطالب
+  try{
+    const { data:a } = await sb.from('assignments').select('title,student_id').eq('id',id).maybeSingle();
+    if(a?.student_id){
+      const { data:stu } = await sb.from('students').select('login_id,parent_id').eq('id',a.student_id).maybeSingle();
+      const msg = decision==='approved' ? '✅ اعتمد المعلم واجبك «'+a.title+'»' : '📝 راجع المعلم واجبك «'+a.title+'» — يحتاج تحسيناً';
+      if(stu?.login_id) await pushNotif(stu.login_id, decision==='approved'?'✅ تم اعتماد الواجب':'📝 مراجعة الواجب', msg,'homework',groupId);
+    }
+  }catch(e){}
+  SESSION._activeHalqa=groupId; await navigate('myhalqa'); setTimeout(()=>halqaTab('homework'),150);
+  toast(decision==='approved'?'✅ تم الاعتماد':'✏️ رجع الواجب للطالب');
 }
 async function delAssignment(id, groupId){
   if(!confirm('حذف هذا الواجب؟'))return;
