@@ -11625,18 +11625,133 @@ async function qRescueDoSpread(planId, days){
   if(error || !res?.ok){ toast('تعذّر: '+(error?.message||res?.error||'')); return; }
   qCloseModal(); toast('✅ اتوزّعت '+ar(res.affected_wards)+' ورد متأخر'); navigate(SESSION.page);
 }
+// تخفيف حجم الورد — نافذة معاينة قبل التطبيق (بدل prompt سريع بلا رؤية للأثر).
+// المعاينة تُحسب محلياً من الأوراد القادمة (نفس البيانات المُطبَّق عليها الفعل):
+// لا نصل لـ RPC حتى يضغط المعلم "تطبيق" — فالمعاينة نفسها بلا كتابة.
 async function qRescueReduceLoad(planId){
-  const percent = +(prompt('تخفيف حجم الحفظ القادم بنسبة كام٪؟ (مثلاً 30)','30')||0);
-  if(!percent || percent<=0 || percent>=100){ toast('نسبة غير صحيحة'); return; }
-  const reason = prompt('السبب (يُسجَّل في سجل التعديلات):') || null;
-  const { data:res, error } = await sb.rpc('quran_reduce_ward_load', { p_plan_id:planId, p_percent:percent, p_reason:reason });
+  const today = qTodayStr();
+  const { data:wards, error } = await sb.from('quran_plan_wards')
+    .select('id,fortress_code,amount_label,planned_date')
+    .eq('plan_id',planId).eq('fortress_code','new_hifz').eq('is_rest_day',false)
+    .gte('planned_date',today).order('planned_date').limit(200);
+  if(error){ toast('تعذّر جلب الأوراد: '+error.message); return; }
+  const upcoming = wards||[];
+  const count = upcoming.length;
+  const parseAmt = s => { if(!s) return null; const m = String(s).match(/(\d+(?:\.\d+)?)/); return m?parseFloat(m[1]):null; };
+  const sampleAmt = upcoming.slice(0,10).map(w=>parseAmt(w.amount_label)).filter(n=>n!=null);
+  const sampleAvg = sampleAmt.length ? (sampleAmt.reduce((a,b)=>a+b,0)/sampleAmt.length).toFixed(2) : null;
+  const renderPreview = (pct) => {
+    const newAvg = sampleAvg ? (sampleAvg * (1 - pct/100)).toFixed(2) : null;
+    return `<div class="qpv" style="margin-top:10px">
+      <div class="qpvrow"><span>عدد أوراد الحفظ الجديد المتأثرة</span><b>${ar(count)}</b></div>
+      ${sampleAvg?`<div class="qpvrow"><span>متوسط الورد اليومي الحالي (تقديري)</span><b>${sampleAvg}</b></div>`:''}
+      ${newAvg?`<div class="qpvrow"><span>المتوسط بعد التخفيف</span><b style="color:var(--emerald)">${newAvg}</b></div>`:''}
+      <div class="qpvrow"><span>موعد الإتمام</span><b style="color:var(--gold)">سيتأخر بمعامل ${pct}٪</b></div>
+    </div>`;
+  };
+  const defaultPct = 25;
+  $('#qmodalHost').innerHTML = `<div class="qmodal" onclick="if(event.target===this)qCloseModal()">
+    <div class="qmbox">
+      <h2>📉 تخفيف حجم الورد القادم</h2>
+      <p style="color:var(--muted);font-size:13px;margin-top:4px">اختر نسبة التخفيف — المعاينة أدناه تحدّث تلقائياً.</p>
+      <div class="field" style="margin-top:10px"><label>نسبة التخفيف</label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="range" id="qRedPct" min="10" max="60" step="5" value="${defaultPct}" oninput="qRescueReduceRePreview(this.value)" style="flex:1">
+          <span id="qRedPctLabel" style="font-weight:700;color:var(--navy-deep);min-width:44px">${defaultPct}٪</span>
+        </div>
+      </div>
+      <div id="qRedPreview">${renderPreview(defaultPct)}</div>
+      <div class="field" style="margin-top:10px"><label>السبب <span class="hint">(يُسجَّل في سجل التعديلات)</span></label><input id="qRedReason" placeholder="مثلاً: تعثّر بسبب مرض قصير"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+        <button class="btn ghost" onclick="qCloseModal()">إلغاء</button>
+        <button class="btn" onclick="qRescueDoReduce('${esc(planId)}')">${mi('check')} تطبيق التخفيف</button>
+      </div>
+    </div>
+  </div>`;
+  window._QRED_CTX = { count, sampleAvg };
+}
+function qRescueReduceRePreview(pct){
+  document.getElementById('qRedPctLabel').textContent = ar(pct)+'٪';
+  const c = window._QRED_CTX || {}; const newAvg = c.sampleAvg ? (c.sampleAvg * (1 - pct/100)).toFixed(2) : null;
+  document.getElementById('qRedPreview').innerHTML = `<div class="qpv">
+    <div class="qpvrow"><span>عدد أوراد الحفظ الجديد المتأثرة</span><b>${ar(c.count||0)}</b></div>
+    ${c.sampleAvg?`<div class="qpvrow"><span>متوسط الورد اليومي الحالي (تقديري)</span><b>${c.sampleAvg}</b></div>`:''}
+    ${newAvg?`<div class="qpvrow"><span>المتوسط بعد التخفيف</span><b style="color:var(--emerald)">${newAvg}</b></div>`:''}
+    <div class="qpvrow"><span>موعد الإتمام</span><b style="color:var(--gold)">سيتأخر بمعامل ${pct}٪</b></div>
+  </div>`;
+}
+async function qRescueDoReduce(planId){
+  const pct = +(document.getElementById('qRedPct')?.value || 0);
+  const reason = document.getElementById('qRedReason')?.value.trim() || null;
+  if(pct<=0 || pct>=100){ toast('نسبة غير صحيحة'); return; }
+  const { data:res, error } = await sb.rpc('quran_reduce_ward_load', { p_plan_id:planId, p_percent:pct, p_reason:reason });
   if(error || !res?.ok){ toast('تعذّر: '+(error?.message||res?.error||'')); return; }
   qCloseModal(); toast('✅ اتخفّف حجم '+ar(res.affected_wards)+' ورد قادم'); navigate(SESSION.page);
 }
+// أسبوع تثبيت — معاينة تعرض عدد أوراد الحفظ الجديد التي ستُوقَف مؤقتاً وتاريخ
+// نهاية الفترة، قبل الالتزام الفعلي.
 async function qRescueConsolidation(planId){
-  const days = +(prompt('أسبوع تثبيت — كام يوم؟','7')||0);
-  if(!days || days<=0){ return; }
-  const reason = prompt('السبب (يُسجَّل في سجل التعديلات):') || null;
+  const today = qTodayStr();
+  const preview = async (days) => {
+    const end = new Date(); end.setDate(end.getDate()+Math.max(1,days)-1);
+    const endStr = end.toISOString().slice(0,10);
+    const { data:hf } = await sb.from('quran_plan_wards').select('id')
+      .eq('plan_id',planId).eq('fortress_code','new_hifz').eq('is_rest_day',false)
+      .gte('planned_date',today).lte('planned_date',endStr);
+    const stopCount = (hf||[]).length;
+    const endLabel = end.toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long'});
+    return `<div class="qpv" style="margin-top:10px">
+      <div class="qpvrow"><span>فترة التثبيت</span><b>${ar(days)} يوم</b></div>
+      <div class="qpvrow"><span>ينتهي في</span><b>${esc(endLabel)}</b></div>
+      <div class="qpvrow"><span>أوراد الحفظ الجديد التي ستُوقف</span><b style="color:var(--gold)">${ar(stopCount)}</b></div>
+      <div class="qpvrow"><span>المراجعة والسماع</span><b style="color:var(--emerald)">تستمر كالمعتاد</b></div>
+      <div class="qpvrow"><span>موعد الإتمام</span><b style="color:var(--gold)">سيتأجّل ${ar(days)} يوم</b></div>
+    </div>`;
+  };
+  const defaultDays = 7;
+  const previewHtml = await preview(defaultDays);
+  $('#qmodalHost').innerHTML = `<div class="qmodal" onclick="if(event.target===this)qCloseModal()">
+    <div class="qmbox">
+      <h2>⏸️ أسبوع تثبيت (إيقاف الحفظ الجديد)</h2>
+      <p style="color:var(--muted);font-size:13px;margin-top:4px">توقف الحفظ الجديد مؤقتاً، وتستمر المراجعة والسماع كما هي.</p>
+      <div class="field" style="margin-top:10px"><label>عدد الأيام</label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="range" id="qConsDays" min="3" max="21" step="1" value="${defaultDays}" oninput="qRescueConsolidationRePreview('${esc(planId)}',this.value)" style="flex:1">
+          <span id="qConsDaysLabel" style="font-weight:700;color:var(--navy-deep);min-width:44px">${ar(defaultDays)}</span>
+        </div>
+      </div>
+      <div id="qConsPreview">${previewHtml}</div>
+      <div class="field" style="margin-top:10px"><label>السبب <span class="hint">(يُسجَّل في سجل التعديلات)</span></label><input id="qConsReason" placeholder="مثلاً: تثبيت ما تم حفظه قبل الانتقال"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+        <button class="btn ghost" onclick="qCloseModal()">إلغاء</button>
+        <button class="btn" onclick="qRescueDoConsolidation('${esc(planId)}')">${mi('check')} تثبيت هذه الفترة</button>
+      </div>
+    </div>
+  </div>`;
+}
+async function qRescueConsolidationRePreview(planId, days){
+  const d = Math.max(1, +days||1);
+  document.getElementById('qConsDaysLabel').textContent = ar(d);
+  const today = qTodayStr();
+  const end = new Date(); end.setDate(end.getDate()+d-1);
+  const endStr = end.toISOString().slice(0,10);
+  const { data:hf } = await sb.from('quran_plan_wards').select('id')
+    .eq('plan_id',planId).eq('fortress_code','new_hifz').eq('is_rest_day',false)
+    .gte('planned_date',today).lte('planned_date',endStr);
+  const stopCount = (hf||[]).length;
+  const endLabel = end.toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long'});
+  document.getElementById('qConsPreview').innerHTML = `<div class="qpv">
+    <div class="qpvrow"><span>فترة التثبيت</span><b>${ar(d)} يوم</b></div>
+    <div class="qpvrow"><span>ينتهي في</span><b>${esc(endLabel)}</b></div>
+    <div class="qpvrow"><span>أوراد الحفظ الجديد التي ستُوقف</span><b style="color:var(--gold)">${ar(stopCount)}</b></div>
+    <div class="qpvrow"><span>المراجعة والسماع</span><b style="color:var(--emerald)">تستمر كالمعتاد</b></div>
+    <div class="qpvrow"><span>موعد الإتمام</span><b style="color:var(--gold)">سيتأجّل ${ar(d)} يوم</b></div>
+  </div>`;
+}
+async function qRescueDoConsolidation(planId){
+  const days = +(document.getElementById('qConsDays')?.value || 0);
+  const reason = document.getElementById('qConsReason')?.value.trim() || null;
+  if(days<=0){ return; }
   const { data:res, error } = await sb.rpc('quran_consolidation_week', { p_plan_id:planId, p_start_date:qTodayStr(), p_days:days, p_reason:reason });
   if(error || !res?.ok){ toast('تعذّر: '+(error?.message||res?.error||'')); return; }
   qCloseModal(); toast('✅ أسبوع تثبيت من '+res.start_date+' إلى '+res.end_date); navigate(SESSION.page);
