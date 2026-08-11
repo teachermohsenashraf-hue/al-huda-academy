@@ -403,7 +403,8 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 /* ═══ نافذة تقييم الحصة الشاملة ═══ */
 .rate-modal{max-width:640px;max-height:88vh;overflow-y:auto}
 .rate-head{display:flex;align-items:center;gap:12px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--line)}
-.rate-head-ic{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--gold,#c9a227),#e0b649);color:#fff;display:grid;place-items:center;font-size:22px;flex:none}
+.rate-head-ic{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--gold,#c9a227),#e0b649);color:#fff;display:grid;place-items:center;flex:none}
+.rate-head-ic svg{width:22px;height:22px;color:#fff}
 .rate-head b{color:var(--navy-deep);font-size:16px;display:block}
 .rate-head small{color:var(--muted);font-size:12px}
 .rate-wards{background:linear-gradient(to left,rgba(46,125,91,0.05),rgba(46,125,91,0.01));border:1px solid rgba(46,125,91,0.15);border-radius:12px;padding:12px;margin:12px 0}
@@ -3539,6 +3540,28 @@ PAGES.student_dash = async function(){
     nextSessionHtml = `<div class="card" style="text-align:center;padding:18px;color:var(--muted);font-size:13.5px">لا حصص مجدولة بعد — سيضع معلمك موعداً قريباً.</div>`;
   }
 
+  // واجبات مستحقة غداً — بانر دافئ بلا إشعارات كاذبة (يستحق الطالب انتباه لطيف
+  // قبل موعد التسليم بيوم واحد فقط، لا سبام يومي). Client-side ready — لو تفعّل
+  // pg_cron لاحقاً، هذا البانر يبقى فوق كطبقة UX بجانب الإشعار.
+  let dueTomorrowHtml = '';
+  try{
+    const tomorrow = new Date(Date.now()+86400000).toISOString().slice(0,10);
+    const { data:dueRows } = await sb.from('assignments').select('id,title,due_date').eq('student_id',s.id).eq('due_date',tomorrow).neq('status','done').neq('status','missed');
+    if(dueRows && dueRows.length){
+      const items = dueRows.map(a=>esc(a.title)).slice(0,3).join('، ');
+      const extra = dueRows.length>3 ? ` و${ar(dueRows.length-3)} غيرها` : '';
+      dueTomorrowHtml = `<div class="card" style="background:rgba(212,180,68,0.08);border-inline-start:3px solid var(--gold,#c9a227)">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+          <div style="flex:1;min-width:0">
+            <b style="color:var(--navy-deep);font-size:14.5px">تذكير هادئ: عندك واجب مستحق غداً</b>
+            <div style="font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.7">${items}${extra}</div>
+          </div>
+          <button class="btn ghost" onclick="SESSION._activeHalqa=${s.group_id||'null'};navigate('myhalqa');setTimeout(()=>halqaTab&&halqaTab('homework'),300)">افتح الواجبات ←</button>
+        </div>
+      </div>`;
+    }
+  }catch(e){}
+
   // آخر ملاحظة معلم
   const lastNote = lastNoteRes && lastNoteRes.data;
   const noteHtml = lastNote ? `<div class="card" style="background:rgba(212,180,68,0.06);border-inline-start:3px solid var(--gold,#c9a227)">
@@ -3584,6 +3607,7 @@ PAGES.student_dash = async function(){
 
   return `${wardCardHtml}
     ${lateCount ? `<div style="background:rgba(212,180,68,0.08);border-inline-start:3px solid var(--gold,#c9a227);border-radius:10px;padding:11px 14px;margin-top:12px;font-size:13px;color:var(--emerald-dark,#1B4D3E)">🌿 لديك ${ar(lateCount)} ورد سابق لم يكتمل — رتّبها هادئاً من صفحة «ورد اليوم».</div>` : ''}
+    ${dueTomorrowHtml}
     ${subHtml}
     ${nextSessionHtml}
     ${noteHtml}
@@ -7998,7 +8022,7 @@ function renderRateModal(){
     ${rubricSeg('behavior','السلوك',[['excellent','ممتاز'],['good','جيد'],['weak','ضعيف']])}
   </details>`;
   // ─── تجميع النافذة ───
-  const header = `<div class="rate-head"><div class="rate-head-ic">⭐</div><div><b>تقييم الحصة</b><small>${student?esc(student.full_name)+' • ':''}${esc(sesDate)}${esc(sesTime)}</small></div></div>`;
+  const header = `<div class="rate-head"><div class="rate-head-ic">${mi('star')||'⭐'}</div><div><b>تقييم الحصة</b><small>${student?esc(student.full_name)+' • ':''}${esc(sesDate)}${esc(sesTime)}</small></div></div>`;
   $('#modalHost').innerHTML = `<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal enroll-modal rate-modal">
     ${header}
     ${attHtml}
@@ -11454,8 +11478,8 @@ async function qRenderFullPlan(planId, role='student'){
   const actBtns = `<div class="qexport-btns">
     <button onclick="qExportPlanPDF('${esc(planId)}')">${mi('printer')} طباعة PDF</button>
     ${role==='teacher'?`<button onclick="qExportPlanExcel('${esc(planId)}')">${mi('chart')} تصدير Excel</button><button onclick="qShowEditPanel('${esc(planId)}')">${mi('gear')} تعديل الخطة</button>`:''}
-    ${role==='teacher' && lateC>0 ? `<button style="background:var(--rose);color:#fff;border-color:var(--rose)" onclick="qOpenRescueCenter('${esc(planId)}')">🚑 مركز إنقاذ الخطة (${ar(lateC)})</button>` : ''}
-    ${role==='teacher' && openHelpCount>0 ? `<button style="background:var(--gold);color:#fff;border-color:var(--gold)" onclick="qShowHelpRequests('${esc(planId)}')">🆘 طلبات مساعدة (${ar(openHelpCount)})</button>` : ''}
+    ${role==='teacher' && lateC>0 ? `<button style="background:var(--rose);color:#fff;border-color:var(--rose)" onclick="qOpenRescueCenter('${esc(planId)}')">${mi('warning')||''} مركز إنقاذ الخطة (${ar(lateC)})</button>` : ''}
+    ${role==='teacher' && openHelpCount>0 ? `<button style="background:var(--gold);color:#fff;border-color:var(--gold)" onclick="qShowHelpRequests('${esc(planId)}')">${mi('info')||mi('chat')||''} طلبات مساعدة (${ar(openHelpCount)})</button>` : ''}
   </div>`;
   const editPanel = role==='teacher' ? `<div class="qedit-panel" id="qEditPanel_${esc(planId)}">
     <h4>⚙️ تعديل الخطة</h4>
@@ -12368,7 +12392,7 @@ PAGES.teacher_qmonitor = async function(){
       <button class="icon-act" title="إضافة ملاحظة" onclick="openNote(${s.id},'${escJs(s.full_name)}')">${mi('pencil')}</button>
       <button class="icon-act" title="إرسال تذكير" onclick="qSendReminder(${s.id},'${escJs(s.full_name)}',${s.login_id?`'${s.login_id}'`:'null'})">${mi('bell')}</button>
       <button class="icon-act" title="إعادة جدولة" onclick="qRescheduleRemaining('${esc(p.id)}')">${mi('refresh')}</button>
-      ${lc>0?`<button class="icon-act" style="color:var(--rose)" title="مركز إنقاذ الخطة" onclick="qOpenRescueCenter('${esc(p.id)}')">🚑</button>`:''}
+      ${lc>0?`<button class="icon-act" style="color:var(--rose)" title="مركز إنقاذ الخطة" onclick="qOpenRescueCenter('${esc(p.id)}')">${mi('warning')||mi('refresh')}</button>`:''}
     </div>`;
     return `<div class="qstu-row" data-search="${esc(s.full_name)}" onclick="qOpenStudentPlan('${esc(p.id)}')">
       <div class="qstu-ava">${esc(s.full_name.charAt(0))}</div>
