@@ -423,6 +423,33 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 details.rate-classic{margin-top:10px;background:var(--cream);border-radius:10px;padding:8px 12px}
 details.rate-classic summary{cursor:pointer;font-size:12.5px;font-weight:700;color:var(--muted);padding:6px 0}
 details.rate-classic[open] summary{margin-bottom:8px;color:var(--navy-deep)}
+/* ═══ تقارير الحلقة المتقدمة ═══ */
+.trend-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:6px}
+@media(max-width:640px){.trend-grid{grid-template-columns:1fr}}
+.trend-cell{background:var(--cream);border-radius:12px;padding:14px 16px;text-align:center}
+.trend-label{font-size:12px;color:var(--muted);font-weight:600;margin-bottom:4px}
+.trend-value{font-family:'Tajawal','Cairo',sans-serif;font-weight:700;font-size:28px;line-height:1;letter-spacing:-0.5px}
+.trend-detail{font-size:11.5px;color:var(--muted);margin-top:6px;line-height:1.6}
+.trend-explain{margin-top:12px;padding:10px 14px;border-radius:10px;font-size:12.5px;line-height:1.8}
+.trend-explain b{color:var(--navy-deep)}
+.trend-explain.trend-good{background:rgba(46,125,91,0.08);color:#1B4D3E;border-inline-start:3px solid var(--emerald,#2E7D5B)}
+.trend-explain.trend-absence{background:rgba(201,162,39,0.10);color:#7a5f0f;border-inline-start:3px solid #c9a227}
+.trend-explain.trend-load{background:rgba(224,122,31,0.10);color:#8a4715;border-inline-start:3px solid #e07a1f}
+.trend-explain.trend-steady{background:rgba(52,152,219,0.10);color:#2c6a9c;border-inline-start:3px solid #3498db}
+.diff-list{display:flex;flex-direction:column;gap:6px}
+.diff-row{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:var(--cream);border-radius:10px}
+.diff-row b{color:var(--navy-deep);font-size:13.5px}
+.diff-count{background:rgba(231,76,60,0.12);color:#c92e2e;font-size:11.5px;font-weight:700;padding:3px 10px;border-radius:9px}
+.act-list{display:flex;flex-direction:column;gap:6px}
+.act-row{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--cream);border-radius:10px}
+.act-row b{flex:1;color:var(--navy-deep);font-size:13px}
+.act-row small{color:var(--muted);font-size:11.5px}
+.act-status{font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:8px;flex:none}
+.act-status.act-done{background:rgba(46,125,91,0.14);color:#1B4D3E}
+.act-status.act-partial{background:rgba(201,162,39,0.18);color:#8a6f18}
+.act-status.act-not_done{background:rgba(231,76,60,0.14);color:#c92e2e}
+.act-status.act-none{background:rgba(0,0,0,0.06);color:var(--muted)}
+.tagline-sm{color:var(--muted);font-size:11.5px;font-weight:600}
 /* فاصل يوم داخل قائمة الرسائل — طراز واتساب: كبسولة مركزية شفافة، خفيفة الظل،
    لا تنافس محتوى الرسالة نفسها بصرياً */
 .chat-day-sep{display:flex;justify-content:center;margin:8px 0 4px;position:relative}
@@ -7175,21 +7202,92 @@ async function sendHalqaMsg(){
 }
 // تقارير الحلقة (تقييمات الحصص + الحصون الخمسة)
 async function halqaReports(g, student, ratedIds, sessions){
-  const { data:ratings }=await sb.from('session_ratings').select('*, ses:sessions(title,session_date)').eq('student_id',student.id).order('created_at',{ascending:false});
-  const r=ratings||[];
-  // الواجبات وحالتها
-  let asgs=[];
-  try{ const { data:aa }=await sb.from('assignments').select('*').eq('student_id',student.id).order('created_at',{ascending:false}); asgs=aa||[]; }catch(e){}
-  const asgDone=asgs.filter(a=>a.status==='done').length;
+  // ─── جلب كل ما نحتاجه للتقارير المتقدمة بالتوازي ───
+  const today = qTodayStr();
+  const iso7  = new Date(Date.now()-7*86400000).toISOString().slice(0,10);
+  const iso30 = new Date(Date.now()-30*86400000).toISOString().slice(0,10);
+  const [ratingsR, asgsR, planR] = await Promise.all([
+    sb.from('session_ratings').select('*, ses:sessions(title,session_date)').eq('student_id',student.id).order('created_at',{ascending:false}),
+    sb.from('assignments').select('*').eq('student_id',student.id).order('created_at',{ascending:false}).then(x=>x, ()=>({data:[]})),
+    sb.from('quran_student_plans').select('id,system_id,status,created_at').eq('student_id',student.id).order('created_at',{ascending:false}).limit(1).maybeSingle(),
+  ]);
+  const r = ratingsR.data || [];
+  const asgs = asgsR.data || [];
+  const asgDone = asgs.filter(a=>a.status==='done').length;
+  const asgApproved = asgs.filter(a=>a.review_status==='approved').length;
+  const asgLate = asgs.filter(a=>a.due_date && a.due_date < today && a.status!=='done' && a.status!=='missed').length;
+  const plan = planR?.data || null;
+
+  // ─── تحليل الحضور من التقييمات ───
+  const attN = { present:0, late:0, absent_excused:0, absent_unexcused:0, absent:0 };
+  r.forEach(x => { if(x.attendance && attN[x.attendance]!==undefined) attN[x.attendance]++; });
+  const totalAtt = Object.values(attN).reduce((a,b)=>a+b,0);
+  const attRate = totalAtt ? Math.round(((attN.present + attN.late*0.5) / totalAtt) * 100) : null;
+  const absAll = attN.absent_excused + attN.absent_unexcused + attN.absent;
+
+  // ─── تحليل خطة الطالب: نوافذ 7 و30 يوم + التأخر وتفسيره ───
+  let win7 = null, win30 = null, adherenceExplain = null, difficultSurahs = [], recentAttempts = [];
+  if(plan){
+    const [wardsAllR, forts30R, surahsR] = await Promise.all([
+      sb.from('quran_plan_wards').select('id,fortress_code,surah_no,planned_date,is_rest_day').eq('plan_id',plan.id).gte('planned_date',iso30).lte('planned_date',today),
+      sb.from('quran_plan_wards').select('id,surah_no').eq('plan_id',plan.id).gte('planned_date',iso30).lte('planned_date',today).eq('is_rest_day',false),
+      sb.from('quran_surahs').select('surah_no,name_ar'),
+    ]);
+    const surahName = {}; (surahsR.data||[]).forEach(s=>{ surahName[s.surah_no]=s.name_ar; });
+    const wards = (wardsAllR.data||[]).filter(w=>!w.is_rest_day);
+    const wardIds = wards.map(w=>w.id);
+    let progs = [];
+    if(wardIds.length){ progs = await qFetchProgress(wardIds); }
+    const progMap = {}; (progs||[]).forEach(p=>{ progMap[p.ward_id]=p; });
+    const doneFor = w => { const p=progMap[w.id]; return p && (p.status==='done' || p.status==='partial'); };
+    const compute = (fromIso) => {
+      const inWin = wards.filter(w => w.planned_date >= fromIso);
+      const total = inWin.length;
+      const done = inWin.filter(doneFor).length;
+      const late = inWin.filter(w => w.planned_date < today && !doneFor(w)).length;
+      const pct = total ? Math.round(done/total*100) : null;
+      return { total, done, late, pct };
+    };
+    win7 = compute(iso7);
+    win30 = compute(iso30);
+    // تفسير التأخر: مقارنة المتأخرات مع الغياب
+    if(win30.late > 0){
+      const avgPerDay = totalAtt ? win30.total / 30 : 0;
+      const absenceLoss = Math.round(absAll * (avgPerDay || 1));
+      const attrToAbsence = Math.min(absAll, win30.late);
+      if(absAll > 0 && attrToAbsence >= win30.late * 0.7){
+        adherenceExplain = { kind:'absence', text:`${ar(win30.late)} ورد متأخر — يظهر أنّ السبب الأساسي هو غياب ${ar(absAll)} حصة في هذه الفترة، وليس ضعفاً في معدل الإنجاز اليومي.` };
+      } else if(win7.late > (win7.total || 1) * 0.4){
+        adherenceExplain = { kind:'load', text:`التأخر تركّز في الأسبوع الأخير (${ar(win7.late)} من ${ar(win7.total)} ورد). قد يحتاج الوضع تخفيف الورد أو مراجعة قصيرة.` };
+      } else {
+        adherenceExplain = { kind:'steady', text:`التأخر موزّع على الفترة (${ar(win30.late)} ورد على ٣٠ يوماً). لا انهيار مفاجئ في الالتزام.` };
+      }
+    } else if(win30.total > 0){
+      adherenceExplain = { kind:'good', text:`لا متأخرات في آخر ٣٠ يوماً — انتظام تام مع الخطة.` };
+    }
+    // مواضع الصعوبة: السور التي تكرّرت فيها needs_review / partial / not_done
+    const diffCount = {};
+    (progs||[]).forEach(p=>{
+      if(p.status==='partial' || p.status==='not_done'){
+        const w = wards.find(x=>x.id===p.ward_id);
+        if(w && w.surah_no){ diffCount[w.surah_no] = (diffCount[w.surah_no]||0) + 1; }
+      }
+    });
+    difficultSurahs = Object.entries(diffCount).map(([n,c])=>({ surah_no:+n, name:surahName[n]||('سورة '+n), count:c })).sort((a,b)=>b.count-a.count).slice(0,5);
+    // آخر ٥ محاولات مسجّلة (لعرض النشاط الفعلي)
+    recentAttempts = (progs||[]).filter(p=>p.marked_at).sort((a,b)=>(b.marked_at||'').localeCompare(a.marked_at||'')).slice(0,5).map(p=>{
+      const w = wards.find(x=>x.id===p.ward_id);
+      return w ? { date:p.marked_at, surah:surahName[w.surah_no]||('سورة '+w.surah_no), status:p.status } : null;
+    }).filter(Boolean);
+  }
   // متابعة الحصون: كانت معتمدة على جدول "daily_hifz" القديم (٥ حصون ثابتة يعلّمها
   // الطالب يدوياً بلا علاقة بخطته الفعلية)، فكانت تظهر "لا توجد بيانات" دائماً
   // لأي طالب يسجّل أوراده من نظام المسارات الفعلي بدل الصفحة القديمة. الآن نبني
   // نفس الجدول من quran_plan_wards/quran_ward_progress الحقيقيَين، بأعمدة الحصون
   // الفعلية المفعّلة في خطة الطالب (تختلف حسب النظام والمحطة — حفظ أو مراجعة).
-  const today=qTodayStr();
   const since=new Date(Date.now()-6*86400000).toISOString().slice(0,10);
   let hifzFortCols=[], hifzDays=[], hasAnyHifzEver=false;
-  const { data:hifzPlan } = await sb.from('quran_student_plans').select('id,system_id').eq('student_id',student.id).eq('status','active').maybeSingle();
+  const hifzPlan = plan && plan.status==='active' ? plan : null;
   if(hifzPlan){
     const { data:hifzForts } = await sb.from('quran_fortresses').select('*').eq('system_id',hifzPlan.system_id).order('order_index');
     hifzFortCols = hifzForts||[];
@@ -7230,8 +7328,42 @@ async function halqaReports(g, student, ratedIds, sessions){
         <b style="color:var(--navy-deep);font-size:15px">تقاريرك ستبدأ في الظهور بعد أول حصة</b>
         <div style="color:var(--muted);font-size:13px;line-height:1.8;margin-top:6px;max-width:420px;margin-inline:auto">بعد أن يُنهي معلمك أول حصة معك، ستظهر هنا: انتظام الحضور، نسبة الإتقان، آخر توصية تربوية، وواجباتك.</div>
        </div>`;
-  return `${topBlock}
-  ${asgs.length?`<div class="card" style="margin-bottom:16px"><div class="ch"><h3>${mi('pencil')} الواجبات وحالتها</h3></div>
+  // ─── كتل التقارير الجديدة ───
+  // ١) اتجاه الالتزام: ٧ يوم مقابل ٣٠ يوم
+  const trendCard = (win7 && win7.total>0) || (win30 && win30.total>0) ? `<div class="card" style="margin-bottom:16px">
+    <div class="ch"><h3>${mi('chart')} اتجاه الالتزام</h3><span class="tagline-sm">مقارنة الطالب بخطته الشخصية، لا بغيره</span></div>
+    <div class="trend-grid">
+      <div class="trend-cell">
+        <div class="trend-label">آخر ٧ أيام</div>
+        <div class="trend-value" style="color:${win7?.pct>=80?'var(--emerald,#2E7D5B)':win7?.pct>=50?'#c9a227':'#c92e2e'}">${win7?.pct!=null?ar(win7.pct)+'٪':'—'}</div>
+        <div class="trend-detail">${win7?ar(win7.done)+' من '+ar(win7.total)+' ورد':'لا خطة نشطة'}${win7&&win7.late>0?' • '+ar(win7.late)+' متأخر':''}</div>
+      </div>
+      <div class="trend-cell">
+        <div class="trend-label">آخر ٣٠ يوماً</div>
+        <div class="trend-value" style="color:${win30?.pct>=80?'var(--emerald,#2E7D5B)':win30?.pct>=50?'#c9a227':'#c92e2e'}">${win30?.pct!=null?ar(win30.pct)+'٪':'—'}</div>
+        <div class="trend-detail">${win30?ar(win30.done)+' من '+ar(win30.total)+' ورد':'لا بيانات'}${win30&&win30.late>0?' • '+ar(win30.late)+' متأخر':''}</div>
+      </div>
+      <div class="trend-cell">
+        <div class="trend-label">انتظام الحضور</div>
+        <div class="trend-value" style="color:${attRate>=80?'var(--emerald,#2E7D5B)':attRate>=50?'#c9a227':'#c92e2e'}">${attRate!=null?ar(attRate)+'٪':'—'}</div>
+        <div class="trend-detail">${totalAtt?ar(attN.present)+' حاضر • '+ar(attN.late)+' متأخر • '+ar(absAll)+' غياب':'لا حصص مقيّمة بعد'}</div>
+      </div>
+    </div>
+    ${adherenceExplain?`<div class="trend-explain trend-${adherenceExplain.kind}"><b>تفسير:</b> ${esc(adherenceExplain.text)}</div>`:''}
+  </div>` : '';
+  // ٢) مواضع تكرّرت فيها الصعوبة
+  const difficultCard = difficultSurahs.length ? `<div class="card" style="margin-bottom:16px">
+    <div class="ch"><h3>${mi('warning')||'⚠️'} مواضع تحتاج تركيزاً</h3><span class="tagline-sm">سور تكرّر عليها ضعف الإنجاز في آخر ٣٠ يوم</span></div>
+    <div class="diff-list">${difficultSurahs.map(s=>`<div class="diff-row"><b>${esc(s.name)}</b><span class="diff-count">${ar(s.count)} ${s.count>=3?'مرة':'مرات'}</span></div>`).join('')}</div>
+  </div>` : '';
+  // ٣) آخر نشاط (لعرض الحيوية الفعلية للخطة)
+  const actLabel = { done:'✓ تمّ', partial:'◐ جزئي', not_done:'✗ لم يتم' };
+  const activityCard = recentAttempts.length ? `<div class="card" style="margin-bottom:16px">
+    <div class="ch"><h3>${mi('book')} آخر نشاط في الخطة</h3></div>
+    <div class="act-list">${recentAttempts.map(a=>`<div class="act-row"><span class="act-status act-${a.status||'none'}">${esc(actLabel[a.status]||a.status||'—')}</span><b>${esc(a.surah)}</b><small>${new Date(a.date).toLocaleDateString('ar-EG',{day:'numeric',month:'short'})}</small></div>`).join('')}</div>
+  </div>` : '';
+  return `${topBlock}${trendCard}${difficultCard}${activityCard}
+  ${asgs.length?`<div class="card" style="margin-bottom:16px"><div class="ch"><h3>${mi('pencil')} الواجبات وحالتها</h3><span class="tagline-sm">${ar(asgDone)} مُنجَز • ${ar(asgApproved)} معتمد${asgLate?' • '+ar(asgLate)+' متأخر':''}</span></div>
     <div class="hw-list">${asgs.map(a=>{
       const k=(typeof ASG_KINDS!=='undefined'&&ASG_KINDS[a.kind])||['🔗','رابط'];
       const stChip=a.status==='done'?'<span class="chip g">تمّ ✓</span>':a.status==='missed'?'<span class="chip r">لم يُؤدَّ</span>':'<span class="chip gold">بانتظار</span>';
