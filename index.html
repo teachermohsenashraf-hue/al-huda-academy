@@ -1621,8 +1621,8 @@ body.has-update-banner{padding-top:52px}
       <div class="topbar">
         <div style="display:flex;align-items:center;gap:12px"><button class="mtoggle" onclick="side_toggleMobile()">☰</button><button class="side-toggle" onclick="side_toggleCollapse()" title="طي/فرد الشريط الجانبي" aria-label="طي الشريط الجانبي">☰</button><div class="hello"><h2 id="topTitle">أكاديمية الهدى</h2><p id="topSub"></p></div></div>
         <div class="tools">
-          <button class="topbar-ic" onclick="navigate('chat')" title="الرسائل" aria-label="الرسائل" style="position:relative">${'<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>'}<span id="chatBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:#E74C3C;color:#fff;border-radius:50%;width:18px;height:18px;font-size:11px;font-weight:700;align-items:center;justify-content:center"></span></button>
-          <button class="topbar-ic" onclick="showNotifications()" title="التنبيهات" aria-label="التنبيهات" style="position:relative">${'<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>'}<span id="notifBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:#E74C3C;color:#fff;border-radius:50%;width:18px;height:18px;font-size:11px;font-weight:700;align-items:center;justify-content:center"></span></button>
+          <button class="topbar-ic" onclick="navigate('chat')" title="الرسائل" aria-label="الرسائل" style="position:relative"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span id="chatBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:#E74C3C;color:#fff;border-radius:50%;width:18px;height:18px;font-size:11px;font-weight:700;align-items:center;justify-content:center"></span></button>
+          <button class="topbar-ic" onclick="showNotifications()" title="التنبيهات" aria-label="التنبيهات" style="position:relative"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span id="notifBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:#E74C3C;color:#fff;border-radius:50%;width:18px;height:18px;font-size:11px;font-weight:700;align-items:center;justify-content:center"></span></button>
           <div class="uava" id="topAva">ه</div>
         </div>
       </div>
@@ -11727,7 +11727,8 @@ async function qEditWard(wardId){
       <div class="field"><label>إلى آية</label><input id="qwEditTo" type="number" min="1" value="${w.ayah_to||1}"></div>
     </div>`:''}
     <div class="field"><label>وصف الورد (كما يظهر للطالب)</label><input id="qwEditLabel" value="${esc(w.amount_label||'')}"></div>
-    <div class="field"><label>سبب التعديل <span class="hint">(يُسجَّل في سجل تعديلات الخطة)</span></label><input id="qwEditReason" placeholder="مثلاً: الطالب أظهر استعداداً لزيادة الحفظ"></div>
+    <div class="field"><label>تاريخ الورد <span class="hint">(تقديم/تأخير — بلا مساس بباقي الأيام)</span></label><input id="qwEditDate" type="date" value="${esc(w.planned_date||'')}"></div>
+    <div class="field"><label>سبب التعديل <span class="hint">(يُسجَّل في سجل تعديلات الخطة)</span></label><input id="qwEditReason" placeholder="مثلاً: تقديم يوم لتلافي غياب قادم"></div>
     <div class="field" style="display:flex;align-items:center;gap:8px;margin-top:6px"><input type="checkbox" id="qwRipple"><label for="qwRipple" style="margin:0">رحّل هذا التغيير على بقية أيام الخطة (إزاحة تلقائية للزيادة أو النقصان)</label></div>
     <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إلغاء</button><button class="btn" id="qwEditBtn" onclick="qSaveWardEdit('${esc(wardId)}',${isSurahBased})">${mi('check')} حفظ التعديل</button></div>
   </div></div>`;
@@ -11755,7 +11756,22 @@ async function qSaveWardEdit(wardId, isSurahBased){
   } else {
     payload.amount_label = $('#qwEditLabel').value.trim();
   }
-  const { data:before } = await sb.from('quran_plan_wards').select('ayah_from,ayah_to,plan_id,planned_date').eq('id',wardId).maybeSingle();
+  // نقل تاريخ الورد لو المعلم عدّله في نافذة التعديل — إجراء نظيف (لا سحب/إفلات)
+  // يحقق نفس القيمة التربوية: تقديم يوم أو تأخيره بلا مساس بباقي أيام الخطة.
+  // نتحقق أن التاريخ الجديد لا يصادم قيد "لا تعارض لنفس اليوم" (migration 014)
+  // قبل الحفظ الفعلي، فلا يُنشئ خطأ 23505 غامضاً للمعلم.
+  const newDateStr = ($('#qwEditDate')?.value||'').trim();
+  const { data:before } = await sb.from('quran_plan_wards').select('ayah_from,ayah_to,plan_id,planned_date,fortress_code').eq('id',wardId).maybeSingle();
+  if(newDateStr && before && newDateStr !== before.planned_date){
+    // تحقق مسبق من التعارض
+    const { data:clash } = await sb.from('quran_plan_wards').select('id').eq('plan_id',before.plan_id).eq('planned_date',newDateStr).eq('fortress_code',before.fortress_code).eq('is_rest_day',false).neq('id',wardId).limit(1);
+    if(clash && clash.length){
+      if(btn){ btn.disabled=false; btn.textContent='حفظ التعديل'; }
+      toast('التاريخ الجديد فيه ورد آخر بنفس نوع الحصن — اختر تاريخاً غيره');
+      return;
+    }
+    payload.planned_date = newDateStr;
+  }
   // .select() بعد الـupdate ضروري عشان نتأكد إن صف اتغيّر فعلاً — لو سياسة RLS
   // منعت التحديث (مثلاً المعلم مش صاحب هذه الخطة)، Supabase بترجع نجاح بدون
   // خطأ وبدون أي صفوف متأثرة، فكان التعديل بيفشل بصمت والمعلم يفتكر إنه اتحفظ
