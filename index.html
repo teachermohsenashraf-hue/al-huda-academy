@@ -595,6 +595,44 @@ details.rate-classic[open] summary{margin-bottom:8px;color:var(--navy-deep)}
   .qw-title b{font-size:17px}
   .qw-tab{flex:0 0 auto;min-width:130px}
 }
+/* ═══ مركز استعادة المسار ═══ */
+.rc-hero{background:linear-gradient(135deg,rgba(46,125,91,0.06),rgba(212,180,68,0.06));border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:14px}
+.rc-hero-title{font-family:'Amiri',serif;font-size:24px;color:var(--navy-deep);margin-bottom:6px}
+.rc-hero-sub{color:var(--muted);font-size:13.5px;line-height:1.8;margin-bottom:14px}
+.rc-hero-nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:14px}
+.rc-num{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;text-align:center}
+.rc-num b{display:block;font-family:'Tajawal','Cairo',sans-serif;font-weight:700;font-size:22px;color:var(--navy-deep);line-height:1;margin-bottom:4px}
+.rc-num span{color:var(--muted);font-size:11.5px;font-weight:600}
+.rc-hero-acts{display:flex;gap:8px;flex-wrap:wrap}
+.rc-done-tag{background:rgba(46,125,91,0.14);color:#1B4D3E;font-size:13px;font-weight:700;padding:8px 14px;border-radius:8px;display:inline-flex;align-items:center;gap:6px}
+.rc-week{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:14px}
+.rc-empty{background:#fff;border:1px solid var(--line);border-radius:14px;padding:22px;text-align:center;margin-bottom:14px}
+.rc-empty-ic{color:var(--gold,#c9a227);display:inline-flex;margin-bottom:10px}
+.rc-empty-ic svg{width:32px;height:32px}
+.rc-empty b{display:block;font-size:16px;color:var(--navy-deep);margin-bottom:6px}
+.rc-empty p{color:var(--muted);font-size:13px;line-height:1.8;max-width:460px;margin:0 auto 14px}
+.rc-empty-acts{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.rc-groups{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.rc-group{background:var(--cream);border-radius:12px;display:flex;align-items:center;gap:12px;padding:0;overflow:hidden;margin-bottom:8px}
+.rc-group:last-child{margin-bottom:0}
+.rc-group-side{width:4px;align-self:stretch;flex:none}
+.rc-group-main{flex:1;min-width:0;padding:10px 4px 10px 12px}
+.rc-group-top{display:flex;align-items:center;gap:10px;justify-content:space-between;margin-bottom:4px}
+.rc-group-top b{color:var(--navy-deep);font-size:14px}
+.rc-group-count{background:rgba(0,0,0,0.05);color:var(--navy-deep);font-size:11.5px;font-weight:700;padding:2px 10px;border-radius:9px}
+.rc-group-meta{color:var(--muted);font-size:12px}
+.rc-group>.btn-sm{margin-inline-end:12px;flex:none;padding:6px 12px;font-size:12px}
+.rc-detail-modal{max-width:520px}
+.rc-detail-list{max-height:min(60vh,440px);overflow-y:auto;background:var(--cream);border-radius:10px;padding:8px}
+.rc-detail-row{display:flex;justify-content:space-between;gap:10px;padding:8px 12px;background:#fff;border-radius:8px;margin-bottom:6px;font-size:12.5px;color:var(--navy-deep)}
+.rc-detail-row:last-child{margin-bottom:0}
+.rc-detail-date{color:var(--muted);font-weight:600;flex:none;min-width:70px}
+.rc-detail-range{flex:1;text-align:end}
+/* تلميح "استعادة" في رأس ورد اليوم */
+.qw-recov{background:linear-gradient(135deg,rgba(46,125,91,0.10),rgba(212,180,68,0.06));border:1px solid rgba(46,125,91,0.20);border-radius:12px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.qw-recov-info{flex:1;min-width:180px}
+.qw-recov-info b{color:var(--navy-deep);font-size:13.5px;display:block}
+.qw-recov-info span{color:var(--muted);font-size:12px;display:block;margin-top:2px}
 /* فاصل يوم داخل قائمة الرسائل — طراز واتساب: كبسولة مركزية شفافة، خفيفة الظل،
    لا تنافس محتوى الرسالة نفسها بصرياً */
 .chat-day-sep{display:flex;justify-content:center;margin:8px 0 4px;position:relative}
@@ -11555,15 +11593,22 @@ function qWorkspaceRender(wards, progMap, fortMap, activeIdx, lateCount){
     <div class="qw-summary" id="qwSummary">أنجزت ${ar(done)} من ${ar(total)} ورد</div>
   </div>`;
   // بانر التراكم — قابل للطي، ليس عقابياً
-  const backlog = lateCount ? `<details class="qw-backlog"><summary><span>لديك بعض الأوراد السابقة تحتاج ترتيباً — ابدأ بورد اليوم أولاً</span><span class="qw-count qw-count-rem">${ar(lateCount)}</span></summary>
-    <div class="qw-backlog-body">
-      <div class="qw-backlog-note">ورد اليوم يبقى أولويتك الآن. بعده يمكنك زيارة المتأخرات في وقت هادئ أو طلب مساعدة معلمك لترتيبها.</div>
-      <div class="qw-backlog-acts">
-        <button class="btn-sm" onclick="navigate('qlate')">عرض المتأخرات</button>
-        <button class="btn-sm ghost" onclick="qWorkspaceAskHelpTeacher()">اطلب مساعدة معلمي</button>
+  // بانر التراكم القابل للطي — إذا كان هناك خطة استعادة أسبوعية نُشير لها فقط بلا رقم مخيف
+  let backlog = '';
+  const rw = SESSION._recovWeekly;
+  if(rw && rw.count){
+    backlog = `<div class="qw-recov"><div class="qw-recov-info"><b>استعادة المسار</b><span>${ar(rw.count)} ورد استعادة هذا الأسبوع — أنجزت ${ar(rw.done||0)} من ${ar(rw.count)}</span></div><button class="btn-sm" onclick="navigate('qlate')">افتحه الآن ←</button></div>`;
+  } else if(lateCount){
+    backlog = `<details class="qw-backlog"><summary><span>لديك بعض الأوراد السابقة تحتاج ترتيباً — ابدأ بورد اليوم أولاً</span><span class="qw-count qw-count-rem">${ar(lateCount)}</span></summary>
+      <div class="qw-backlog-body">
+        <div class="qw-backlog-note">ورد اليوم يبقى أولويتك الآن. بعده يمكنك زيارة مركز استعادة المسار أو طلب مساعدة معلمك.</div>
+        <div class="qw-backlog-acts">
+          <button class="btn-sm" onclick="navigate('qlate')">مركز الاستعادة</button>
+          <button class="btn-sm ghost" onclick="qWorkspaceAskHelpTeacher()">اطلب مساعدة معلمي</button>
+        </div>
       </div>
-    </div>
-  </details>` : '';
+    </details>`;
+  }
   // شريط الأوراد الأفقي
   const strip = wards.length ? `<div class="qw-strip" id="qwStrip" role="tablist">${wards.map((w,i)=>qStripItem(w, progMap[w.id], fortMap, i, i===activeIdx)).join('')}</div>` : '';
   // بطاقة التركيز — نُغلّف qTodayCardHtml الحالية في حاوية بيضاء
@@ -11675,33 +11720,252 @@ async function qWorkspaceAskHelpTeacher(){
 }
 // صفحة "الأوراد المتأخرة" — يصل إليها الطالب من "التنبيهات" أو من مؤشّر ورد اليوم.
 // تعرض الأوراد الفائتة غير المنجَزة فقط، بنفس بطاقة التسجيل (أتممت/لم أتم).
+// ═══ مركز استعادة المسار (spec: ملخص + خطة أسبوع + تجميع + تفاصيل عند الطلب) ═══
+// الصفحة القديمة كانت تعرض كل ورد متأخر كبطاقة كاملة (طالب بـ١٠٠+ متأخر = صفحة
+// بيكرو مرهقة، جزئها الأساسي بيانات لا تحتاج قرارًا يوميًا). الجديد يعالج التراكم
+// كـ"مركز استعادة" هادئ: ملخص أعلى + الأوراد المجدولة هذا الأسبوع كمساحة عمل +
+// تجميعات مضغوطة للتراكم + تفاصيل عند الطلب فقط (٢٠ في المرة). الطالب لا يعدّل
+// الخطة — المعلم فقط عبر أدوات "مركز الإنقاذ".
 PAGES.student_qlate = async function(){
-  setTop('الأوراد المتأخرة','أوراد أيام سابقة لم تُنجَز بعد');
+  setTop('مركز استعادة المسار','تراكم يحتاج ترتيبًا هادئًا مع معلمك');
   const [s, plan] = await Promise.all([ myStudentRow(), myActivePlan() ]);
   if(!s) return `<div class="qnoplan"><div class="nei">🌱</div><h3>لا توجد بيانات طالب</h3></div>`;
   if(s.enrollment_status!=='active') return enrollGateMsg(s.enrollment_status);
   if(!plan) return await noPlanYetCard(s);
+
   const today = qTodayStr();
-  const [{ data: overdueWards }, forts] = await Promise.all([
-    sb.from('quran_plan_wards').select('*').eq('plan_id',plan.id).lt('planned_date',today).order('planned_date').order('fortress_code'),
+  // نحسب حدود هذا الأسبوع (السبت → الجمعة) — يمكن تعديله لاحقاً حسب تفضيل الحلقة
+  const now = new Date();
+  const wkStart = new Date(now); wkStart.setDate(now.getDate() - ((now.getDay() + 1) % 7)); wkStart.setHours(0,0,0,0);
+  const wkEnd = new Date(wkStart); wkEnd.setDate(wkStart.getDate() + 6);
+  const wkStartStr = wkStart.toISOString().slice(0,10);
+  const wkEndStr = wkEnd.toISOString().slice(0,10);
+
+  // ─── استعلامات ملخّصة (لا تحميل تفاصيل كل المتأخرات) ───
+  const [aggRes, weekRecovRes, forts] = await Promise.all([
+    // إجمالي المتأخرات وتجميعها بنوع الحصن — نجلب فقط الحد الأدنى ثم نجمّع في العميل
+    sb.from('quran_plan_wards')
+      .select('id,fortress_code,planned_date')
+      .eq('plan_id',plan.id).lt('planned_date',today).eq('is_rest_day',false)
+      .order('planned_date',{ascending:true}).limit(5000),
+    // خطة الاستعادة الأسبوعية = أوراد "المراجعة العلاجية" (remedial) المجدولة هذا الأسبوع
+    sb.from('quran_plan_wards')
+      .select('*')
+      .eq('plan_id',plan.id).eq('fortress_code','remedial').eq('is_rest_day',false)
+      .gte('planned_date',wkStartStr).lte('planned_date',wkEndStr)
+      .order('planned_date'),
     fortressesFor(plan.system_id),
   ]);
+  const allLate = aggRes.data || [];
+  const weekRecov = weekRecovRes.data || [];
   const fortMap = {}; (forts||[]).forEach(f=>{ fortMap[f.code]=f; });
   SESSION._qFortMap = fortMap;
-  SESSION._qWardMap = {}; (overdueWards||[]).forEach(w=>{ SESSION._qWardMap[w.id]=w; });
-  const progs = await qFetchProgress((overdueWards||[]).map(w=>w.id));
-  const progMap = qProgMapFromRows(progs);
-  SESSION._qProgMap = progMap; // يتيح لـ qMarkWard تحديث البطاقة فورياً من الذاكرة بدل استعلام إضافي بطيء
-  // نعرض غير المنجَز فقط (المتأخر الفعلي)
-  const pending = (overdueWards||[]).filter(w=>{ const p=progMap[w.id]; return !(p&&p.status==='done'); });
-  qSubscribePlanRealtime(plan.id); // تحديث لحظي
-  if(!pending.length){
-    return pageHead('الأوراد المتأخرة','')+`<div class="qnoplan"><div class="nei">✅</div><h3>لا أوراد متأخرة</h3><p>ما شاء الله — لا يوجد لديك أي ورد متأخر. واصل على هذا الالتزام.</p></div>`;
+
+  // ─── نستبعد المُنجَز/الجزئي من عدّ المتأخرات (اختلافه يخلي الأرقام حقيقية) ───
+  const lateIds = allLate.map(w=>w.id);
+  const wardProgs = lateIds.length ? await qFetchProgress(lateIds, 'ward_id,status') : [];
+  const progByWard = {}; (wardProgs||[]).forEach(p=>{ progByWard[p.ward_id]=p; });
+  const pendingLate = allLate.filter(w => { const p=progByWard[w.id]; return !(p && (p.status==='done' || p.status==='partial')); });
+
+  // ─── تجميع المتأخرات بنوع الحصن ───
+  const GROUP_DEFS = [
+    { key:'new_hifz',      label:'حفظ جديد لم يكتمل' },
+    { key:'near_review',   label:'مراجعة قريبة' },
+    { key:'far_review',    label:'مراجعة بعيدة' },
+    { key:'listening',     label:'ورد السماع' },
+    { key:'listen',        label:'ورد السماع' },
+    { key:'reading',       label:'القراءة اليومية' },
+    { key:'remedial',      label:'مراجعة علاجية سابقة' },
+  ];
+  const groupsMap = {};
+  pendingLate.forEach(w => {
+    if(!groupsMap[w.fortress_code]) groupsMap[w.fortress_code] = { count:0, oldest:null };
+    groupsMap[w.fortress_code].count++;
+    if(!groupsMap[w.fortress_code].oldest || w.planned_date < groupsMap[w.fortress_code].oldest) groupsMap[w.fortress_code].oldest = w.planned_date;
+  });
+  const groups = GROUP_DEFS.map(g => {
+    const info = groupsMap[g.key];
+    if(!info) return null;
+    const f = fortMap[g.key] || {};
+    return { ...g, ...info, name: f.name || g.label, color: f.color || qFortColor(g.key), icon: f.icon || qFortIcon(g.key) };
+  }).filter(Boolean);
+  // للأنواع غير المعرّفة في القائمة (احتياط)
+  Object.keys(groupsMap).forEach(k => { if(!GROUP_DEFS.find(g=>g.key===k)){ const info=groupsMap[k]; groups.push({ key:k, label:k, name:(fortMap[k]?.name||k), color:(fortMap[k]?.color||qFortColor(k)), icon:(fortMap[k]?.icon||qFortIcon(k)), ...info }); } });
+
+  const totalLate = pendingLate.length;
+
+  // ─── تحديد حالة خطة الاستعادة ───
+  const recovProgs = weekRecov.length ? await qFetchProgress(weekRecov.map(w=>w.id)) : [];
+  const recovProgMap = {}; (recovProgs||[]).forEach(p=>{ recovProgMap[p.ward_id]=p; });
+  const recovDone = weekRecov.filter(w => { const p=recovProgMap[w.id]; return p && p.status==='done'; }).length;
+  const recovTotal = weekRecov.length;
+
+  let planStateLabel, planStateColor;
+  if(plan.status === 'paused'){ planStateLabel = 'الخطة متوقفة مؤقتاً'; planStateColor = '#8a6f18'; }
+  else if(!recovTotal && totalLate>0){ planStateLabel = 'بانتظار ترتيب المعلم'; planStateColor = '#c9a227'; }
+  else if(recovTotal && recovDone === recovTotal){ planStateLabel = 'أنهيت خطة هذا الأسبوع'; planStateColor = '#1B4D3E'; }
+  else if(recovTotal){ planStateLabel = 'خطة فعّالة'; planStateColor = '#2E7D5B'; }
+  else{ planStateLabel = 'مسارك منتظم'; planStateColor = '#2E7D5B'; }
+
+  qSubscribePlanRealtime(plan.id);
+
+  // لا متأخرات إطلاقاً → رسالة تشجيعية
+  if(!totalLate){
+    return pageHead('مركز استعادة المسار','') + `<div class="qnoplan"><div class="nei">${mi('check')||'✅'}</div><h3>لا تراكم لديك</h3><p>ما شاء الله — كل أورادك مستقرّة. واصل على هذا الالتزام.</p></div>`;
   }
-  const html = `<div style="background:rgba(231,76,60,0.08);border-inline-start:3px solid var(--rose);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13.5px;color:#7a2e2e">⏰ لديك <b>${ar(pending.length)}</b> ورد متأخر — أنجزها لتعود لمسارك.</div>`
-    + `<div id="qtodayList">`+pending.map(w=>qTodayCardHtml(w, progMap[w.id], fortMap)).join('')+`</div>`;
-  return pageHead('الأوراد المتأخرة','')+html;
+
+  // نُخزّن معلومات الأسبوع لصفحة ورد اليوم (تلميح "استعادة")
+  SESSION._recovWeekly = { count: recovTotal, done: recovDone, planId: plan.id };
+
+  // ─── الرأس: ملخص هادئ ───
+  const heroHtml = `<div class="rc-hero">
+    <div class="rc-hero-main">
+      <div class="rc-hero-title">استعادة المسار</div>
+      <div class="rc-hero-sub">لديك أوراد سابقة تحتاج ترتيبًا. سنعالجها تدريجيًا مع الحفاظ على وردك الحالي.</div>
+      <div class="rc-hero-nums">
+        <div class="rc-num"><b>${ar(totalLate)}</b><span>ورد يحتاج ترتيبًا</span></div>
+        <div class="rc-num"><b>${ar(recovTotal)}</b><span>خطة الأسبوع</span></div>
+        ${recovTotal?`<div class="rc-num"><b>${ar(recovDone)}/${ar(recovTotal)}</b><span>أنجزت</span></div>`:''}
+        <div class="rc-num" style="border-color:${planStateColor}"><b style="color:${planStateColor}">حالة</b><span style="color:${planStateColor}">${esc(planStateLabel)}</span></div>
+      </div>
+      <div class="rc-hero-acts">
+        ${recovTotal ? (recovDone<recovTotal ? `<button class="btn" onclick="_recovOpenNext()">${mi('book')} افتح ورد الاستعادة التالي</button>` : `<span class="rc-done-tag">${mi('check')||'✓'} أنهيت خطة هذا الأسبوع</span>`) : `<button class="btn" onclick="_recovAskTeacher()">${mi('chat')} طلب ترتيب الخطة من معلمي</button>`}
+        <button class="btn ghost" onclick="_recovAskTeacher()">راسل معلمي</button>
+      </div>
+    </div>
+  </div>`;
+
+  // ─── مساحة خطة هذا الأسبوع (لو موجودة) — تعيد استخدام workspace ورد اليوم ───
+  let weekWorkspaceHtml = '';
+  if(recovTotal){
+    // نُهيّئ نفس متغيّرات workspace ولكن على أوراد الاستعادة لهذا الأسبوع
+    SESSION._recovWards = weekRecov.slice();
+    SESSION._recovProgMap = recovProgMap;
+    // نستخدم شبكة مصغرة داخل الصفحة نفسها (بدلاً من الاعتماد على SESSION._qWards
+    // الذي قد يتضارب مع صفحة ورد اليوم لو المستخدم فتحها في تبويب آخر)
+    let activeIdx = weekRecov.findIndex(w => !(recovProgMap[w.id] && recovProgMap[w.id].status==='done'));
+    if(activeIdx < 0) activeIdx = 0;
+    SESSION._recovActiveIdx = activeIdx;
+    // نُعيد استخدام هيكل workspace: نحقن نفس البيانات في SESSION._qWards/qProgMap
+    // مؤقتاً كي تعمل الأزرار (qMarkWard/qOpenReader/qSetActiveWard) بلا تعديل
+    SESSION._qWards = weekRecov.slice();
+    SESSION._qProgMap = recovProgMap;
+    SESSION._qWardMap = {}; weekRecov.forEach(w=>{ SESSION._qWardMap[w.id]=w; });
+    SESSION._qActiveIdx = activeIdx;
+    weekWorkspaceHtml = `<div class="rc-week"><div class="ch"><h3>${mi('calendar')} خطة الاستعادة — هذا الأسبوع</h3><span class="tagline-sm">من ${esc(wkStartStr)} إلى ${esc(wkEndStr)}</span></div>${qWorkspaceRender(weekRecov, recovProgMap, fortMap, activeIdx, 0)}</div>`;
+  } else {
+    weekWorkspaceHtml = `<div class="rc-empty">
+      <div class="rc-empty-ic">${mi('info')||''}</div>
+      <b>لا خطة استعادة نشطة بعد</b>
+      <p>التراكم يحتاج إلى ترتيب مع معلمك. لا تحتاج لإنجاز كل شيء اليوم — بمجرد ترتيب المعلم للخطة، ستظهر هنا أوراد الأسبوع فقط.</p>
+      <div class="rc-empty-acts">
+        <button class="btn" onclick="_recovAskTeacher()">${mi('chat')} طلب ترتيب الخطة</button>
+        <button class="btn ghost" onclick="_recovScrollGroups()">عرض ملخص التراكم ↓</button>
+      </div>
+    </div>`;
+  }
+
+  // ─── تجميعات التراكم ───
+  const groupsHtml = `<div class="rc-groups" id="rcGroups">
+    <div class="ch"><h3>${mi('chart')||''} ملخص التراكم بنوع الحصن</h3><span class="tagline-sm">مجموع ${ar(totalLate)} ورد — للاطلاع فقط، خطة الأداء تظهر بالأعلى</span></div>
+    ${groups.map(g=>{
+      const oldestLabel = g.oldest ? new Date(g.oldest).toLocaleDateString('ar-EG',{day:'numeric',month:'long',year:'numeric'}) : '—';
+      return `<div class="rc-group" data-fort="${esc(g.key)}">
+        <div class="rc-group-side" style="background:${g.color}"></div>
+        <div class="rc-group-main">
+          <div class="rc-group-top"><b>${esc(g.name)}</b><span class="rc-group-count">${ar(g.count)} ورد</span></div>
+          <div class="rc-group-meta">أقدم تاريخ: <b>${esc(oldestLabel)}</b></div>
+        </div>
+        <button class="btn-sm ghost" onclick="_recovShowGroupDetails('${esc(g.key)}','${esc(g.name.replace(/'/g,''))}')">عرض التفاصيل</button>
+      </div>`;
+    }).join('')}
+  </div>`;
+
+  return pageHead('مركز استعادة المسار','') + heroHtml + weekWorkspaceHtml + groupsHtml;
 };
+// حالة "خطة الاستعادة الفعّالة" — يفتح أول ورد استعادة غير منجَز في الشبكة
+function _recovOpenNext(){
+  const wards = SESSION._recovWards || [];
+  const progMap = SESSION._recovProgMap || {};
+  if(!wards.length) return;
+  const idx = wards.findIndex(w => !(progMap[w.id] && progMap[w.id].status==='done'));
+  if(idx >= 0) qSetActiveWard(idx);
+  const focus = document.getElementById('qwFocus'); if(focus) focus.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+// طلب ترتيب الخطة — يستخدم آلية help_request القائمة بفئة schedule_issue
+async function _recovAskTeacher(){
+  try{
+    const plan = await myActivePlan();
+    if(!plan){ toast('لا خطة نشطة'); return; }
+    const { error } = await sb.from('quran_help_requests').insert({
+      plan_id: plan.id, category:'schedule_issue',
+      note:'أطلب ترتيب خطة استعادة للتراكم — أرجو تحديد أوراد مناسبة أسبوعياً بحجم مريح.',
+      status:'open',
+    });
+    if(error){ toast('تعذّر: '+error.message); return; }
+    toast('✅ وصل الطلب لمعلمك — ستراجع الخطة قريباً');
+  }catch(e){ toast('حدث خطأ'); }
+}
+function _recovScrollGroups(){ document.getElementById('rcGroups')?.scrollIntoView({ behavior:'smooth', block:'start' }); }
+// نافذة تفاصيل مجموعة (تحميل ٢٠ في المرة — لا كل ال١٠٠+ دفعة واحدة)
+let _RECOV_DETAIL_STATE = null;
+async function _recovShowGroupDetails(fortressCode, groupName){
+  _RECOV_DETAIL_STATE = { fortressCode, offset:0, batch:20, rows:[], done:false };
+  $('#modalHost').innerHTML = `<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal rc-detail-modal">
+    <div class="ch"><h3>${esc(groupName)} — تفاصيل التراكم</h3></div>
+    <p style="color:var(--muted);font-size:12.5px;margin-bottom:10px;line-height:1.7">للاطلاع فقط. خطة الأداء الفعلية تظهر في الأعلى في مركز الاستعادة.</p>
+    <div id="rcDetailList" class="rc-detail-list"></div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeModal()">إغلاق</button>
+      <button class="btn" id="rcDetailMore" onclick="_recovLoadMoreDetails()">تحميل المزيد</button>
+    </div>
+  </div></div>`;
+  _recovLoadMoreDetails();
+}
+async function _recovLoadMoreDetails(){
+  const st = _RECOV_DETAIL_STATE; if(!st || st.done) return;
+  const btn = document.getElementById('rcDetailMore'); if(btn){ btn.disabled=true; btn.textContent='جارٍ التحميل...'; }
+  try{
+    const plan = await myActivePlan(); if(!plan) return;
+    const today = qTodayStr();
+    const { data:rows } = await sb.from('quran_plan_wards')
+      .select('id,surah_no,surah_name,ayah_from,ayah_to,pages,amount_label,planned_date,fortress_code,is_rest_day')
+      .eq('plan_id',plan.id).eq('fortress_code',st.fortressCode).eq('is_rest_day',false)
+      .lt('planned_date',today)
+      .order('planned_date',{ascending:true})
+      .range(st.offset, st.offset + st.batch - 1);
+    const batch = rows || [];
+    if(batch.length){
+      const ids = batch.map(w=>w.id);
+      const progs = await qFetchProgress(ids, 'ward_id,status');
+      const pMap = {}; (progs||[]).forEach(p=>{ pMap[p.ward_id]=p; });
+      const pending = batch.filter(w => { const p=pMap[w.id]; return !(p && (p.status==='done' || p.status==='partial')); });
+      st.rows.push(...pending);
+      st.offset += batch.length;
+    }
+    if(batch.length < st.batch) st.done = true;
+    const host = document.getElementById('rcDetailList');
+    if(host){
+      host.innerHTML = st.rows.map(w => {
+        const sName = w.surah_name || (surahByNo?.(w.surah_no)?.name) || (w.surah_no?('سورة '+ar(w.surah_no)):'—');
+        const range = w.surah_no
+          ? (w.ayah_from ? `${sName} — ${ar(w.ayah_from)}${w.ayah_to&&w.ayah_to!==w.ayah_from?'–'+ar(w.ayah_to):''}` : sName)
+          : (w.amount_label || '—');
+        return `<div class="rc-detail-row">
+          <span class="rc-detail-date">${esc(new Date(w.planned_date).toLocaleDateString('ar-EG',{day:'numeric',month:'short'}))}</span>
+          <span class="rc-detail-range">${esc(range)}</span>
+        </div>`;
+      }).join('') || '<p style="color:var(--muted);text-align:center;padding:16px">لا عناصر معلّقة في هذه المجموعة.</p>';
+    }
+    if(btn){
+      if(st.done){ btn.style.display='none'; }
+      else{ btn.disabled=false; btn.textContent='تحميل ٢٠ إضافية'; }
+    }
+  }catch(e){
+    if(btn){ btn.disabled=false; btn.textContent='حاول مرة أخرى'; }
+    console.error('recov detail load:', e);
+  }
+}
 
 // ══════════════════════════════════════════════════════════════════════
 // قارئ القرآن الداخلي (qReader) — يفتح على الآية الفعلية لأي ورد
