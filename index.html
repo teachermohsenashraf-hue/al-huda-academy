@@ -397,6 +397,32 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 .qmon-secHead{padding:8px 12px;margin-bottom:8px;background:#fff;border-radius:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .qmon-secHead b{font-size:14px}
 .qmon-secHead span{color:var(--muted);font-size:12px}
+/* ═══ نافذة تقييم الحصة الشاملة ═══ */
+.rate-modal{max-width:640px;max-height:88vh;overflow-y:auto}
+.rate-head{display:flex;align-items:center;gap:12px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.rate-head-ic{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--gold,#c9a227),#e0b649);color:#fff;display:grid;place-items:center;font-size:22px;flex:none}
+.rate-head b{color:var(--navy-deep);font-size:16px;display:block}
+.rate-head small{color:var(--muted);font-size:12px}
+.rate-wards{background:linear-gradient(to left,rgba(46,125,91,0.05),rgba(46,125,91,0.01));border:1px solid rgba(46,125,91,0.15);border-radius:12px;padding:12px;margin:12px 0}
+.rate-wards-head{font-size:13px;font-weight:700;color:var(--navy-deep);margin-bottom:8px}
+.rate-wards-empty{background:var(--cream);border-radius:10px;padding:12px;font-size:12.5px;color:var(--muted);margin:12px 0;text-align:center}
+.rate-ward-card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px}
+.rate-ward-card:last-child{margin-bottom:0}
+.rate-ward-info{margin-bottom:8px;line-height:1.6}
+.rate-ward-info b{display:block;color:var(--navy-deep);font-size:13.5px}
+.rate-ward-info span{display:block;color:var(--muted);font-size:12px}
+.rate-ward-hint{display:inline-block;font-size:10.5px;background:rgba(0,0,0,0.05);color:var(--muted);padding:2px 8px;border-radius:8px;margin-top:4px;font-weight:600}
+.rate-ward-hint.good{background:rgba(46,125,91,0.12);color:#1B4D3E}
+.rate-ward-hint.mid{background:rgba(201,162,39,0.18);color:#8a6f18}
+.rate-ward-hint.bad{background:rgba(231,76,60,0.12);color:#c92e2e}
+.rate-ward-opts{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.rate-mini{background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-family:'Cairo',sans-serif;font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer;transition:.15s}
+.rate-mini:hover{border-color:var(--emerald)}
+.rate-mini.on{border-color:transparent}
+.rate-ward-note{width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-family:'Cairo',sans-serif;font-size:12px;background:var(--cream)}
+details.rate-classic{margin-top:10px;background:var(--cream);border-radius:10px;padding:8px 12px}
+details.rate-classic summary{cursor:pointer;font-size:12.5px;font-weight:700;color:var(--muted);padding:6px 0}
+details.rate-classic[open] summary{margin-bottom:8px;color:var(--navy-deep)}
 /* فاصل يوم داخل قائمة الرسائل — طراز واتساب: كبسولة مركزية شفافة، خفيفة الظل،
    لا تنافس محتوى الرسالة نفسها بصرياً */
 .chat-day-sep{display:flex;justify-content:center;margin:8px 0 4px;position:relative}
@@ -4957,7 +4983,7 @@ PAGES.teacher_dash=async function(){ const nm=ME.full_name.split(' '); setTop('�
     planIds.length ? sb.from('quran_plan_wards').select('id,plan_id').in('plan_id',planIds).lt('planned_date',today).eq('is_rest_day',false).then(x=>x, ()=>({data:[]})) : Promise.resolve({data:[]}),
     planIds.length ? sb.from('quran_plan_wards').select('id,plan_id').in('plan_id',planIds).eq('planned_date',today).eq('is_rest_day',false).then(x=>x, ()=>({data:[]})) : Promise.resolve({data:[]}),
     planIds.length ? sb.from('quran_help_requests').select('id,plan_id,category,created_at').in('plan_id',planIds).eq('status','open').order('created_at',{ascending:false}).limit(10).then(x=>x, ()=>({data:[]})) : Promise.resolve({data:[]}),
-    hwSubs.length ? sb.from('homeworks').select('id,title').in('id', hwSubs.map(h=>h.homework_id)) : Promise.resolve({data:[]}),
+    hwSubs.length ? sb.from('homework').select('id,title').in('id', hwSubs.map(h=>h.homework_id)) : Promise.resolve({data:[]}),
   ]);
   // احسب المتأخرات (بعد استبعاد ما تم إنجازه)
   const allLateIds = (lateWardsR.data||[]).map(w=>w.id);
@@ -7424,79 +7450,280 @@ async function qTodayWardForStudent(studentId){
 // المصدر الحقيقي لتقدّم الطالب (quran_plan_wards/quran_ward_progress) بدل
 // الاكتفاء بدرجة قديمة منفصلة (students.mastery) لا علاقة لها بالورد الفعلي =====
 let RATE_WARD=null, WARD_DECISION=null;
+// ═══ نافذة تقييم الحصة الشاملة (المواصفات القسم ٤) ══════════════════════
+// إعادة كتابة كاملة: بدل تقييم مجرّد بلا أثر على الخطة، النافذة الآن:
+//   ١) تجلب الأوراد الفعلية المجدولة لهذا الطالب في يوم الحصة من قاعدة الخطة
+//   ٢) تجعل لكل ورد قرار محدّد (أتقن/جزئي/يحتاج مراجعة/لم يُسمع) يُسجَّل
+//       على الورد الحقيقي بواسطة quran_mark_ward
+//   ٣) تفصل الملاحظة العلنية (للطالب) عن الملاحظة الخاصة (للمعلم فقط)
+//   ٤) تضيف قرار "الإجراء التالي" (اعتماد/إعادة/تخفيف/علاجية/تعديل الخطة)
+//   ٥) توفّر إضافة واجب مرتبط بالحصة بضغطة واحدة
+// كل ذلك في transaction منطقي واحد من منظور المعلم — إن فشلت خطوة يظهر
+// خطأ واضح ولا نُغلق النافذة.
 async function rateSessionModal(sessionId, studentId){
-  let e={};
-  try{ const { data:existing }=await sb.from('session_ratings').select('*').eq('session_id',sessionId).maybeSingle(); e=existing||{}; }catch(ex){ e={}; }
-  RATE_DATA={attendance:e.attendance||null,memorization:e.memorization||null,tajweed:e.tajweed||null,review:e.review||null,interaction:e.interaction||null,behavior:e.behavior||null};
-  RATE_WARD = await qTodayWardForStudent(studentId);
-  WARD_DECISION = null;
-  const seg=(field,label,opts)=>`<div class="rate-row"><span class="rate-label">${label}</span><div class="rate-opts" data-field="${field}">${opts.map(o=>`<button class="rate-btn ${e[field]===o[0]?'on':''}" data-val="${o[0]}" onclick="pickRate(this,'${field}')">${o[1]}</button>`).join('')}</div></div>`;
-  const wardBlock = RATE_WARD
-    ? `<div class="rate-row" style="background:var(--cream);border-radius:10px;padding:10px 12px;margin-bottom:10px">
-        <span class="rate-label">${RATE_WARD.fortIcon} ورد اليوم: ${esc(RATE_WARD.fortName)}</span>
-        <div class="rate-opts" data-field="ward"><button class="rate-btn" data-val="done" onclick="pickWardDecision(this,'done')">${mi('check')} تمّ</button><button class="rate-btn" data-val="part" onclick="pickWardDecision(this,'part')">جزئي</button><button class="rate-btn" data-val="review" onclick="pickWardDecision(this,'review')">يحتاج مراجعة</button></div>
-      </div>`
-    : `<div class="rate-row" style="font-size:12.5px;color:var(--muted)">لا يوجد ورد مجدوَل لهذا الطالب اليوم (لا خطة نشطة، أو يوم راحة).</div>`;
-  $('#modalHost').innerHTML=`<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal enroll-modal">
-    <h3>⭐ تقييم الحصة</h3>
-    ${wardBlock}
-    <p style="color:var(--muted);font-size:13px;margin-bottom:16px">قيّم أداء الطالب في هذه الحصة بضغطات سريعة.</p>
-    ${seg('attendance','الحضور',[['present','✓ حاضر'],['late','متأخر'],['absent','✗ غائب']])}
-    ${seg('memorization','الحفظ',[['excellent','ممتاز'],['good','جيد'],['weak','ضعيف']])}
-    ${seg('tajweed','التجويد',[['excellent','ممتاز'],['good','جيد'],['weak','ضعيف']])}
-    ${seg('review','المراجعة',[['done','تمّت'],['partial','جزئية'],['none','لم تتم']])}
-    ${seg('interaction','التفاعل',[['excellent','ممتاز'],['good','جيد'],['weak','ضعيف']])}
-    ${seg('behavior','السلوك',[['excellent','ممتاز'],['good','جيد'],['weak','ضعيف']])}
-    <div class="field" style="margin-top:12px"><label>ملاحظة للطالب وولي الأمر</label><textarea id="rateNotes" rows="2" placeholder="ملاحظتك حول أداء الطالب...">${e.notes||''}</textarea></div>
-    <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إلغاء</button><button class="btn" id="rateBtn" onclick="saveRating(${sessionId},${studentId})">${mi('save')} حفظ التقييم</button></div>
+  RATE_STATE = { sessionId, studentId, wardDecisions:{}, wardNotes:{}, wards:[], attendance:null, nextAction:'none', addHomework:false };
+  const [sesR, stuR, existR] = await Promise.all([
+    sb.from('sessions').select('id,title,session_date,session_time,duration_min,group_id').eq('id',sessionId).maybeSingle(),
+    studentId ? sb.from('students').select('id,full_name,initials,login_id,parent_id').eq('id',studentId).maybeSingle() : Promise.resolve({data:null}),
+    sb.from('session_ratings').select('*').eq('session_id',sessionId).maybeSingle().then(x=>x, ()=>({data:null})),
+  ]);
+  const session = sesR.data; const student = stuR.data; const e = existR.data || {};
+  RATE_STATE.session = session; RATE_STATE.student = student; RATE_STATE.existing = e;
+  RATE_STATE.attendance = e.attendance || null;
+  RATE_STATE.nextAction = e.next_action || 'none';
+  // جلب أوراد الحصة الفعلية
+  let wards = [];
+  if(student && session && session.session_date){
+    try{
+      const { data:plan } = await sb.from('quran_student_plans').select('id').eq('student_id',student.id).eq('status','active').maybeSingle();
+      if(plan){
+        const { data:wr } = await sb.from('quran_plan_wards').select('id,fortress_code,surah_no,ayah_from,surah_no_to,ayah_to,pages,is_rest_day').eq('plan_id',plan.id).eq('planned_date',session.session_date).eq('is_rest_day',false).order('fortress_code');
+        wards = wr || [];
+        if(wards.length){
+          const { data:forts } = await sb.from('quran_fortresses').select('code,name,icon');
+          const fmap = {}; (forts||[]).forEach(f=>{ fmap[f.code]=f; });
+          const { data:surahs } = await sb.from('quran_surahs').select('surah_no,name_ar');
+          const smap = {}; (surahs||[]).forEach(s=>{ smap[s.surah_no]=s.name_ar; });
+          const progs = await qFetchProgress(wards.map(w=>w.id));
+          const pmap = {}; (progs||[]).forEach(p=>{ pmap[p.ward_id]=p; });
+          wards.forEach(w=>{
+            w._fort = fmap[w.fortress_code] || { name:w.fortress_code, icon:'📖' };
+            w._surah = smap[w.surah_no] || ('سورة '+ar(w.surah_no));
+            w._prog = pmap[w.id] || {};
+            // اقتراح قرار مبدئي من الحالة السابقة
+            if(w._prog.status==='done')  RATE_STATE.wardDecisions[w.id] = 'mastered';
+            else if(w._prog.status==='partial') RATE_STATE.wardDecisions[w.id] = 'partial';
+          });
+        }
+      }
+    }catch(err){ console.warn('rate modal: ward fetch failed', err); }
+  }
+  RATE_STATE.wards = wards;
+  renderRateModal();
+}
+function renderRateModal(){
+  const s = RATE_STATE; const e = s.existing || {};
+  const session = s.session; const student = s.student;
+  const sesDate = session?.session_date ? new Date(session.session_date).toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long'}) : '';
+  const sesTime = session?.session_time ? ' • '+fmt12h((session.session_time||'').slice(0,5)) : '';
+  // ─── الحضور (٤ خيارات) ───
+  const attOpts = [
+    ['present','حاضر','#2E7D5B'],
+    ['late','متأخر','#c9a227'],
+    ['absent_excused','غياب بعذر','#7a7a7a'],
+    ['absent_unexcused','غياب دون عذر','#c92e2e'],
+    // نتوافق مع القيمة القديمة "absent" في السجلات السابقة — لا تختفي
+  ];
+  const attCurrent = s.attendance || (e.attendance==='absent' ? 'absent_unexcused' : (e.attendance||null));
+  const attHtml = `<div class="rate-row"><span class="rate-label">الحضور</span><div class="rate-opts">${attOpts.map(o=>`<button class="rate-btn ${attCurrent===o[0]?'on':''}" style="${attCurrent===o[0]?'background:'+o[2]+';color:#fff;border-color:'+o[2]:''}" onclick="pickAttendance('${o[0]}')">${esc(o[1])}</button>`).join('')}</div></div>`;
+  // ─── الأوراد ───
+  const wardStates = [
+    ['mastered','أتقن','#2E7D5B'],
+    ['partial','جزئي','#c9a227'],
+    ['needs_review','يحتاج مراجعة','#e07a1f'],
+    ['not_recited','لم يُسمع','#8a8a8a'],
+  ];
+  let wardsHtml;
+  if(!s.wards.length){
+    wardsHtml = `<div class="rate-wards-empty">لا أوراد مجدولة لهذا الطالب في يوم الحصة (لا خطة نشطة، أو يوم راحة، أو الحصة بلا تاريخ). التقييم العام أدناه سيُحفظ بلا تأثير على الأوراد.</div>`;
+  } else {
+    wardsHtml = `<div class="rate-wards"><div class="rate-wards-head">قيّم كل ورد من أوراد الحصة (${ar(s.wards.length)}):</div>` +
+      s.wards.map(w=>{
+        const current = s.wardDecisions[w.id];
+        const rangeTxt = (w.surah_no_to && w.surah_no_to!==w.surah_no)
+          ? `${w._surah}:${ar(w.ayah_from)} → أخرى:${ar(w.ayah_to||1)}`
+          : `${w._surah} — ${ar(w.ayah_from)}${w.ayah_to && w.ayah_to!==w.ayah_from?'–'+ar(w.ayah_to):''}`;
+        const statusHint = w._prog.status==='done' ? '<span class="rate-ward-hint good">سجّله الطالب: تمّ</span>' :
+                           w._prog.status==='partial' ? '<span class="rate-ward-hint mid">سجّله الطالب: جزئي</span>' :
+                           w._prog.status==='not_done' ? '<span class="rate-ward-hint bad">سجّله الطالب: لم يُتم</span>' :
+                           '<span class="rate-ward-hint">لم يسجّله بعد</span>';
+        return `<div class="rate-ward-card">
+          <div class="rate-ward-info"><b>${esc(w._fort.icon||'📖')} ${esc(w._fort.name)}</b><span>${esc(rangeTxt)}</span>${statusHint}</div>
+          <div class="rate-ward-opts">${wardStates.map(st=>`<button class="rate-mini ${current===st[0]?'on':''}" style="${current===st[0]?'background:'+st[2]+';color:#fff;border-color:'+st[2]:''}" onclick="pickWardState('${w.id}','${st[0]}')">${esc(st[1])}</button>`).join('')}</div>
+          <input type="text" class="rate-ward-note" placeholder="ملاحظة موضع أو تصحيح (اختياري)" value="${esc(s.wardNotes[w.id]||'')}" oninput="RATE_STATE.wardNotes['${w.id}']=this.value">
+        </div>`;
+      }).join('') +
+    `</div>`;
+  }
+  // ─── الملاحظات ───
+  const notesHtml = `
+    <div class="field" style="margin-top:14px"><label>ملاحظة يراها الطالب وولي الأمر</label><textarea id="rateNotes" rows="2" placeholder="مثال: أداؤك متقن، ركّز على المد الطويل...">${esc(e.notes||'')}</textarea></div>
+    <div class="field"><label>${mi('lock')||'🔒'} ملاحظة خاصة (لك أنت فقط، لا يراها الطالب)</label><textarea id="ratePrivateNotes" rows="2" placeholder="سياق تربوي، ملاحظات لتذكّرها في الحصة القادمة...">${esc(e.teacher_private_note||'')}</textarea></div>
+  `;
+  // ─── الإجراء التالي ───
+  const naOpts = [
+    ['none','لا إجراء إضافي'],
+    ['approve','اعتماد التقدم كما هو'],
+    ['repeat_ward','إعادة الورد لمزيد من الإتقان'],
+    ['lighten_next','تخفيف الورد القادم ٢٥٪'],
+    ['add_remedial','إضافة مراجعة علاجية'],
+    ['open_plan_edit','فتح تعديل الخطة (نافذة الخطة)'],
+  ];
+  const naHtml = `<div class="field"><label>الإجراء التالي بعد التقييم</label><select id="rateNextAction" onchange="RATE_STATE.nextAction=this.value">${naOpts.map(o=>`<option value="${o[0]}" ${s.nextAction===o[0]?'selected':''}>${esc(o[1])}</option>`).join('')}</select></div>`;
+  // ─── واجب مرتبط ───
+  const hwHtml = `<div class="field" style="background:var(--cream);border-radius:10px;padding:10px 12px">
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0"><input type="checkbox" id="rateAddHw" ${s.addHomework?'checked':''} onchange="RATE_STATE.addHomework=this.checked;document.getElementById('rateHwFields').style.display=this.checked?'':'none'"> إضافة واجب مرتبط بهذه الحصة</label>
+    <div id="rateHwFields" style="display:${s.addHomework?'block':'none'};margin-top:8px">
+      <input id="rateHwTitle" placeholder="عنوان الواجب (مثال: مراجعة سورة الملك)" style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px">
+      <input id="rateHwDue" type="date" min="${qTodayStr()}" style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:8px">
+    </div>
+  </div>`;
+  // ─── تقييم الرصيد الكلاسيكي — نُبقيه مطوياً لعرض التوافق مع التقارير القديمة
+  const rubricSeg = (field,label,opts)=>`<div class="rate-row"><span class="rate-label">${label}</span><div class="rate-opts">${opts.map(o=>`<button class="rate-btn ${e[field]===o[0]?'on':''}" data-val="${o[0]}" onclick="pickRate(this,'${field}')">${esc(o[1])}</button>`).join('')}</div></div>`;
+  RATE_DATA = { memorization:e.memorization||null, tajweed:e.tajweed||null, review:e.review||null, interaction:e.interaction||null, behavior:e.behavior||null };
+  const rubricHtml = `<details class="rate-classic"><summary>تقييم عام مختصر (اختياري — للتقارير)</summary>
+    ${rubricSeg('memorization','الحفظ',[['excellent','ممتاز'],['good','جيد'],['weak','ضعيف']])}
+    ${rubricSeg('tajweed','التجويد',[['excellent','ممتاز'],['good','جيد'],['weak','ضعيف']])}
+    ${rubricSeg('review','المراجعة',[['done','تمّت'],['partial','جزئية'],['none','لم تتم']])}
+    ${rubricSeg('interaction','التفاعل',[['excellent','ممتاز'],['good','جيد'],['weak','ضعيف']])}
+    ${rubricSeg('behavior','السلوك',[['excellent','ممتاز'],['good','جيد'],['weak','ضعيف']])}
+  </details>`;
+  // ─── تجميع النافذة ───
+  const header = `<div class="rate-head"><div class="rate-head-ic">⭐</div><div><b>تقييم الحصة</b><small>${student?esc(student.full_name)+' • ':''}${esc(sesDate)}${esc(sesTime)}</small></div></div>`;
+  $('#modalHost').innerHTML = `<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal enroll-modal rate-modal">
+    ${header}
+    ${attHtml}
+    ${wardsHtml}
+    ${notesHtml}
+    ${naHtml}
+    ${hwHtml}
+    ${rubricHtml}
+    <div class="modal-actions" style="position:sticky;bottom:0;background:#fff;padding-top:10px;margin-top:14px;border-top:1px solid var(--line)"><button class="btn ghost" onclick="closeModal()">إلغاء</button><button class="btn" id="rateBtn" onclick="saveRating(${s.sessionId},${s.studentId})">${mi('save')||'✓'} حفظ التقييم</button></div>
   </div></div>`;
 }
-let RATE_DATA={};
+let RATE_STATE = {}, RATE_DATA = {};
+function pickAttendance(v){ RATE_STATE.attendance = v; renderRateModal(); }
+function pickWardState(wardId, v){ RATE_STATE.wardDecisions[wardId] = v; renderRateModal(); }
 function pickRate(btn, field){
   btn.parentElement.querySelectorAll('.rate-btn').forEach(b=>b.classList.remove('on'));
   btn.classList.add('on');
   RATE_DATA[field]=btn.dataset.val;
 }
-function pickWardDecision(btn, val){
-  btn.parentElement.querySelectorAll('.rate-btn').forEach(b=>b.classList.remove('on'));
-  btn.classList.add('on');
-  WARD_DECISION=val;
-}
 async function saveRating(sessionId, studentId){
-  $('#rateBtn').disabled=true; $('#rateBtn').textContent='جارٍ الحفظ...';
-  // حساب نقاط
-  const sc={excellent:3,good:2,weak:1,done:3,partial:2,none:1,present:3,late:2,absent:0};
-  let score=0,cnt=0; Object.values(RATE_DATA).forEach(v=>{ if(v&&sc[v]!=null){score+=sc[v];cnt++;} });
-  const ratingScore=cnt?Math.round(score/(cnt*3)*100):0;
-  const rec={ session_id:sessionId, student_id:studentId, teacher_id:ME.id, ...RATE_DATA, notes:$('#rateNotes').value.trim()||null, rating_score:ratingScore };
-  const { error }=await sb.from('session_ratings').upsert(rec,{onConflict:'session_id'});
-  if(error){ $('#rateBtn').disabled=false; $('#rateBtn').textContent='💾 حفظ التقييم'; alert('تعذّر: '+error.message); return; }
-  // تحديث حالة الحصة + درجة الطالب (المصدر القديم، لسه محفوظ للتوافق)
-  await sb.from('sessions').update({ status:'done' }).eq('id',sessionId);
-  if(RATE_DATA.memorization){ const mv=RATE_DATA.memorization==='excellent'?95:RATE_DATA.memorization==='good'?80:60; await sb.from('students').update({ mastery:mv }).eq('id',studentId); }
-  // 🔴 المصدر الرسمي الفعلي: تحديث ورد اليوم الحقيقي في خطة الطالب — كان تقييم
-  // الحصة هنا مرتبطاً فقط بـ students.mastery المنفصل تماماً عن محرك المنهج
-  // (quran_plan_wards/quran_ward_progress) الذي يبنيه المعلم فعلياً. الآن قرار
-  // المعلم في هذه الشاشة (تمّ/جزئي/يحتاج مراجعة) يُسجَّل مباشرة على الورد الحقيقي.
-  if(RATE_WARD && WARD_DECISION){
-    const wardId = RATE_WARD.ward.id;
-    let wErr;
-    if(WARD_DECISION==='done'){
-      ({ error:wErr } = await qMarkWardRPC(wardId, { p_status:'done', p_teacher_mastery:95, p_teacher_approve:true, p_planned_for_date:qTodayStr(), p_actual_date:qTodayStr() }));
-    } else if(WARD_DECISION==='part'){
-      // status='partial' حالة مستقلة فعليًا الآن، لا 'done' بدرجة أقل — تفريق
-      // حقيقي بين "أتمّه الطالب" و"أنجزه جزئيًا"، لا مجرد رقم إتقان منخفض
-      ({ error:wErr } = await qMarkWardRPC(wardId, { p_status:'partial', p_teacher_mastery:65, p_teacher_note:'إنجاز جزئي أثناء الحصة', p_teacher_approve:true, p_planned_for_date:qTodayStr(), p_actual_date:qTodayStr() }));
-    } else if(WARD_DECISION==='review'){
-      ({ error:wErr } = await qMarkWardRPC(wardId, { p_teacher_note:'يحتاج مراجعة قبل الاعتماد', p_touch_teacher:true }));
-    }
-    if(wErr) console.error('تعذّر تحديث ورد اليوم من شاشة التقييم:', wErr);
+  const btn = $('#rateBtn'); if(btn){ btn.disabled=true; btn.textContent='جارٍ الحفظ...'; }
+  const s = RATE_STATE;
+  const attendance = s.attendance || null;
+  const notesPublic = ($('#rateNotes')?.value||'').trim() || null;
+  const notesPrivate = ($('#ratePrivateNotes')?.value||'').trim() || null;
+  const nextAction = s.nextAction || 'none';
+  // حساب رصيد إجمالي من الأوراد + التقييم العام
+  const sc={excellent:3,good:2,weak:1,done:3,partial:2,none:1,present:3,late:2,absent:0,absent_excused:1,absent_unexcused:0,mastered:3,needs_review:1,not_recited:0};
+  let score=0,cnt=0;
+  Object.values(RATE_DATA).forEach(v=>{ if(v&&sc[v]!=null){score+=sc[v];cnt++;} });
+  Object.values(s.wardDecisions).forEach(v=>{ if(v&&sc[v]!=null){score+=sc[v];cnt++;} });
+  if(attendance && sc[attendance]!=null){ score+=sc[attendance]; cnt++; }
+  const ratingScore = cnt ? Math.round(score/(cnt*3)*100) : 0;
+  // نبني السجل بالحقول الجديدة أولاً، ثم نرجع بلا الحقول الجديدة لو الـ schema لسه قديم
+  const rec = {
+    session_id: sessionId, student_id: studentId, teacher_id: ME.id,
+    attendance,
+    memorization: RATE_DATA.memorization||null, tajweed: RATE_DATA.tajweed||null,
+    review: RATE_DATA.review||null, interaction: RATE_DATA.interaction||null, behavior: RATE_DATA.behavior||null,
+    notes: notesPublic,
+    rating_score: ratingScore,
+    teacher_private_note: notesPrivate,
+    next_action: nextAction!=='none' ? nextAction : null,
+    next_action_data: null,
+  };
+  let saveErr = null;
+  let { error } = await sb.from('session_ratings').upsert(rec,{onConflict:'session_id'});
+  if(error && /column .* does not exist|schema cache/i.test(error.message||'')){
+    // fallback — القاعدة لم تُطبَّق عليها 017 بعد. نُنقذ الحفظ بحقول الإصدار القديم فقط.
+    const fallback = { ...rec }; delete fallback.teacher_private_note; delete fallback.next_action; delete fallback.next_action_data;
+    ({ error } = await sb.from('session_ratings').upsert(fallback,{onConflict:'session_id'}));
+    if(!error) toast('تنبيه: طبّق migration 017 لحفظ الملاحظة الخاصة والإجراء التالي.');
   }
-  // إشعار الطالب وولي الأمر
-  const { data:stu }=await sb.from('students').select('login_id,parent_id,full_name').eq('id',studentId).single();
+  if(error){ if(btn){ btn.disabled=false; btn.textContent='💾 حفظ التقييم'; } alert('تعذّر: '+error.message); return; }
+
+  // ─── تحديث حالة الحصة ───
+  await sb.from('sessions').update({ status:'done' }).eq('id',sessionId);
+  // مصدر إتقان الطالب — نُحدّثه من متوسط قرارات الأوراد (أدقّ من قيمة رصيد واحدة)
+  const decisionVals = Object.values(s.wardDecisions);
+  if(decisionVals.length){
+    const map = { mastered:95, partial:70, needs_review:55, not_recited:40 };
+    const nums = decisionVals.map(v=>map[v]).filter(n=>typeof n==='number');
+    if(nums.length){
+      const avg = Math.round(nums.reduce((a,b)=>a+b,0)/nums.length);
+      await sb.from('students').update({ mastery:avg }).eq('id',studentId);
+    }
+  } else if(RATE_DATA.memorization){
+    const mv=RATE_DATA.memorization==='excellent'?95:RATE_DATA.memorization==='good'?80:60;
+    await sb.from('students').update({ mastery:mv }).eq('id',studentId);
+  }
+
+  // ─── قرارات الأوراد → quran_mark_ward على كل ورد قرّرَ فيه المعلم ───
+  const wardErrs = [];
+  for(const w of s.wards){
+    const d = s.wardDecisions[w.id]; if(!d) continue;
+    const note = (s.wardNotes[w.id]||'').trim();
+    let params = {};
+    if(d==='mastered'){
+      params = { p_status:'done', p_teacher_mastery:95, p_teacher_approve:true, p_actual_date:qTodayStr() };
+    } else if(d==='partial'){
+      params = { p_status:'partial', p_teacher_mastery:70, p_teacher_approve:true, p_actual_date:qTodayStr() };
+    } else if(d==='needs_review'){
+      params = { p_teacher_note: note || 'يحتاج مراجعة قبل الاعتماد', p_touch_teacher:true };
+    } else if(d==='not_recited'){
+      params = { p_teacher_note: note || 'لم يُسمَّع في الحصة', p_touch_teacher:true };
+    }
+    if(note && d!=='needs_review' && d!=='not_recited') params.p_teacher_note = note;
+    const { error:wErr } = await qMarkWardRPC(w.id, params);
+    if(wErr){ wardErrs.push(w._surah+': '+wErr.message); }
+  }
+  if(wardErrs.length) console.warn('rate: بعض الأوراد لم تُسجَّل', wardErrs);
+
+  // ─── الإجراء التالي ───
+  if(nextAction === 'lighten_next'){
+    // نطبّق تخفيف 25٪ على أوراد الحفظ الجديد المتبقية عبر RPC القائمة
+    try{
+      const { data:plan } = await sb.from('quran_student_plans').select('id').eq('student_id',studentId).eq('status','active').maybeSingle();
+      if(plan) await sb.rpc('quran_reduce_ward_load', { p_plan_id:plan.id, p_reduce_pct:25, p_reason:'تخفيف بعد الحصة — قرار تقييم' });
+    }catch(e){ console.warn('lighten_next failed', e); }
+  } else if(nextAction === 'add_remedial'){
+    // نُبقيها كتوصية في السجل فقط (تفاصيل الورد العلاجي تحتاج معاينة قبل التطبيق —
+    // يفتحها المعلم بعد الحفظ من صفحة الخطة). قيمة next_action محفوظة أعلاه.
+  } else if(nextAction === 'open_plan_edit'){
+    // بعد الحفظ سنُوجّه المعلم لصفحة الخطة
+  } else if(nextAction === 'repeat_ward'){
+    // لا فعل تلقائي — إعادة الورد قرار تربوي يحتاج اختيار الورد المعنيّ، النسخة v1
+    // تعتمد على قرار "needs_review" لكل ورد بعينه بدل تكرار جماعي أعمى.
+  }
+
+  // ─── واجب مرتبط ───
+  if(s.addHomework){
+    const title = ($('#rateHwTitle')?.value||'').trim();
+    const due = ($('#rateHwDue')?.value||'').trim();
+    if(title && due){
+      try{
+        await sb.from('homework').insert({
+          title, description: 'واجب من تقييم حصة ' + (s.session?.session_date||qTodayStr()),
+          group_id: s.session?.group_id || null, teacher_id: ME.id, due_date: due
+        });
+      }catch(e){ console.warn('homework insert failed', e); }
+    }
+  }
+
+  // ─── إشعارات ───
+  const { data:stu } = await sb.from('students').select('login_id,parent_id,full_name').eq('id',studentId).maybeSingle();
   if(stu?.login_id) await pushNotif(stu.login_id,'⭐ تقييم حصتك','قيّم معلمك حصتك الأخيرة. اطّلع على تقريرك في «حلقتي».','system',sessionId);
-  if(stu?.parent_id) await pushNotif(stu.parent_id,'⭐ تقييم حصة '+stu.full_name,'أضاف المعلم تقييم الحصة. تابعه في «حلقة الأبناء».','system',sessionId);
-  closeModal(); if(SESSION._activeHalqa){ await navigate('myhalqa'); } toast('✅ تم حفظ التقييم وإرساله');
+  if(stu?.parent_id) await pushNotif(stu.parent_id,'⭐ تقييم حصة '+(stu?.full_name||''),'أضاف المعلم تقييم الحصة. تابعه في «حلقة الأبناء».','system',sessionId);
+
+  closeModal();
+  toast('✅ تم حفظ التقييم' + (wardErrs.length?` (${ar(wardErrs.length)} ورد لم يُسجَّل — راجع الخطة)`:''));
+  if(nextAction === 'open_plan_edit'){
+    try{
+      const { data:plan } = await sb.from('quran_student_plans').select('id').eq('student_id',studentId).eq('status','active').maybeSingle();
+      if(plan && typeof qOpenStudentPlan==='function') qOpenStudentPlan(plan.id);
+    }catch(e){}
+  } else if(nextAction === 'add_remedial'){
+    try{
+      const { data:plan } = await sb.from('quran_student_plans').select('id').eq('student_id',studentId).eq('status','active').maybeSingle();
+      if(plan && typeof qOpenStudentPlan==='function') qOpenStudentPlan(plan.id);
+      toast('افتح «إضافة مراجعة علاجية» من أدوات الخطة الآن');
+    }catch(e){}
+  } else if(SESSION._activeHalqa){
+    await navigate('myhalqa');
+  }
 }
 
 /* ============================================================
