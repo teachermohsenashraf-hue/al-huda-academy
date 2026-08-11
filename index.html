@@ -92,6 +92,9 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 .main{flex:1;margin-inline-start:258px;min-width:0}
 .topbar{background:rgba(245,240,232,0.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);padding:14px 30px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:40}
 .topbar .mtoggle{display:none;background:none;border:none;font-size:24px;cursor:pointer;color:var(--emerald-deep)}
+/* ═══ أيقونات الشريط العلوي (SVG بدل إيموجي) ═══ */
+.topbar-ic{background:none;border:none;padding:8px;cursor:pointer;color:var(--navy-deep);border-radius:10px;transition:.15s;display:inline-flex;align-items:center;justify-content:center}
+.topbar-ic:hover{background:rgba(46,125,91,0.10);color:var(--emerald-deep,#1B4D3E)}
 .topbar .hello h2{font-size:20px;color:var(--navy-deep)}
 .topbar .hello p{font-size:13px;color:var(--muted)}
 .topbar .tools{display:flex;align-items:center;gap:12px}
@@ -450,6 +453,19 @@ details.rate-classic[open] summary{margin-bottom:8px;color:var(--navy-deep)}
 .act-status.act-not_done{background:rgba(231,76,60,0.14);color:#c92e2e}
 .act-status.act-none{background:rgba(0,0,0,0.06);color:var(--muted)}
 .tagline-sm{color:var(--muted);font-size:11.5px;font-weight:600}
+/* ═══ إتاحة المعلم ═══ */
+.avail-slots{display:flex;flex-direction:column;gap:8px}
+.avail-slot{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--cream);border-radius:10px;padding:8px 10px}
+.avail-slot select,.avail-slot input[type=time]{padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;font-family:'Cairo',sans-serif;font-size:12.5px}
+.avail-slot select{min-width:100px}
+.avail-slot span{color:var(--muted);font-size:12px;font-weight:600}
+.avail-slot .icon-act{margin-inline-start:auto;color:#c92e2e}
+.path-chip-list{display:flex;flex-wrap:wrap;gap:8px}
+.path-chip{background:#fff;border:1px solid var(--line);border-radius:20px;padding:8px 14px;font-family:'Cairo',sans-serif;font-weight:600;font-size:12.5px;color:var(--muted);cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:6px}
+.path-chip:hover{border-color:var(--emerald,#2E7D5B)}
+.path-chip input{display:none}
+.path-chip.on{background:var(--emerald,#2E7D5B);color:#fff;border-color:var(--emerald,#2E7D5B)}
+.field .hint{font-size:11px;color:var(--muted);font-weight:normal;margin-inline-start:6px}
 /* فاصل يوم داخل قائمة الرسائل — طراز واتساب: كبسولة مركزية شفافة، خفيفة الظل،
    لا تنافس محتوى الرسالة نفسها بصرياً */
 .chat-day-sep{display:flex;justify-content:center;margin:8px 0 4px;position:relative}
@@ -1604,7 +1620,11 @@ body.has-update-banner{padding-top:52px}
     <div class="main">
       <div class="topbar">
         <div style="display:flex;align-items:center;gap:12px"><button class="mtoggle" onclick="side_toggleMobile()">☰</button><button class="side-toggle" onclick="side_toggleCollapse()" title="طي/فرد الشريط الجانبي" aria-label="طي الشريط الجانبي">☰</button><div class="hello"><h2 id="topTitle">أكاديمية الهدى</h2><p id="topSub"></p></div></div>
-        <div class="tools"><div class="msg-shortcut" onclick="navigate('chat')" title="الرسائل" style="position:relative;cursor:pointer;display:inline-flex;width:auto;height:auto"><span style="font-size:21px">💬</span><span id="chatBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:#E74C3C;color:#fff;border-radius:50%;width:18px;height:18px;font-size:11px;font-weight:700;align-items:center;justify-content:center"></span></div><div class="bell-wrap" onclick="showNotifications()" style="position:relative;cursor:pointer"><span style="font-size:22px">🔔</span><span id="notifBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:#E74C3C;color:#fff;border-radius:50%;width:18px;height:18px;font-size:11px;font-weight:700;align-items:center;justify-content:center"></span></div><div class="uava" id="topAva">ه</div></div>
+        <div class="tools">
+          <button class="topbar-ic" onclick="navigate('chat')" title="الرسائل" aria-label="الرسائل" style="position:relative">${'<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>'}<span id="chatBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:#E74C3C;color:#fff;border-radius:50%;width:18px;height:18px;font-size:11px;font-weight:700;align-items:center;justify-content:center"></span></button>
+          <button class="topbar-ic" onclick="showNotifications()" title="التنبيهات" aria-label="التنبيهات" style="position:relative">${'<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>'}<span id="notifBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:#E74C3C;color:#fff;border-radius:50%;width:18px;height:18px;font-size:11px;font-weight:700;align-items:center;justify-content:center"></span></button>
+          <div class="uava" id="topAva">ه</div>
+        </div>
       </div>
       <div class="content"><div id="pageHost" class="page active"></div></div>
     </div>
@@ -4386,37 +4406,156 @@ PAGES.parent_fees=async function(){ const kids=await myChildren(); if(!kids.leng
    ============================================================ */
 async function myGroups(){ const { data, error }=await sb.from('groups').select('*').eq('teacher_id',ME.id); if(error) console.error('myGroups failed:', error); return data||[]; }
 // ===== إتاحة المعلم وسيرته الذاتية =====
-PAGES.teacher_availability=async function(){ setTop('إتاحتي وسيرتي','تحكّم في استقبال الطلاب الجدد وعرّف بنفسك');
+PAGES.teacher_availability=async function(){ setTop('إتاحتي وسيرتي','هذه المعلومات تظهر للطلاب الجدد عند اختيار معلمهم');
   const { data:me, error }=await sb.from('profiles').select('*').eq('id',ME.id).single();
   if(error) return pageHead('إتاحتي وسيرتي','')+loadErrorCard(error);
-  const avail=me?.is_available!==false;
-  return pageHead('إتاحتي وسيرتي الذاتية','هذه المعلومات تظهر للطلاب عند اختيار معلمهم')+
-  `<div class="card" style="margin-bottom:18px">
+  const avail = me?.is_available!==false;
+  // عدد الطلاب النشطين الحالي (لمقارنته بالسعة القصوى)
+  let currentStudents = 0;
+  try{
+    const { data:gs } = await sb.from('groups').select('id').eq('teacher_id',ME.id);
+    const gids = (gs||[]).map(g=>g.id);
+    if(gids.length){
+      const { count } = await sb.from('students').select('id',{count:'exact',head:true}).in('group_id',gids).eq('enrollment_status','active');
+      currentStudents = count || 0;
+    }
+  }catch(e){}
+  const slots = Array.isArray(me?.weekly_slots) ? me.weekly_slots : [];
+  const paths = Array.isArray(me?.paths) ? me.paths : [];
+  const timezoneCur = me?.timezone || 'Asia/Riyadh';
+  const maxCur = me?.max_students != null ? me.max_students : '';
+  const ageCur = me?.age_range || '';
+  window._AVAIL_SLOTS = slots.slice(); // للتعديل اللحظي
+  const slotsHtml = _renderAvailSlots(slots);
+  const pathsChips = QURAN_PATHS.map(p=>`<label class="path-chip ${paths.includes(p.id)?'on':''}"><input type="checkbox" value="${p.id}" ${paths.includes(p.id)?'checked':''} onchange="_toggleAvailPath('${p.id}',this.checked)"><span>${esc(p.name)}</span></label>`).join('');
+  const tzOptions = [
+    ['Asia/Riyadh','السعودية / الكويت / قطر / اليمن (GMT+3)'],
+    ['Africa/Cairo','مصر / السودان / فلسطين / لبنان / الأردن (GMT+2/3)'],
+    ['Africa/Casablanca','المغرب / موريتانيا (GMT+1)'],
+    ['Africa/Algiers','الجزائر / تونس / ليبيا (GMT+1)'],
+    ['Asia/Dubai','الإمارات / عُمان (GMT+4)'],
+    ['Asia/Baghdad','العراق (GMT+3)'],
+    ['Europe/Istanbul','تركيا (GMT+3)'],
+    ['UTC','التوقيت العالمي (UTC)'],
+  ];
+  return pageHead('إتاحتي وسيرتي الذاتية','لوحة ما يظهر للطلاب — سيرتك، جدولك، وسعتك') +
+  `<div class="card" style="margin-bottom:16px">
     <div class="avail-row">
-      <div><h3 style="color:var(--navy-deep);margin-bottom:4px">استقبال طلاب جدد</h3><p style="color:var(--muted);font-size:13.5px">عند التفعيل، تظهر للطلاب الجدد ضمن المعلمين المتاحين.</p></div>
+      <div><h3 style="color:var(--navy-deep);margin-bottom:4px">استقبال طلاب جدد</h3><p style="color:var(--muted);font-size:13.5px">عند التفعيل، تظهر للطلاب ضمن المعلمين المتاحين — يمكنك إيقاف الاستقبال في أي وقت.</p></div>
       <label class="switch-toggle"><input type="checkbox" id="availToggle" ${avail?'checked':''} onchange="toggleAvail(this.checked)"><span class="st-slider"></span></label>
     </div>
-    <div class="avail-status ${avail?'on':'off'}" id="availStatus">${avail?'🟢 متاح حالياً لاستقبال الطلاب':'⚫ غير متاح حالياً'}</div>
+    <div class="avail-status ${avail?'on':'off'}" id="availStatus">${avail?'متاح حالياً لاستقبال الطلاب':'غير متاح حالياً'}</div>
   </div>
-  <div class="card" style="margin-bottom:18px">
-    <div class="ch"><h3>صورتي الشخصية</h3></div>
+
+  <div class="card" style="margin-bottom:16px">
+    <div class="ch"><h3>الصورة الشخصية</h3></div>
     <div style="display:flex;align-items:center;gap:16px">
-      <div id="teacherAvatarPreview" style="width:84px;height:84px;border-radius:50%;overflow:hidden;background:var(--cream);flex-shrink:0;display:flex;align-items:center;justify-content:center;border:2px solid var(--line)">${me?.avatar_url?`<img src="${esc(me.avatar_url)}" style="width:100%;height:100%;object-fit:cover">`:`<span style="font-size:26px;color:var(--muted)">${esc((me?.full_name||'؟').slice(0,2))}</span>`}</div>
+      <div id="teacherAvatarPreview" style="width:84px;height:84px;border-radius:50%;overflow:hidden;background:var(--cream);flex-shrink:0;display:flex;align-items:center;justify-content:center;border:2px solid var(--line)">${me?.avatar_url?`<img src="${esc(me.avatar_url)}" style="width:100%;height:100%;object-fit:cover">`:`<span style="font-size:26px;color:var(--muted);font-family:Amiri">${esc((me?.full_name||'؟').slice(0,2))}</span>`}</div>
       <div>
         <input type="file" id="teacherAvatarFile" accept="image/*" style="display:none" onchange="uploadTeacherAvatar(this.files[0])">
         <button class="btn-sm" onclick="document.getElementById('teacherAvatarFile').click()">${mi('pencil')} ${me?.avatar_url?'تغيير الصورة':'رفع صورة'}</button>
-        <p style="color:var(--muted);font-size:12px;margin-top:6px">تظهر هذه الصورة للطلاب وأولياء الأمور عند اختيار معلمهم.</p>
+        <p style="color:var(--muted);font-size:12px;margin-top:6px">لو ما رفعتش صورة، ستظهر أول حرفين من اسمك على خلفية موحّدة مع باقي المنصة.</p>
       </div>
     </div>
   </div>
-  <div class="card">
-    <div class="ch"><h3>سيرتي الذاتية</h3></div>
-    <div class="field"><label>التخصّص</label><input id="bioSpec" value="${me?.specialty||''}" placeholder="مثال: إجازة في حفص عن عاصم"></div>
-    <div class="field"><label>سنوات الخبرة</label><input id="bioExp" type="number" value="${me?.experience_years||''}" placeholder="٥"></div>
-    <div class="field"><label>نبذة تعريفية (تظهر للطلاب)</label><textarea id="bioText" rows="4" placeholder="عرّف بنفسك ومنهجك في التحفيظ...">${me?.bio||''}</textarea></div>
-    <button class="btn" id="bioBtn" onclick="saveBio()">حفظ السيرة</button>
+
+  <div class="card" style="margin-bottom:16px">
+    <div class="ch"><h3>السعة والفئة والمنطقة الزمنية</h3><span class="tagline-sm">${ar(currentStudents)} طالب نشط حالياً</span></div>
+    <div class="qform">
+      <div class="qrow">
+        <div><label>السعة القصوى للطلاب <span class="hint">(٠ = بلا حد)</span></label><input id="availMax" type="number" min="0" value="${maxCur}" placeholder="مثال: ٢٠"></div>
+        <div><label>الفئة العمرية / المستوى</label><input id="availAge" value="${esc(ageCur)}" placeholder="مثال: ٦-١٢، أو بالغين"></div>
+      </div>
+      <div class="qrow">
+        <div><label>المنطقة الزمنية</label>
+          <select id="availTz">${tzOptions.map(([v,l])=>`<option value="${esc(v)}" ${v===timezoneCur?'selected':''}>${esc(l)}</option>`).join('')}</select>
+        </div>
+        <div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <div class="ch"><h3>المسارات التي تدرّسها</h3><span class="tagline-sm">اختر ما يظهر للطلاب</span></div>
+    <div class="path-chip-list">${pathsChips}</div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <div class="ch"><h3>الإتاحة الأسبوعية</h3><span class="tagline-sm">فترات مواعيد الحصص المتاحة عندك</span></div>
+    <div id="availSlotsHost">${slotsHtml}</div>
+    <button class="btn-sm ghost" onclick="_addAvailSlot()" style="margin-top:8px">+ إضافة فترة</button>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <div class="ch"><h3>السيرة الذاتية</h3></div>
+    <div class="field"><label>التخصّص</label><input id="bioSpec" value="${esc(me?.specialty||'')}" placeholder="مثال: إجازة في حفص عن عاصم"></div>
+    <div class="field"><label>سنوات الخبرة</label><input id="bioExp" type="number" min="0" value="${me?.experience_years||''}" placeholder="٥"></div>
+    <div class="field"><label>نبذة تعريفية (تظهر للطلاب)</label><textarea id="bioText" rows="4" placeholder="عرّف بنفسك ومنهجك في التحفيظ...">${esc(me?.bio||'')}</textarea></div>
+  </div>
+
+  <div style="position:sticky;bottom:0;background:linear-gradient(to top,var(--cream) 60%,transparent);padding:14px 0;text-align:end;z-index:5">
+    <button class="btn" id="bioBtn" onclick="saveTeacherAvailability()">${mi('save')} حفظ كل التعديلات</button>
   </div>`;
 };
+function _renderAvailSlots(slots){
+  if(!slots.length) return `<div style="text-align:center;padding:20px;color:var(--muted);background:var(--cream);border-radius:10px;font-size:13px">لم تُضِف فترات إتاحة بعد. الطلاب لن يروا مواعيد محددة عند اختيارك.</div>`;
+  return `<div class="avail-slots">${slots.map((s,i)=>`<div class="avail-slot">
+    <select onchange="_editAvailSlot(${i},'day',this.value)">${QURAN_DAY_NAMES.map((d,dIdx)=>`<option value="${dIdx+1}" ${(+s.day===dIdx+1)?'selected':''}>${esc(d)}</option>`).join('')}</select>
+    <span>من</span>
+    <input type="time" value="${esc(s.from||'')}" onchange="_editAvailSlot(${i},'from',this.value)">
+    <span>إلى</span>
+    <input type="time" value="${esc(s.to||'')}" onchange="_editAvailSlot(${i},'to',this.value)">
+    <button class="icon-act" title="حذف" onclick="_removeAvailSlot(${i})">${mi('x')||'✕'}</button>
+  </div>`).join('')}</div>`;
+}
+function _addAvailSlot(){
+  window._AVAIL_SLOTS = window._AVAIL_SLOTS || [];
+  window._AVAIL_SLOTS.push({ day:1, from:'16:00', to:'18:00' });
+  document.getElementById('availSlotsHost').innerHTML = _renderAvailSlots(window._AVAIL_SLOTS);
+}
+function _editAvailSlot(i, field, value){
+  if(!window._AVAIL_SLOTS || !window._AVAIL_SLOTS[i]) return;
+  window._AVAIL_SLOTS[i][field] = field==='day' ? +value : value;
+}
+function _removeAvailSlot(i){
+  if(!window._AVAIL_SLOTS) return;
+  window._AVAIL_SLOTS.splice(i,1);
+  document.getElementById('availSlotsHost').innerHTML = _renderAvailSlots(window._AVAIL_SLOTS);
+}
+function _toggleAvailPath(pathId, on){
+  window._AVAIL_PATHS = window._AVAIL_PATHS || [];
+  if(on && !window._AVAIL_PATHS.includes(pathId)) window._AVAIL_PATHS.push(pathId);
+  else if(!on) window._AVAIL_PATHS = window._AVAIL_PATHS.filter(p=>p!==pathId);
+  // نُحدّث الحواف البصرية
+  document.querySelectorAll('.path-chip input[type=checkbox]').forEach(chk=>{ chk.closest('.path-chip').classList.toggle('on', chk.checked); });
+}
+async function saveTeacherAvailability(){
+  const btn = document.getElementById('bioBtn'); if(btn){ btn.disabled=true; btn.textContent='جارٍ الحفظ...'; }
+  // نلمّ اختيار المسارات لحظياً من DOM (في حال المستخدم غير الاختيار قبل تنفيذ toggle)
+  const chosenPaths = Array.from(document.querySelectorAll('.path-chip input[type=checkbox]:checked')).map(c=>c.value);
+  // تنظيف الفترات: نُبقي فقط الكاملة (day+from+to)
+  const cleanSlots = (window._AVAIL_SLOTS||[]).filter(s => s.day && s.from && s.to && s.from < s.to);
+  const patch = {
+    specialty: (document.getElementById('bioSpec').value||'').trim() || null,
+    experience_years: +document.getElementById('bioExp').value || null,
+    bio: (document.getElementById('bioText').value||'').trim() || null,
+    paths: chosenPaths,
+    weekly_slots: cleanSlots,
+    timezone: document.getElementById('availTz').value || null,
+    max_students: document.getElementById('availMax').value ? +document.getElementById('availMax').value : null,
+    age_range: (document.getElementById('availAge').value||'').trim() || null,
+  };
+  let { error } = await sb.from('profiles').update(patch).eq('id',ME.id);
+  if(error && /column .* does not exist|schema cache/i.test(error.message||'')){
+    // fallback — بيئة قبل تطبيق 019: نحفظ الحقول القديمة فقط
+    const fb = { specialty: patch.specialty, experience_years: patch.experience_years, bio: patch.bio, paths: patch.paths };
+    ({ error } = await sb.from('profiles').update(fb).eq('id',ME.id));
+    if(!error) toast('تنبيه: طبّق migration 019 لحفظ الجدول الأسبوعي والسعة');
+  }
+  if(btn){ btn.disabled=false; btn.textContent=(mi('save')||'✓')+' حفظ كل التعديلات'; }
+  if(error){ alert('تعذّر: '+error.message); return; }
+  toast('✅ اتحفظت إتاحتك وسيرتك');
+}
 // حصص الشهر — دورة المعلم الخاصة (مش الشهر الميلادي)، بتاريخ كل حصة اكتملت فعلاً
 // لأي طالب، مدتها، ومسارها، وتقييمها — مع تصفّح الدورات القديمة.
 // نفس الصفحة مستخدَمة من المعلم لنفسه (تفاصيل مختصرة) ومن المدير/المشرف/التنفيذي
