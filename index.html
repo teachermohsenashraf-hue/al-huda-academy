@@ -11830,7 +11830,7 @@ PAGES.student_qlate = async function(){
       </div>
       <div class="rc-hero-acts">
         ${recovTotal ? (recovDone<recovTotal ? `<button class="btn" onclick="_recovOpenNext()">${mi('book')} افتح ورد الاستعادة التالي</button>` : `<span class="rc-done-tag">${mi('check')||'✓'} أنهيت خطة هذا الأسبوع</span>`) : `<button class="btn" onclick="_recovAskTeacher()">${mi('chat')} طلب ترتيب الخطة من معلمي</button>`}
-        <button class="btn ghost" onclick="_recovAskTeacher()">راسل معلمي</button>
+        <button class="btn ghost" onclick="qWorkspaceAskHelpTeacher()">${mi('chat')} راسل معلمي</button>
       </div>
     </div>
   </div>`;
