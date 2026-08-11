@@ -518,6 +518,34 @@ details.rate-classic[open] summary{margin-bottom:8px;color:var(--navy-deep)}
 .teacher-profile .tp-tag{display:inline-block;background:#fff;border:1px solid var(--line);padding:2px 8px;border-radius:8px;color:var(--navy-deep);font-size:11px;margin-inline-start:4px}
 .teacher-profile .tp-changelink{background:none;border:none;color:var(--muted);font-family:'Cairo',sans-serif;font-size:12px;text-decoration:underline;cursor:pointer;padding:0;display:block;margin:8px auto 0}
 .teacher-profile .tp-changelink:hover{color:var(--navy-deep)}
+/* ═══ Skeleton loading placeholders (بدل نص "جارٍ التحميل") ═══ */
+@keyframes skel-pulse{0%,100%{opacity:0.7}50%{opacity:0.35}}
+.page-skel{display:flex;flex-direction:column;gap:14px;padding:4px 2px}
+.skel-line{height:14px;border-radius:8px;background:linear-gradient(90deg,var(--cream),var(--cream-2,#eae4d4),var(--cream));background-size:200% 100%;animation:skel-pulse 1.4s ease-in-out infinite;width:100%}
+.skel-line.skel-title{height:22px;width:45%}
+.skel-line.skel-sub{height:12px;width:70%}
+.skel-card{height:120px;border-radius:14px;background:linear-gradient(90deg,var(--cream),var(--cream-2,#eae4d4),var(--cream));background-size:200% 100%;animation:skel-pulse 1.4s ease-in-out infinite}
+.skel-row{display:flex;gap:12px;align-items:center;padding:10px 0}
+.skel-row .skel-line{flex:1}
+/* ═══ التنبيهات — تصميم مركّز ═══ */
+.notif-modal{max-width:520px}
+.notif-modal .ch{margin-bottom:6px}
+.notif-modal .ni-badge{background:#c92e2e;color:#fff;font-size:11px;font-weight:700;padding:2px 9px;border-radius:9px;margin-inline-start:8px}
+.notif-list{max-height:min(70vh,560px);overflow-y:auto;margin:0 -6px;padding:0 6px}
+.notif-item{display:flex;gap:12px;padding:12px 4px;border-bottom:1px solid var(--line);align-items:flex-start}
+.notif-item:last-child{border-bottom:none}
+.notif-item.read{opacity:0.65}
+.notif-item .ni-icon{width:36px;height:36px;border-radius:10px;background:rgba(46,125,91,0.10);color:var(--emerald-deep,#1B4D3E);display:grid;place-items:center;flex:none}
+.notif-item .ni-icon svg{width:18px;height:18px}
+.notif-item .ni-body{flex:1;min-width:0;line-height:1.6}
+.notif-item .ni-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px}
+.notif-item .ni-head b{color:var(--navy-deep);font-size:13.5px}
+.notif-item .ni-kind{background:rgba(0,0,0,0.05);color:var(--muted);font-size:10.5px;font-weight:700;padding:1px 8px;border-radius:8px;flex:none}
+.notif-item .ni-text{display:block;color:var(--muted);font-size:12.5px;line-height:1.7;margin-bottom:4px;white-space:pre-wrap}
+.notif-item .ni-time{display:block;color:var(--muted);font-size:11px;margin-bottom:6px}
+.notif-item .ni-acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.notif-item .ni-acts .btn-sm{padding:5px 10px;font-size:11.5px;border-radius:8px}
+.notif-item .ni-hide{padding:5px 8px!important;min-width:30px}
 /* فاصل يوم داخل قائمة الرسائل — طراز واتساب: كبسولة مركزية شفافة، خفيفة الظل،
    لا تنافس محتوى الرسالة نفسها بصرياً */
 .chat-day-sep{display:flex;justify-content:center;margin:8px 0 4px;position:relative}
@@ -3355,7 +3383,13 @@ async function navigate(page){
   // كاملاً، كانت القائمة تفضل ظاهرة فوق المحتوى لثواني لو الصفحة بطيئة، فيبدو
   // وكأن الضغطة ما استجابتش
   $('#sidebar').classList.remove('open');
-  const host=$('#pageHost'); host.innerHTML='<div class="card" style="text-align:center;color:var(--muted)">جارٍ التحميل…</div>';
+  const host=$('#pageHost'); host.innerHTML=`<div class="page-skel">
+    <div class="skel-line skel-title"></div>
+    <div class="skel-line skel-sub" style="width:60%"></div>
+    <div class="skel-card"></div>
+    <div class="skel-card" style="height:100px"></div>
+    <div class="skel-row"><div class="skel-line" style="width:70%"></div><div class="skel-line" style="width:40%"></div></div>
+  </div>`;
   const fn=PAGES[ME.role+'_'+page];
   // لا نضع مهلة زمنية تقطع الصفحة برسالة خطأ — الصفحات نفسها مسؤولة عن جلب بياناتها
   // بمرونة (بدون استعلامات ثقيلة تعلّق)، ولو استعلام فردي فشل تتعامل معه داخلياً
@@ -3947,14 +3981,58 @@ function updateChatBadge(count){
   badge.style.display=count>0?'flex':'none';
 }
 async function showNotifications(){
-  const notifs=await loadNotifications();
-  const icons={payment:'💰',enrollment:'🎓',message:'💬',system:'📢'};
-  $('#modalHost').innerHTML=`<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="ch"><h3>${mi('bell')} الإشعارات</h3><button class="btn-sm ghost" onclick="markAllRead()">تحديد الكل مقروء</button></div>
-    ${notifs.length?notifs.map(n=>`<div class="notif-item ${n.is_read?'read':''}"><div class="ni-icon">${icons[n.type]||'📢'}</div><div class="ni-body"><b>${esc(n.title)}</b><span>${esc(n.body||'')}</span><small>${new Date(n.created_at).toLocaleDateString('ar-EG',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</small></div></div>`).join('')
-    :'<div style="text-align:center;padding:30px;color:var(--muted)">لا إشعارات جديدة 🎉</div>'}
+  const notifs = await loadNotifications();
+  // خريطة نوع الإشعار → صفحة الوجهة حسب الدور (نستخدم NOTIF_PAGE_MAP القائمة)
+  const pageMap = (typeof NOTIF_PAGE_MAP!=='undefined' && NOTIF_PAGE_MAP[ME.role]) || {};
+  const NOTIF_LABEL = { payment:'دفع', enrollment:'التحاق', message:'رسالة', system:'إشعار', homework:'واجب', session:'حصة', help_request:'طلب مساعدة', reminder:'تذكير' };
+  const rowFor = n => {
+    const ico = mi('bell')||'';
+    const dateStr = new Date(n.created_at).toLocaleDateString('ar-EG',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+    const target = pageMap[n.type];
+    const actLabel = { chat:'افتح الرسائل', qmonitor:'افتح المتابعة', newstudents:'الطلاب الجدد', renewal:'تجديد الاشتراك', dash:'اذهب للوحتي', groups:'افتح الحلقات', children:'أبنائي', fees:'الرسوم', leads:'التسجيلات' }[target] || (target?'اذهب':null);
+    const actionBtn = actLabel ? `<button class="btn-sm" onclick="_notifOpen(${n.id},'${target}')">${esc(actLabel)}</button>` : '';
+    const kindTag = NOTIF_LABEL[n.type] || n.type;
+    return `<div class="notif-item ${n.is_read?'read':''}" data-nid="${n.id}">
+      <div class="ni-icon">${ico}</div>
+      <div class="ni-body">
+        <div class="ni-head"><b>${esc(n.title)}</b><span class="ni-kind">${esc(kindTag)}</span></div>
+        <span class="ni-text">${esc(n.body||'')}</span>
+        <small class="ni-time">${esc(dateStr)}</small>
+        <div class="ni-acts">
+          ${actionBtn}
+          ${n.is_read?'':`<button class="btn-sm ghost" onclick="_notifMarkRead(${n.id})">تحديد كمقروء</button>`}
+          <button class="btn-sm ghost ni-hide" onclick="_notifHide(${n.id})" title="إخفاء" aria-label="إخفاء">${mi('x')||'✕'}</button>
+        </div>
+      </div>
+    </div>`;
+  };
+  const unreadCount = notifs.filter(n=>!n.is_read).length;
+  $('#modalHost').innerHTML = `<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal notif-modal">
+    <div class="ch">
+      <h3>${mi('bell')||''} التنبيهات${unreadCount?` <span class="ni-badge">${ar(unreadCount)} جديد</span>`:''}</h3>
+      ${unreadCount?`<button class="btn-sm ghost" onclick="markAllRead()">تحديد الكل مقروء</button>`:''}
+    </div>
+    <div class="notif-list">
+      ${notifs.length ? notifs.map(rowFor).join('') : `<div style="text-align:center;padding:36px;color:var(--muted)"><div style="font-size:36px;margin-bottom:8px">🕊️</div><b style="color:var(--navy-deep);font-size:14px">لا تنبيهات جديدة</b><div style="font-size:12.5px;margin-top:6px">ستظهر هنا أي رسالة أو تحديث يستحق انتباهك.</div></div>`}
+    </div>
   </div></div>`;
-  await sb.from('notifications').update({is_read:true}).eq('user_id',ME.id).eq('is_read',false);
-  NOTIF_COUNT=0; updateNotifBadge();
+}
+async function _notifMarkRead(nid){
+  const el = document.querySelector(`.notif-item[data-nid="${nid}"]`);
+  if(el){ el.classList.add('read'); const btn = el.querySelector('.ni-acts .btn-sm.ghost:not(.ni-hide)'); if(btn) btn.remove(); }
+  try{ await sb.from('notifications').update({is_read:true}).eq('id',nid); }catch(e){}
+  if(typeof NOTIF_COUNT!=='undefined'){ NOTIF_COUNT = Math.max(0, NOTIF_COUNT-1); if(typeof updateNotifBadge==='function') updateNotifBadge(); }
+}
+async function _notifHide(nid){
+  const el = document.querySelector(`.notif-item[data-nid="${nid}"]`);
+  if(el) el.style.display = 'none';
+  try{ await sb.from('notifications').delete().eq('id',nid).eq('user_id',ME.id); }catch(e){}
+}
+async function _notifOpen(nid, page){
+  // نُعلّم كمقروء ونذهب للصفحة — إجراء واحد مباشر كما تطلب المواصفات
+  try{ await sb.from('notifications').update({is_read:true}).eq('id',nid); }catch(e){}
+  closeModal();
+  if(page) navigate(page);
 }
 async function markAllRead(){ await sb.from('notifications').update({is_read:true}).eq('user_id',ME.id); NOTIF_COUNT=0; updateNotifBadge(); closeModal(); }
 async function pushNotif(userId,title,body,type,refId){
@@ -7308,11 +7386,37 @@ async function renderHalqaPage(g, student, isTeacher){
       </div>
     </div>`;
   } else {
-    heroHtml = `<div class="card" style="margin-bottom:16px;text-align:center;padding:24px">
-      <div style="font-size:34px;margin-bottom:8px">📅</div>
-      <b style="color:var(--navy-deep);font-size:15px">${isTeacher?'لا حصص قادمة مجدولة':'لا حصص قادمة الآن'}</b>
-      <div style="color:var(--muted);font-size:13px;margin-top:6px">${isTeacher?'اضغط «إضافة حصة» أسفل لجدولة القادم.':'سيجدول معلمك حصتك القادمة قريباً — سيصلك تنبيه فور جدولتها.'}</div>
-      ${g.meet_time?`<div style="margin-top:10px;font-size:12.5px;color:var(--muted)"><b>موعد الحلقة الثابت:</b> ${esc(g.meet_time)}</div>`:''}
+    // حالة «لا حصة قادمة» — لا نُبقيها فارغة (spec: نعرض الموعد الثابت + آخر حصة
+    // + آخر ملاحظة معلم للطالب + زر مراسلة، حتى يبقى للصفحة معنى بلا حصة قادمة)
+    const lastPast = past[0] || null;
+    let lastNoteText = '';
+    if(!isTeacher && student){
+      try{
+        const { data:lastN } = await sb.from('notes')
+          .select('body,created_at,author_name')
+          .eq('student_id',student.id)
+          .order('created_at',{ascending:false}).limit(1).maybeSingle();
+        if(lastN?.body) lastNoteText = String(lastN.body).slice(0,180);
+      }catch(e){}
+    }
+    const lastSesLine = lastPast
+      ? `آخر حصة: ${esc(new Date(lastPast.session_date).toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long'}))}`
+      : 'لا حصص سابقة بعد';
+    heroHtml = `<div class="card" style="margin-bottom:16px;padding:20px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap">
+        <div style="flex:1;min-width:220px">
+          <div style="font-size:12.5px;color:var(--muted);font-weight:600;margin-bottom:6px">${isTeacher?'لا حصص قادمة مجدولة':'لا حصص قادمة الآن'}</div>
+          <b style="color:var(--navy-deep);font-size:15px;display:block">${g.meet_time?'موعد حلقتك الثابت: '+esc(g.meet_time):(isTeacher?'أضف حصة لجدولة القادم':'انتظر تحديد الموعد من معلمك')}</b>
+          <div style="color:var(--muted);font-size:12.5px;margin-top:6px">${esc(lastSesLine)}${!isTeacher?' • سيصلك تنبيه فور جدولة حصة جديدة':''}</div>
+        </div>
+        ${!isTeacher && g.teacher ? `<div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn" onclick="startChatWith('${g.teacher.id}','${escJs(g.teacher.full_name)}')">${mi('chat')} راسل معلمي</button>
+        </div>` : ''}
+      </div>
+      ${lastNoteText ? `<div style="margin-top:12px;background:rgba(212,180,68,0.08);border-inline-start:3px solid var(--gold,#c9a227);border-radius:8px;padding:10px 14px;font-size:13px;line-height:1.8;color:var(--navy-deep)">
+        <div style="font-size:11.5px;color:var(--muted);font-weight:700;margin-bottom:4px">آخر ملاحظة من معلمك</div>
+        ${esc(lastNoteText)}
+      </div>` : ''}
     </div>`;
   }
 
@@ -7343,7 +7447,12 @@ async function renderHalqaPage(g, student, isTeacher){
   <div class="halqa-pane" data-pane="chat" data-loaded="0" style="display:none"></div>
   <div class="halqa-pane" data-pane="reports" data-loaded="0" style="display:none"></div>`;
 }
-const HALQA_SPINNER = '<div style="text-align:center;padding:40px;color:var(--muted)"><div style="width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--emerald);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px"></div>جارٍ التحميل…</div>';
+const HALQA_SPINNER = `<div class="page-skel" style="padding:14px 4px">
+  <div class="skel-line skel-title" style="width:40%"></div>
+  <div class="skel-card" style="height:120px"></div>
+  <div class="skel-row"><div class="skel-line" style="width:60%"></div><div class="skel-line" style="width:35%"></div></div>
+  <div class="skel-row"><div class="skel-line" style="width:80%"></div><div class="skel-line" style="width:50%"></div></div>
+</div>`;
 async function halqaTab(t){
   document.querySelectorAll('.ht-tab').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
   document.querySelectorAll('.halqa-pane').forEach(p=>p.style.display=p.dataset.pane===t?'':'none');
@@ -8461,21 +8570,42 @@ PAGES.student_roadmap=async function(){
 async function sRoadmapLite(plan, student){
   const today = qTodayStr();
   const in7   = new Date(Date.now()+6*86400000).toISOString().slice(0,10);
-  // كل الاستعلامات بالتوازي — كلها خفيفة بحد أدنى من الأعمدة والصفوف
-  const [dashR, wardsR, sysR, stationR, lastHifzR, sysFortsR, surahsR] = await Promise.all([
-    sb.rpc('quran_plan_dashboard', { p_plan_id: plan.id }).then(x=>x, ()=>({data:null,error:1})),
-    sb.from('quran_plan_wards')
-      .select('id,fortress_code,surah_no,ayah_from,ayah_to,pages,amount_label,planned_date,is_rest_day')
-      .eq('plan_id',plan.id).gte('planned_date',today).lte('planned_date',in7)
-      .order('planned_date').order('fortress_code'),
-    sb.from('quran_systems').select('name,path_key').eq('id',plan.system_id).maybeSingle(),
-    plan.current_station_id ? sb.from('quran_stations').select('*').eq('id',plan.current_station_id).maybeSingle() : Promise.resolve({data:null}),
-    sb.from('quran_plan_wards').select('surah_no,surah_name,ayah_to,amount_label,planned_date')
-      .eq('plan_id',plan.id).eq('fortress_code','new_hifz').not('surah_no','is',null)
-      .lte('planned_date',today).order('planned_date',{ascending:false}).limit(1).maybeSingle().then(x=>x, ()=>({data:null})),
-    fortressesFor(plan.system_id),
-    sb.from('quran_surahs').select('surah_no,name_ar').order('surah_no'),
-  ]);
+  // ─── تخزين مؤقت (TTL 5 دقائق) لكل هذه الاستعلامات — يجعل زيارة مساري
+  // الثانية فورية بدل ٧ استعلامات، وينمحي تلقائياً عند إنجاز ورد أو تعديل الخطة.
+  const cacheKey = 'srlite_' + plan.id + '_' + today;
+  const CACHE_TTL_MS = 5 * 60 * 1000;
+  let dashR, wardsR, sysR, stationR, lastHifzR, sysFortsR, surahsR;
+  let usedCache = false;
+  try{
+    const cached = sessionStorage.getItem(cacheKey);
+    if(cached){
+      const parsed = JSON.parse(cached);
+      if(parsed && (Date.now() - parsed._at) < CACHE_TTL_MS){
+        [dashR, wardsR, sysR, stationR, lastHifzR, sysFortsR, surahsR] = parsed.data;
+        usedCache = true;
+      }
+    }
+  }catch(e){}
+  if(!usedCache){
+    [dashR, wardsR, sysR, stationR, lastHifzR, sysFortsR, surahsR] = await Promise.all([
+      sb.rpc('quran_plan_dashboard', { p_plan_id: plan.id }).then(x=>x, ()=>({data:null,error:1})),
+      sb.from('quran_plan_wards')
+        .select('id,fortress_code,surah_no,ayah_from,ayah_to,pages,amount_label,planned_date,is_rest_day')
+        .eq('plan_id',plan.id).gte('planned_date',today).lte('planned_date',in7)
+        .order('planned_date').order('fortress_code'),
+      sb.from('quran_systems').select('name,path_key').eq('id',plan.system_id).maybeSingle(),
+      plan.current_station_id ? sb.from('quran_stations').select('*').eq('id',plan.current_station_id).maybeSingle() : Promise.resolve({data:null}),
+      sb.from('quran_plan_wards').select('surah_no,surah_name,ayah_to,amount_label,planned_date')
+        .eq('plan_id',plan.id).eq('fortress_code','new_hifz').not('surah_no','is',null)
+        .lte('planned_date',today).order('planned_date',{ascending:false}).limit(1).maybeSingle().then(x=>x, ()=>({data:null})),
+      fortressesFor(plan.system_id),
+      sb.from('quran_surahs').select('surah_no,name_ar').order('surah_no'),
+    ]);
+    // نُخزّن النتائج للجلسة (لا localStorage — لأن الأوراد قد تتغيّر عبر أجهزة)
+    try{
+      sessionStorage.setItem(cacheKey, JSON.stringify({ _at: Date.now(), data: [dashR, wardsR, sysR, stationR, lastHifzR, sysFortsR, surahsR] }));
+    }catch(e){}
+  }
   const dash = (dashR && dashR.data && !dashR.data.error) ? dashR.data : null;
   const wards = wardsR.data || [];
   const sys = sysR?.data; const station = stationR?.data;
@@ -8596,6 +8726,16 @@ async function sRoadmapLite(plan, student){
   SESSION._srLite = { planId: plan.id, weekEnd: in7, sysName: sys?.name || '', stationName: stationLabel };
 
   return heroHtml + accumCard + weekCard + detailsCard;
+}
+// إبطال ذاكرة "خطة مساري" — يُستدعى بعد إنجاز ورد أو أي تعديل خطة
+function _srInvalidateRoadmapCache(planId){
+  try{
+    const prefix = 'srlite_' + planId + '_';
+    for(let i = sessionStorage.length - 1; i >= 0; i--){
+      const k = sessionStorage.key(i);
+      if(k && k.startsWith(prefix)) sessionStorage.removeItem(k);
+    }
+  }catch(e){}
 }
 // تحميل أسبوع إضافي عند الطلب — لا نُعيد رسم الصفحة، فقط نلحق أيام جديدة
 async function _sRoadmapLoadMore(planId){
@@ -11977,6 +12117,11 @@ async function qMarkWard(wardId, status, plannedDate, notDoneReason){
     return;
   }
   toast(status==='done' ? (isEarly?'🚀 تم الإنجاز مبكراً — بارك الله فيك!':'✓ تم تسجيل الإنجاز') : 'تم تسجيل التخطي');
+  // إبطال ذاكرة ملخص "خطة مساري" حتى تُظهر النسبة والحالة الجديدة عند فتح الصفحة
+  try{
+    const ctx = SESSION._qPlanCtx || SESSION._srLite;
+    if(ctx?.planId && typeof _srInvalidateRoadmapCache==='function') _srInvalidateRoadmapCache(ctx.planId);
+  }catch(e){}
   if(!card) return;
   card.style.opacity='1';
   // بطاقات ورد اليوم/المتأخرات (data-ward + خريطة الحصون مخزّنة): إعادة رسم فورية
