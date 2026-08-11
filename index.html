@@ -392,6 +392,11 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 .grpcard .gc-badge.urgent{background:rgba(231,76,60,0.12);color:#c92e2e}
 .grpcard .gc-badge.warn{background:rgba(201,162,39,0.18);color:#8a6f18}
 .grpcard>.btn-sm{margin-inline-end:14px;flex:none;padding:8px 14px;font-size:12.5px;border-radius:8px}
+/* ═══ المتابعة اليومية — فئات حالة الطالب ═══ */
+.qmon-sec{margin-bottom:18px}
+.qmon-secHead{padding:8px 12px;margin-bottom:8px;background:#fff;border-radius:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.qmon-secHead b{font-size:14px}
+.qmon-secHead span{color:var(--muted);font-size:12px}
 /* فاصل يوم داخل قائمة الرسائل — طراز واتساب: كبسولة مركزية شفافة، خفيفة الظل،
    لا تنافس محتوى الرسالة نفسها بصرياً */
 .chat-day-sep{display:flex;justify-content:center;margin:8px 0 4px;position:relative}
@@ -11534,20 +11539,53 @@ PAGES.teacher_qmonitor = async function(){
   // "يحتاج إنشاء خطة")، لا وسط شاشة المتابعة اليومية بعلامة "!" غامضة
   const activeStudents = students.filter(s=>planMap[s.id]);
   if(!activeStudents.length) return pageHead('متابعة يومية', esc(dateLabel))+`<div class="qnoplan"><div class="nei">📋</div><h3>لا طلاب بخطط نشطة</h3><p>أنشئ خططاً من «خطط طلابي» أولاً.</p></div>`;
-  const rows = activeStudents.map(s=>{
+  // ─── تصنيف كل طالب إلى فئة حالة اليوم (فئات المواصفات) ───
+  // "يحتاج تدخلاً الآن" = عنده متأخرات كبيرة (≥5) أو طلب مساعدة مفتوح
+  // "متأخر" = عنده أوراد متأخرة لكن أقل من 5
+  // "منتظم" = عنده ورد اليوم ولم ينجزه بعد لكن لا متأخرات
+  // "مكتمل اليوم" = أنجز كل ورد اليوم
+  // "لا خطة" = مستبعد أصلاً هنا (الفلتر السابق)
+  const openHelpByPlan = {};
+  if(planIds.length){
+    try{
+      const { data:helps } = await sb.from('quran_help_requests').select('plan_id').in('plan_id',planIds).eq('status','open');
+      (helps||[]).forEach(h=>{ openHelpByPlan[h.plan_id]=(openHelpByPlan[h.plan_id]||0)+1; });
+    }catch(e){}
+  }
+  const classify = (s) => {
+    const p = planMap[s.id];
+    const t = todayMap[s.id]||{total:0,done:0};
+    const lc = lateMap[s.id]||0;
+    const hasHelp = (openHelpByPlan[p.id]||0) > 0;
+    if(hasHelp || lc >= 5) return 'urgent';
+    if(lc > 0) return 'late';
+    if(t.total>0 && t.done>=t.total) return 'done';
+    return 'regular';
+  };
+  const CAT = {
+    urgent:  { label:'يحتاج تدخلاً الآن', color:'#c92e2e', desc:'متأخرات كبيرة أو طلب مساعدة مفتوح' },
+    late:    { label:'متأخر',              color:'#c9a227', desc:'أوراد متأخرة يمكن استدراكها' },
+    regular: { label:'منتظم',              color:'#2E7D5B', desc:'ورد اليوم في الانتظار' },
+    done:    { label:'مكتمل اليوم',        color:'#1B4D3E', desc:'أنجز كل ورد اليوم' },
+  };
+  const buckets = { urgent:[], late:[], regular:[], done:[] };
+  activeStudents.forEach(s => { buckets[classify(s)].push(s); });
+
+  const renderRow = (s) => {
     const p = planMap[s.id];
     const chatBtn = s.login_id?`<button class="icon-act" title="محادثة ${esc(s.full_name)}" onclick="event.stopPropagation();startChatWith('${s.login_id}','${escJs(s.full_name)}')">${mi('chat')}</button>`:'';
     const t = todayMap[s.id]||{total:0,done:0};
     const lc = lateMap[s.id]||0;
-    const pct = t.total ? Math.round(t.done/t.total*100) : 0;
+    const pctv = t.total ? Math.round(t.done/t.total*100) : 0;
+    const hasHelp = (openHelpByPlan[p.id]||0) > 0;
     const lateTag = lc ? `<span style="background:rgba(231,76,60,0.12);color:var(--rose);font-size:11px;padding:2px 7px;border-radius:8px;font-weight:700">${ar(lc)} متأخر</span>` : '';
+    const helpTag = hasHelp ? `<span style="background:rgba(52,152,219,0.14);color:#2c6a9c;font-size:11px;padding:2px 7px;border-radius:8px;font-weight:700">طلب مساعدة</span>` : '';
     const byFort = byFortMap[p.id]||{};
     const doneNames = Object.keys(byFort).filter(n=>byFort[n]);
     const missNames = Object.keys(byFort).filter(n=>!byFort[n]);
     const breakdown = Object.keys(byFort).length
       ? `<div style="font-size:11.5px;line-height:1.7;margin-top:2px">${doneNames.length?`<span style="color:var(--emerald)">✓ ${doneNames.map(esc).join('، ')}</span>`:''}${doneNames.length&&missNames.length?' · ':''}${missNames.length?`<span style="color:var(--muted)">لم يُنجز: ${missNames.map(esc).join('، ')}</span>`:''}</div>`
       : '';
-    // إجراءات سريعة — بلا تنقّل لصفحة تانية لكل حاجة صغيرة
     const quickActs = `<div class="row-actions" onclick="event.stopPropagation()">
       <button class="icon-act" title="ورد اليوم" onclick="qOpenStudentPlan('${esc(p.id)}')">${mi('book')}</button>
       <button class="icon-act" title="إضافة ملاحظة" onclick="openNote(${s.id},'${escJs(s.full_name)}')">${mi('pencil')}</button>
@@ -11557,13 +11595,22 @@ PAGES.teacher_qmonitor = async function(){
     </div>`;
     return `<div class="qstu-row" data-search="${esc(s.full_name)}" onclick="qOpenStudentPlan('${esc(p.id)}')">
       <div class="qstu-ava">${esc(s.full_name.charAt(0))}</div>
-      <div class="qstu-info"><b>${esc(s.full_name)}</b><small>أنجز ${ar(t.done)} من ${ar(t.total)} ورد اليوم ${lateTag}</small>${breakdown}</div>
+      <div class="qstu-info"><b>${esc(s.full_name)}</b><small>أنجز ${ar(t.done)} من ${ar(t.total)} ورد اليوم ${lateTag}${helpTag}</small>${breakdown}</div>
       ${chatBtn}${quickActs}
-      <div class="qstu-stat"><b style="color:${pct>=80?'var(--emerald)':pct>=40?'var(--gold)':'var(--rose)'}">${ar(pct)}٪</b></div>
+      <div class="qstu-stat"><b style="color:${pctv>=80?'var(--emerald)':pctv>=40?'var(--gold)':'var(--rose)'}">${ar(pctv)}٪</b></div>
     </div>`;
+  };
+
+  const bucketOrder = ['urgent','late','regular','done'];
+  const sectionsHtml = bucketOrder.map(k=>{
+    const list = buckets[k];
+    if(!list.length) return '';
+    const c = CAT[k];
+    return `<div class="qmon-sec"><div class="qmon-secHead" style="border-inline-start:3px solid ${c.color}"><b style="color:${c.color}">${esc(c.label)}</b><span>${ar(list.length)} طالب • ${esc(c.desc)}</span></div>${list.map(renderRow).join('')}</div>`;
   }).join('');
+
   const searchBox = activeStudents.length>4?`<div class="field" style="max-width:360px;margin-bottom:12px"><input id="qmonitorSearch" placeholder="🔍 دوّر على طالب..." oninput="filterTeacherHalqat(this.value,'qmonitorList')"></div>`:'';
-  return pageHead('متابعة يومية', esc(dateLabel)) + searchBox + `<div id="qmonitorList">${rows}</div>`;
+  return pageHead('متابعة يومية', esc(dateLabel)) + searchBox + `<div id="qmonitorList">${sectionsHtml||'<div class="card" style="text-align:center;padding:24px;color:var(--muted)">لا طلاب في أي فئة الآن.</div>'}</div>`;
 };
 async function qSendReminder(studentId, studentName, loginId){
   if(!loginId){ toast('لا يوجد حساب دخول لهذا الطالب لإرسال تذكير له'); return; }
