@@ -499,6 +499,25 @@ details.rate-classic[open] summary{margin-bottom:8px;color:var(--navy-deep)}
 .sr-stat-not_done,.sr-stat-late{background:rgba(231,76,60,0.12);color:#c92e2e}
 .sr-stat-pending{background:rgba(0,0,0,0.06);color:var(--muted)}
 .sr-details{margin-bottom:14px}
+/* ═══ صفحة "معلمي" — بطاقة معلم مهنية ═══ */
+.teacher-profile{padding:24px}
+.teacher-profile .tp-head{display:flex;align-items:center;gap:16px;margin-bottom:16px}
+.teacher-profile .tp-avatar{width:84px;height:84px;border-radius:50%;overflow:hidden;background:linear-gradient(135deg,var(--cream),var(--cream-2,#eae4d4));flex:none;display:flex;align-items:center;justify-content:center;border:2px solid rgba(46,125,91,0.15)}
+.teacher-profile .tp-info{flex:1;min-width:0}
+.teacher-profile .tp-name{font-family:'Amiri',serif;font-size:22px;color:var(--navy-deep);margin:0 0 8px;line-height:1.3}
+.teacher-profile .tp-chips{display:flex;flex-wrap:wrap;gap:6px}
+.teacher-profile .tp-chip{background:rgba(46,125,91,0.10);color:var(--emerald-deep,#1B4D3E);font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:9px}
+.teacher-profile .tp-chip.subtle{background:rgba(0,0,0,0.05);color:var(--muted);font-weight:600}
+.teacher-profile .tp-bio{background:var(--cream);border-radius:10px;padding:12px 14px;color:var(--navy-deep);font-size:13.5px;line-height:1.9;margin-bottom:14px}
+.teacher-profile .tp-meet{background:rgba(212,180,68,0.10);border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.teacher-profile .tp-meet b{color:var(--navy-deep);font-size:13.5px}
+.teacher-profile .tp-mlabel{color:var(--muted);font-size:11.5px;font-weight:600}
+.teacher-profile .tp-note{background:rgba(52,152,219,0.08);color:#2c6a9c;border-radius:10px;padding:10px 14px;font-size:12.5px;line-height:1.7;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.teacher-profile .tp-actions{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.teacher-profile .tp-more{padding:10px 14px;background:var(--cream);border-radius:10px;font-size:12px;color:var(--muted);margin-bottom:14px}
+.teacher-profile .tp-tag{display:inline-block;background:#fff;border:1px solid var(--line);padding:2px 8px;border-radius:8px;color:var(--navy-deep);font-size:11px;margin-inline-start:4px}
+.teacher-profile .tp-changelink{background:none;border:none;color:var(--muted);font-family:'Cairo',sans-serif;font-size:12px;text-decoration:underline;cursor:pointer;padding:0;display:block;margin:8px auto 0}
+.teacher-profile .tp-changelink:hover{color:var(--navy-deep)}
 /* فاصل يوم داخل قائمة الرسائل — طراز واتساب: كبسولة مركزية شفافة، خفيفة الظل،
    لا تنافس محتوى الرسالة نفسها بصرياً */
 .chat-day-sep{display:flex;justify-content:center;margin:8px 0 4px;position:relative}
@@ -4981,19 +5000,81 @@ function enrollGateMsg(status){
   return `<div class="card" style="text-align:center;padding:40px"><div class="empty-ic">${mi(m[0])}</div><h3 style="color:var(--navy-deep);margin-bottom:8px">${m[1]}</h3><p style="color:var(--muted);font-size:14px;line-height:1.8">${m[2]}</p>${homeBtn}</div>`;
 }
 async function alreadyChosenMsg(s){
-  const { data:t }=await sb.from('profiles').select('id,full_name,specialty').eq('id',s.chosen_teacher_id).single();
-  const hasHalqa=!!s.group_id;
-  return pageHead('معلمي','معلمك الحالي')+`<div class="card" style="text-align:center;padding:36px">
-    <div class="empty-ic">${mi('teacher')}</div>
-    <h3 style="color:var(--navy-deep);margin-bottom:6px">معلمك: ${t?t.full_name:'—'}</h3>
-    ${t&&t.specialty?`<p style="color:var(--muted)">${t.specialty}</p>`:''}
-    <p style="color:var(--muted);font-size:14px;margin-top:10px;margin-bottom:18px">${hasHalqa?'حلقتك الخاصة جاهزة. تابعها من «حلقتي».':'سيتواصل معك لتنسيق مواعيد الحلقة وإنشائها.'}</p>
-    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-      ${t?`<button class="btn" onclick="startChatWith('${t.id}','${escJs(t.full_name)}')">${mi('chat')} محادثة معلمي</button>`:''}
-      ${hasHalqa?`<button class="btn gold" onclick="navigate('myhalqa')">${mi('mosque')} حلقتي</button>`:''}
+  // بطاقة معلم مهنية كاملة بدل بطاقة رمزية بسيطة (spec: القسم ٦ من مواصفات
+  // تجربة الطالب — الاسم، صورة/هوية، التخصص، المسار الذي يدرسه لي، الحلقة،
+  // زر رئيسي «راسل معلمي»، ثانوي «عرض حلقتي»، ورابط محترم «طلب تغيير المعلم»)
+  const { data:t } = await sb.from('profiles')
+    .select('id,full_name,specialty,bio,experience_years,avatar_url,paths,timezone,age_range,weekly_slots')
+    .eq('id',s.chosen_teacher_id).maybeSingle();
+  if(!t) return pageHead('معلمي','')+`<div class="card"><p style="color:var(--muted);text-align:center;padding:20px">تعذّر جلب بيانات معلمك — راسل الإدارة.</p></div>`;
+  const hasHalqa = !!s.group_id;
+  let group = null;
+  if(hasHalqa){ const { data:g } = await sb.from('groups').select('id,name,meet_time').eq('id',s.group_id).maybeSingle(); group = g; }
+  const pathObj = QURAN_PATHS.find(p=>p.id===s.quran_path);
+  const teacherPaths = Array.isArray(t.paths) ? t.paths.map(pid=>{ const p=QURAN_PATHS.find(x=>x.id===pid); return p?p.name:null; }).filter(Boolean) : [];
+  const initials = (t.full_name||'؟').trim().split(/\s+/).slice(0,2).map(x=>x[0]||'').join('') || (t.full_name||'؟').slice(0,2);
+  const avatar = t.avatar_url
+    ? `<img src="${esc(t.avatar_url)}" alt="" style="width:100%;height:100%;object-fit:cover">`
+    : `<span style="font-family:Amiri;font-size:32px;color:var(--emerald-deep,#1B4D3E)">${esc(initials)}</span>`;
+  const meetLine = group?.meet_time ? `<div class="tp-meet"><span class="tp-mlabel">مواعيد الحلقة الثابتة</span><b>${esc(group.meet_time)}</b></div>` : '';
+  const pathLine = pathObj ? `<span class="tp-chip">${esc(pathObj.icon||'📖')} ${esc(pathObj.name)}</span>` : '';
+  const specLine = t.specialty ? `<span class="tp-chip subtle">${esc(t.specialty)}</span>` : '';
+  const expLine  = t.experience_years ? `<span class="tp-chip subtle">${ar(t.experience_years)} سنة خبرة</span>` : '';
+  const otherPaths = teacherPaths.filter(p => p !== pathObj?.name);
+  return pageHead('معلمي','معلمك الذي يرافقك في رحلة الحفظ') +
+  `<div class="card teacher-profile">
+    <div class="tp-head">
+      <div class="tp-avatar">${avatar}</div>
+      <div class="tp-info">
+        <h2 class="tp-name">${esc(t.full_name)}</h2>
+        <div class="tp-chips">${pathLine}${specLine}${expLine}</div>
+      </div>
     </div>
-    <p style="color:var(--muted);font-size:12px;margin-top:16px">لتغيير معلمك، تواصل مع معلمك الحالي أو الإدارة.</p>
+    ${t.bio ? `<div class="tp-bio">${esc(t.bio)}</div>` : ''}
+    ${meetLine}
+    ${hasHalqa ? '' : `<div class="tp-note">${mi('info')||''} سيتواصل معك معلمك قريباً لتنسيق مواعيد الحلقة وإنشائها.</div>`}
+    <div class="tp-actions">
+      <button class="btn" onclick="startChatWith('${t.id}','${escJs(t.full_name)}')">${mi('chat')} راسل معلمي</button>
+      ${hasHalqa ? `<button class="btn ghost" onclick="navigate('myhalqa')">${mi('mosque')} عرض حلقتي</button>` : ''}
+    </div>
+    ${otherPaths.length ? `<div class="tp-more"><span class="tp-mlabel">مسارات أخرى يدرّسها</span> ${otherPaths.map(p=>`<span class="tp-tag">${esc(p)}</span>`).join(' ')}</div>` : ''}
+    <button class="tp-changelink" onclick="_studentRequestTeacherChange('${t.id}','${escJs(t.full_name)}')">طلب تغيير المعلم</button>
   </div>`;
+}
+// طلب تغيير المعلم — لا يُغيّره مباشرة، فقط يُرسل طلباً للإدارة عبر إشعار
+// (بدل ما الطالب يحس إن الأمر «تلقائي» أو «مباشر» بلا مراجعة)
+async function _studentRequestTeacherChange(currentTeacherId, currentTeacherName){
+  $('#modalHost').innerHTML = `<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <h3>طلب تغيير المعلم</h3>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:12px;line-height:1.8">هذا طلب يصل للإدارة لمراجعته — لن يتغيّر معلمك تلقائياً. الإدارة قد تتواصل معك أولاً لفهم السبب قبل أي قرار.</p>
+    <div class="field"><label>سبب الطلب <span class="req">*</span></label><textarea id="tchgReason" rows="3" placeholder="اكتب باحترام السبب الذي يجعلك تفكر في تغيير المعلم..."></textarea></div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeModal()">تراجع</button>
+      <button class="btn" id="tchgBtn" onclick="_submitTeacherChangeRequest('${currentTeacherId}','${escJs(currentTeacherName)}')">إرسال الطلب</button>
+    </div>
+  </div></div>`;
+}
+async function _submitTeacherChangeRequest(currentTeacherId, currentTeacherName){
+  const reason = ($('#tchgReason')?.value||'').trim();
+  if(!reason){ toast('اكتب السبب أولاً'); return; }
+  const btn = $('#tchgBtn'); if(btn){ btn.disabled=true; btn.textContent='جارٍ الإرسال...'; }
+  try{
+    // ابحث عن أدمن/تنفيذي/مشرف لإرسال الطلب — لا نُنشئ جدول طلبات جديد لمثل هذه
+    // العملية النادرة، بل نُبلّغ الإدارة عبر آلية الإشعارات الحالية.
+    const { data:admins } = await sb.from('profiles').select('id,role').in('role',['admin','executive','supervisor']);
+    if(!admins || !admins.length){
+      toast('تعذّر الوصول للإدارة الآن — راسل معلمك مباشرة');
+      if(btn){ btn.disabled=false; btn.textContent='إرسال الطلب'; }
+      return;
+    }
+    const title = 'طلب تغيير معلم من ' + (ME.full_name || 'طالب');
+    const body  = 'المعلم الحالي: ' + currentTeacherName + '\nالسبب: ' + reason.slice(0,600);
+    for(const a of admins){
+      try{ await pushNotif(a.id, title, body, 'system', null); }catch(e){}
+    }
+    closeModal();
+    toast('✅ وصل طلبك للإدارة — ستتواصل معك قريباً');
+  }catch(e){ toast('حدث خطأ'); if(btn){ btn.disabled=false; btn.textContent='إرسال الطلب'; } }
 }
 // نقل طالب لمعلم آخر (صلاحية المعلم الحالي أو المشرف/الإدارة فقط)
 async function transferStudentModal(studentId, studentName){
