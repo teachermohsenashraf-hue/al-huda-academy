@@ -8659,7 +8659,7 @@ async function sRoadmapLite(plan, student){
   const in7   = new Date(Date.now()+6*86400000).toISOString().slice(0,10);
   // ─── تخزين مؤقت (TTL 5 دقائق) لكل هذه الاستعلامات — يجعل زيارة مساري
   // الثانية فورية بدل ٧ استعلامات، وينمحي تلقائياً عند إنجاز ورد أو تعديل الخطة.
-  const cacheKey = 'srlite_' + plan.id + '_' + today;
+  const cacheKey = 'srlite_v2_' + plan.id + '_' + today;
   const CACHE_TTL_MS = 5 * 60 * 1000;
   let dashR, wardsR, sysR, stationR, lastHifzR, sysFortsR, surahsR;
   let usedCache = false;
@@ -8765,6 +8765,16 @@ async function sRoadmapLite(plan, student){
   const wardsByDate = {};
   wards.forEach(w=>{ (wardsByDate[w.planned_date] = wardsByDate[w.planned_date] || []).push(w); });
   const weekDatesSorted = Object.keys(wardsByDate).sort();
+  // ─── دفاع: لو النافذة (٧ أيام) طلعت فاضية، شوف لو فيه أوراد قادمة أبعد وأخبِر الطالب ───
+  let farAheadNextDate = null;
+  if(!weekDatesSorted.length){
+    try{
+      const { data: peek } = await sb.from('quran_plan_wards')
+        .select('planned_date').eq('plan_id',plan.id).eq('is_rest_day',false)
+        .gte('planned_date', today).order('planned_date',{ascending:true}).limit(1);
+      if(peek && peek[0]) farAheadNextDate = peek[0].planned_date;
+    }catch(e){}
+  }
   const weekBody = weekDatesSorted.length ? weekDatesSorted.map(dt => {
     const dayWards = wardsByDate[dt];
     if(dayWards.every(w=>w.is_rest_day)){
@@ -8791,7 +8801,9 @@ async function sRoadmapLite(plan, student){
       </div>`;
     }).join('');
     return `<div class="sr-day ${dt===today?'sr-today':''}"><div class="sr-day-h"><b>${esc(dayLabel(dt))}</b><span>${ar(dayWards.filter(w=>!w.is_rest_day).length)} ورد</span></div>${cards}</div>`;
-  }).join('') : `<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">لا أوراد في الأيام السبعة القادمة — قد تكون كلها أيام راحة أو الخطة انتهت.</div>`;
+  }).join('') : (farAheadNextDate
+      ? `<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">لا أوراد في الأيام السبعة القادمة — أقرب ورد قادم في <b style="color:var(--navy-deep)">${esc(new Date(farAheadNextDate).toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long'}))}</b>. اضغط «عرض أسبوع آخر» للانتقال إليه.</div>`
+      : `<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">لا أوراد في الأيام السبعة القادمة — قد تكون كلها أيام راحة أو الخطة انتهت.</div>`);
 
   const weekCard = `<div class="card sr-week">
     <div class="ch"><h3>${mi('calendar')} خطة هذا الأسبوع</h3><span class="tagline-sm">${ar(weekDatesSorted.length)} يوم قادم</span></div>
