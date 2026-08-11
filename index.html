@@ -546,6 +546,55 @@ details.rate-classic[open] summary{margin-bottom:8px;color:var(--navy-deep)}
 .notif-item .ni-acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
 .notif-item .ni-acts .btn-sm{padding:5px 10px;font-size:11.5px;border-radius:8px}
 .notif-item .ni-hide{padding:5px 8px!important;min-width:30px}
+/* ═══ ورد اليوم كمساحة تركيز ═══ */
+.qw-head{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 16px;margin-bottom:12px;min-height:110px;max-height:150px}
+.qw-head-top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px}
+.qw-title b{color:var(--navy-deep);font-family:'Amiri',serif;font-size:20px;display:block;line-height:1.2}
+.qw-title span{color:var(--muted);font-size:12px;display:block;margin-top:2px}
+.qw-counts{display:flex;gap:8px;flex-wrap:wrap}
+.qw-count{background:var(--cream);color:var(--muted);font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:9px;display:inline-flex;align-items:center;gap:5px}
+.qw-count b{font-weight:800;color:var(--navy-deep)}
+.qw-count-done{background:rgba(46,125,91,0.10);color:#1B4D3E}.qw-count-done b{color:#1B4D3E}
+.qw-count-rem{background:rgba(201,162,39,0.15);color:#8a6f18}.qw-count-rem b{color:#8a6f18}
+.qw-count-rev{background:rgba(231,76,60,0.10);color:#c92e2e}.qw-count-rev b{color:#c92e2e}
+.qw-prog{background:var(--cream);height:6px;border-radius:5px;overflow:hidden;margin:6px 0}
+.qw-prog i{display:block;height:100%;background:linear-gradient(90deg,var(--emerald,#2E7D5B),var(--gold,#c9a227));border-radius:5px;transition:width .4s ease}
+.qw-summary{color:var(--muted);font-size:12px;text-align:center}
+/* بانر التراكم القابل للطي */
+.qw-backlog{background:rgba(212,180,68,0.06);border:1px solid rgba(212,180,68,0.20);border-radius:12px;margin-bottom:12px;overflow:hidden}
+.qw-backlog summary{padding:10px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px;color:var(--emerald-dark,#1B4D3E);font-weight:600;list-style:none}
+.qw-backlog summary::-webkit-details-marker{display:none}
+.qw-backlog[open] summary{border-bottom:1px solid rgba(212,180,68,0.20)}
+.qw-backlog-body{padding:12px 14px}
+.qw-backlog-note{color:var(--muted);font-size:12.5px;line-height:1.7;margin-bottom:10px}
+.qw-backlog-acts{display:flex;gap:8px;flex-wrap:wrap}
+/* شريط الأوراد */
+.qw-strip{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 6px;margin-bottom:12px;scrollbar-width:thin;-webkit-overflow-scrolling:touch}
+.qw-strip::-webkit-scrollbar{height:6px}.qw-strip::-webkit-scrollbar-thumb{background:var(--line);border-radius:6px}
+.qw-tab{flex:1 1 140px;min-width:140px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;cursor:pointer;transition:.15s;display:flex;flex-direction:column;gap:5px;text-align:start;font-family:'Cairo',sans-serif}
+.qw-tab:hover{border-color:rgba(46,125,91,0.3);transform:translateY(-1px)}
+.qw-tab.on{border-color:var(--emerald,#2E7D5B);background:rgba(46,125,91,0.05);box-shadow:0 3px 10px rgba(46,125,91,0.10)}
+.qw-tab-num{color:var(--muted);font-size:11.5px;font-weight:700}
+.qw-tab-dot{display:inline-block;width:8px;height:8px;border-radius:50%;vertical-align:middle}
+.qw-tab-name{color:var(--navy-deep);font-size:13.5px;font-weight:700;line-height:1.3}
+.qw-tab-stat{font-size:11px;font-weight:700;padding:2px 8px;border-radius:8px;background:rgba(0,0,0,0.06);color:var(--muted);align-self:flex-start}
+.qw-tab-done .qw-tab-stat{background:rgba(46,125,91,0.14);color:#1B4D3E}
+.qw-tab-part .qw-tab-stat{background:rgba(201,162,39,0.18);color:#8a6f18}
+.qw-tab-not .qw-tab-stat{background:rgba(231,76,60,0.14);color:#c92e2e}
+.qw-tab-now .qw-tab-stat{background:var(--gold,#c9a227);color:#fff}
+.qw-tab-pending .qw-tab-stat{background:rgba(0,0,0,0.05);color:var(--muted)}
+.qw-tab-done{opacity:0.75}
+.qw-focus{margin-bottom:16px}
+.qw-celebrate{background:#fff;border:1px solid rgba(46,125,91,0.20);border-radius:14px;padding:32px 20px;text-align:center}
+.qw-celebrate-ic{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--emerald-dark,#1B4D3E),var(--emerald,#2E7D5B));color:#fff;display:grid;place-items:center;margin:0 auto 12px}
+.qw-celebrate-ic svg{width:28px;height:28px}
+.qw-celebrate h3{font-family:'Amiri',serif;color:var(--navy-deep);margin-bottom:6px}
+.qw-celebrate p{color:var(--muted);font-size:13.5px;margin-bottom:14px}
+@media(max-width:720px){
+  .qw-head{padding:10px 12px}
+  .qw-title b{font-size:17px}
+  .qw-tab{flex:0 0 auto;min-width:130px}
+}
 /* فاصل يوم داخل قائمة الرسائل — طراز واتساب: كبسولة مركزية شفافة، خفيفة الظل،
    لا تنافس محتوى الرسالة نفسها بصرياً */
 .chat-day-sep{display:flex;justify-content:center;margin:8px 0 4px;position:relative}
@@ -11473,42 +11522,157 @@ PAGES.student_qtoday = async function(){
     }
   }
   SESSION._qWardMap = {}; todayWards.forEach(w=>{ SESSION._qWardMap[w.id]=w; });
-  SESSION._qProgMap = progMap; // يتيح لـ qMarkWard تحديث البطاقة فورياً من الذاكرة بدل استعلام إضافي بطيء
-  const total = todayWards.length;
-  const done = todayWards.filter(w=>{ const p=progMap[w.id]; return p&&p.status==='done'; }).length;
+  SESSION._qProgMap = progMap;
+  SESSION._qFortMap = fortMap;
+  SESSION._qWards   = todayWards.slice(); // مسايرة للترتيب لتحديد "التالي" بعد الإتمام
+  // اختيار الورد النشط الأولي: أول ورد غير منجَز، وإلا آخر ورد لو الكل منجز
+  let activeIdx = todayWards.findIndex(w => !(progMap[w.id] && progMap[w.id].status === 'done'));
+  if(activeIdx < 0) activeIdx = todayWards.length ? todayWards.length - 1 : 0;
+  SESSION._qActiveIdx = activeIdx;
+
+  qSubscribePlanRealtime(plan.id);
+  return pageHead('ورد اليوم','') + qWorkspaceRender(todayWards, progMap, fortMap, activeIdx, lateCount);
+};
+// ═══ ورد اليوم كمساحة تركيز (spec: رأس مضغوط + شريط + بطاقة تركيز واحدة) ═══
+function qWorkspaceRender(wards, progMap, fortMap, activeIdx, lateCount){
+  const total = wards.length;
+  const done  = wards.filter(w => { const p = progMap[w.id]; return p && p.status==='done'; }).length;
+  const partial = wards.filter(w => { const p = progMap[w.id]; return p && p.status==='partial'; }).length;
+  const notDone = wards.filter(w => { const p = progMap[w.id]; return p && p.status==='not_done'; }).length;
   const pct = total ? Math.round(done/total*100) : 0;
-  const todayLabel = new Date().toLocaleDateString('ar-EG',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-
-  let html = `<div class="qtoday-hero">
-    <h2>${mi('book')} ورد اليوم</h2>
-    <p>${esc(todayLabel)}</p>
-    <div class="qtprog"><i id="qtProgFill" style="width:${pct}%"></i></div>
-    <div class="qtstats"><span id="qtStatsTxt">أنجزت ${ar(done)} من ${ar(total)} حصن</span><span id="qtStatsPct">${ar(pct)}٪</span></div>
-  </div>`;
-
-  if(lateCount){
-    // صياغة تربوية بدل رقم مخيف: نُلمِّح لتراكم لكن نصرف الطالب لأولويته
-    // الفعلية اليوم (ورد اليوم)، ونتيح له طلب المساعدة أو تصفح المتأخرات
-    // بإرادته، بلا تخويف. الرقم يظهر داخل زر "عرض المتأخرات" لا في العنوان.
-    const heavy = lateCount >= 20;
-    html += `<div style="background:rgba(212,180,68,0.08);border-inline-start:3px solid var(--gold,#d4b444);border-radius:12px;padding:14px 16px;margin-bottom:14px">
-      <div style="font-size:14px;color:var(--emerald-dark,#1B4D3E);font-weight:700;margin-bottom:4px">${heavy?'🌿 لديك تراكم يحتاج ترتيباً هادئاً':'⏰ لديك أوراد سابقة لم تكتمل'}</div>
-      <div style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:10px">ورد اليوم يبقى أولويتك الآن. ${heavy?'ابدأ به، ثم اطلب من معلمك ترتيب المتأخرات على أيام مريحة.':'أنجز اليوم أولاً، ثم زر «المتأخرات» عندما يتاح لك وقت هادئ.'}</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn-sm" onclick="navigate('qlate')" style="background:transparent;border:1.5px solid var(--gold,#d4b444);color:var(--emerald-dark,#1B4D3E)">عرض المتأخرات (${ar(lateCount)})</button>
-        <button class="btn-sm" onclick="navigate('chat')" style="background:transparent;border:1.5px solid var(--line,#e8e2d4);color:var(--muted)">اطلب مساعدة معلمك</button>
+  const todayLabel = new Date().toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long'});
+  // رأس مضغوط ~110-130px
+  const header = `<div class="qw-head" id="qwHead">
+    <div class="qw-head-top">
+      <div class="qw-title"><b>ورد اليوم</b><span>${esc(todayLabel)}</span></div>
+      <div class="qw-counts">
+        <span class="qw-count qw-count-done" title="مكتمل"><b id="qwCountDone">${ar(done)}</b> مكتمل</span>
+        <span class="qw-count qw-count-rem" title="متبقٍ"><b id="qwCountRem">${ar(total-done)}</b> متبقٍ</span>
+        ${(partial||notDone)?`<span class="qw-count qw-count-rev" title="يحتاج إعادة"><b id="qwCountRev">${ar(partial+notDone)}</b> يحتاج إعادة</span>`:''}
       </div>
+    </div>
+    <div class="qw-prog"><i id="qwProgFill" style="width:${pct}%"></i></div>
+    <div class="qw-summary" id="qwSummary">أنجزت ${ar(done)} من ${ar(total)} ورد</div>
+  </div>`;
+  // بانر التراكم — قابل للطي، ليس عقابياً
+  const backlog = lateCount ? `<details class="qw-backlog"><summary><span>لديك بعض الأوراد السابقة تحتاج ترتيباً — ابدأ بورد اليوم أولاً</span><span class="qw-count qw-count-rem">${ar(lateCount)}</span></summary>
+    <div class="qw-backlog-body">
+      <div class="qw-backlog-note">ورد اليوم يبقى أولويتك الآن. بعده يمكنك زيارة المتأخرات في وقت هادئ أو طلب مساعدة معلمك لترتيبها.</div>
+      <div class="qw-backlog-acts">
+        <button class="btn-sm" onclick="navigate('qlate')">عرض المتأخرات</button>
+        <button class="btn-sm ghost" onclick="qWorkspaceAskHelpTeacher()">اطلب مساعدة معلمي</button>
+      </div>
+    </div>
+  </details>` : '';
+  // شريط الأوراد الأفقي
+  const strip = wards.length ? `<div class="qw-strip" id="qwStrip" role="tablist">${wards.map((w,i)=>qStripItem(w, progMap[w.id], fortMap, i, i===activeIdx)).join('')}</div>` : '';
+  // بطاقة التركيز — نُغلّف qTodayCardHtml الحالية في حاوية بيضاء
+  const focus = wards.length
+    ? `<div class="qw-focus" id="qwFocus" role="tabpanel">${qTodayCardHtml(wards[activeIdx], progMap[wards[activeIdx].id], fortMap)}</div>`
+    : `<div class="qnoplan"><div class="nei">🌿</div><h3>يوم راحة</h3><p>لا ورد اليوم — استثمر وقتك في الدعاء والتفكر.</p></div>`;
+  return header + backlog + strip + focus;
+}
+function qStripItem(w, p, fortMap, idx, isActive){
+  const f = fortMap[w.fortress_code] || {};
+  const color = f.color || qFortColor(w.fortress_code);
+  const short = ({ new_hifz:'الحفظ الجديد', near_review:'مراجعة قريبة', far_review:'مراجعة بعيدة', listening:'السماع', listen:'السماع', reading:'القراءة', remedial:'مراجعة علاجية' }[w.fortress_code]) || (f.name||w.fortress_code);
+  let statLabel, statCls;
+  if(p && p.status==='done'){ statLabel='مكتمل'; statCls='done'; }
+  else if(p && p.status==='partial'){ statLabel='جزئي'; statCls='part'; }
+  else if(p && p.status==='not_done'){ statLabel='يحتاج إعادة'; statCls='not'; }
+  else if(isActive){ statLabel='الآن'; statCls='now'; }
+  else{ statLabel='لاحقاً'; statCls='pending'; }
+  return `<button class="qw-tab ${isActive?'on':''} qw-tab-${statCls}" data-idx="${idx}" data-ward="${esc(w.id)}" role="tab" aria-selected="${isActive?'true':'false'}" onclick="qSetActiveWard(${idx})">
+    <span class="qw-tab-num">${ar(idx+1)}</span>
+    <span class="qw-tab-dot" style="background:${color}"></span>
+    <span class="qw-tab-name">${esc(short)}</span>
+    <span class="qw-tab-stat">${esc(statLabel)}</span>
+  </button>`;
+}
+// انتقال طبيعي بين الأوراد — لا إعادة تحميل صفحة، فقط تحديث الشريط وحقن بطاقة التركيز
+function qSetActiveWard(idx){
+  const wards = SESSION._qWards || [];
+  if(idx < 0 || idx >= wards.length) return;
+  SESSION._qActiveIdx = idx;
+  const progMap = SESSION._qProgMap || {};
+  const fortMap = SESSION._qFortMap || {};
+  // تحديث حالة الشريط
+  document.querySelectorAll('#qwStrip .qw-tab').forEach(el => {
+    const on = +el.dataset.idx === idx;
+    el.classList.toggle('on', on);
+    el.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  // إعادة رسم بطاقة التركيز فقط
+  const host = document.getElementById('qwFocus');
+  if(host) host.innerHTML = qTodayCardHtml(wards[idx], progMap[wards[idx].id], fortMap);
+  // تمرير هادئ لأعلى بطاقة التركيز
+  try{ host?.scrollIntoView({ behavior:'smooth', block:'nearest' }); }catch(e){}
+}
+// بعد إتمام ورد، ننتقل تلقائياً إلى أول ورد غير منجَز (أو نتوقف عند آخر ورد لو الكل خلص)
+function qAdvanceToNextIncomplete(){
+  const wards = SESSION._qWards || [];
+  const progMap = SESSION._qProgMap || {};
+  if(!wards.length) return;
+  const cur = SESSION._qActiveIdx || 0;
+  // ابحث بدءاً من الورد التالي، بعده من الأول (دائري)
+  const total = wards.length;
+  for(let step = 1; step <= total; step++){
+    const i = (cur + step) % total;
+    const p = progMap[wards[i].id];
+    if(!p || p.status !== 'done'){
+      qSetActiveWard(i);
+      return;
+    }
+  }
+  // كل الأوراد منجزة — رسالة تهنئة هادئة
+  const host = document.getElementById('qwFocus');
+  if(host){
+    host.innerHTML = `<div class="qw-celebrate">
+      <div class="qw-celebrate-ic">${mi('check')||'✓'}</div>
+      <h3>أنهيت أوراد اليوم كاملة</h3>
+      <p>${ar(total)} من ${ar(total)} — بارك الله لك وثبّت خطاك.</p>
+      <button class="btn ghost" onclick="navigate('roadmap')">استعرض خطتك ←</button>
     </div>`;
   }
-
-  if(!(todayWards||[]).length){
-    html += `<div class="qnoplan"><div class="nei">🌿</div><h3>يوم راحة</h3><p>لا ورد اليوم — استثمر وقتك في الدعاء والتفكر.</p></div>`;
-  } else {
-    html += `<div id="qtodayList">`+(todayWards||[]).map(w=>qTodayCardHtml(w, progMap[w.id], fortMap)).join('')+`</div>`;
-  }
-  qSubscribePlanRealtime(plan.id); // تحديث لحظي: أي تعديل على تقدّم هذه الخطة من جهاز آخر ينعكس هنا فوراً
-  return pageHead('ورد اليوم','') + html;
-};
+}
+function qWorkspaceRefreshCounters(){
+  const wards = SESSION._qWards || [];
+  const progMap = SESSION._qProgMap || {};
+  const total = wards.length;
+  const done  = wards.filter(w => { const p = progMap[w.id]; return p && p.status==='done'; }).length;
+  const partial = wards.filter(w => { const p = progMap[w.id]; return p && p.status==='partial'; }).length;
+  const notDone = wards.filter(w => { const p = progMap[w.id]; return p && p.status==='not_done'; }).length;
+  const pct = total ? Math.round(done/total*100) : 0;
+  const fill = document.getElementById('qwProgFill'); if(fill) fill.style.width = pct+'%';
+  const cd = document.getElementById('qwCountDone'); if(cd) cd.textContent = ar(done);
+  const cr = document.getElementById('qwCountRem');  if(cr) cr.textContent = ar(total-done);
+  const cv = document.getElementById('qwCountRev');  if(cv) cv.textContent = ar(partial+notDone);
+  const sm = document.getElementById('qwSummary');  if(sm) sm.textContent = 'أنجزت ' + ar(done) + ' من ' + ar(total) + ' ورد';
+}
+function qWorkspaceRefreshStrip(){
+  const wards = SESSION._qWards || [];
+  const progMap = SESSION._qProgMap || {};
+  const fortMap = SESSION._qFortMap || {};
+  const active  = SESSION._qActiveIdx || 0;
+  const strip = document.getElementById('qwStrip');
+  if(!strip) return;
+  strip.innerHTML = wards.map((w,i)=>qStripItem(w, progMap[w.id], fortMap, i, i===active)).join('');
+}
+// اختصار «اطلب مساعدة معلمي» من بانر التراكم — يفتح المحادثة مع المعلم مباشرة
+async function qWorkspaceAskHelpTeacher(){
+  try{
+    const s = await myStudentRow();
+    if(s && s.group_id){
+      const { data:g } = await sb.from('groups').select('teacher_id, teacher:profiles!groups_teacher_id_fkey(id,full_name)').eq('id',s.group_id).maybeSingle();
+      if(g && g.teacher){ startChatWith(g.teacher.id, g.teacher.full_name); return; }
+    }
+    if(s && s.chosen_teacher_id){
+      const { data:t } = await sb.from('profiles').select('id,full_name').eq('id',s.chosen_teacher_id).maybeSingle();
+      if(t){ startChatWith(t.id, t.full_name); return; }
+    }
+    navigate('chat');
+  }catch(e){ navigate('chat'); }
+}
 // صفحة "الأوراد المتأخرة" — يصل إليها الطالب من "التنبيهات" أو من مؤشّر ورد اليوم.
 // تعرض الأوراد الفائتة غير المنجَزة فقط، بنفس بطاقة التسجيل (أتممت/لم أتم).
 PAGES.student_qlate = async function(){
@@ -12122,6 +12286,20 @@ async function qMarkWard(wardId, status, plannedDate, notDoneReason){
     const ctx = SESSION._qPlanCtx || SESSION._srLite;
     if(ctx?.planId && typeof _srInvalidateRoadmapCache==='function') _srInvalidateRoadmapCache(ctx.planId);
   }catch(e){}
+  // ─── تحديث فوري لمساحة تركيز «ورد اليوم» بدل إعادة تحميل الصفحة كاملة ───
+  // نحدّث خريطة التقدم المحلية، شريط الأوراد، العدادات، ثم ننتقل تلقائياً إلى
+  // أول ورد غير منجَز — أو نُظهر رسالة "أنهيت أوراد اليوم" لو الكل خلص.
+  if(SESSION._qProgMap && SESSION._qWards){
+    const prevProg = SESSION._qProgMap[wardId] || {};
+    SESSION._qProgMap[wardId] = { ...prevProg, ward_id:wardId, status, is_late:isLate, is_early:isEarly, marked_at:new Date().toISOString() };
+    if(typeof qWorkspaceRefreshStrip==='function') qWorkspaceRefreshStrip();
+    if(typeof qWorkspaceRefreshCounters==='function') qWorkspaceRefreshCounters();
+    // انتقال طبيعي — فقط عند "أتممت" (لا نُقفز عند "لم أتم" حتى يفكّر الطالب في الاختيار التالي)
+    if(status === 'done' && typeof qAdvanceToNextIncomplete==='function'){
+      setTimeout(()=>qAdvanceToNextIncomplete(), 400);
+      return;
+    }
+  }
   if(!card) return;
   card.style.opacity='1';
   // بطاقات ورد اليوم/المتأخرات (data-ward + خريطة الحصون مخزّنة): إعادة رسم فورية
