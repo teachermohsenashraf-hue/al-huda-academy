@@ -11637,7 +11637,7 @@ function qWorkspaceRender(wards, progMap, fortMap, activeIdx, lateCount){
 function qStripItem(w, p, fortMap, idx, isActive){
   const f = fortMap[w.fortress_code] || {};
   const color = f.color || qFortColor(w.fortress_code);
-  const short = ({ new_hifz:'الحفظ الجديد', near_review:'مراجعة قريبة', far_review:'مراجعة بعيدة', listening:'السماع', listen:'السماع', reading:'القراءة', remedial:'مراجعة علاجية' }[w.fortress_code]) || (f.name||w.fortress_code);
+  const short = ({ new_hifz:'الحفظ الجديد', near_review:'مراجعة قريبة', review_near:'مراجعة قريبة', far_review:'مراجعة بعيدة', review_far:'مراجعة بعيدة', listening:'السماع', listen:'السماع', reading:'القراءة', remedial:'مراجعة علاجية' }[w.fortress_code]) || (f.name||w.fortress_code);
   let statLabel, statCls;
   if(p && p.status==='done'){ statLabel='مكتمل'; statCls='done'; }
   else if(p && p.status==='partial'){ statLabel='جزئي'; statCls='part'; }
@@ -11787,7 +11787,9 @@ PAGES.student_qlate = async function(){
   // ─── تجميع المتأخرات بنوع الحصن ───
   const GROUP_DEFS = [
     { key:'new_hifz',      label:'حفظ جديد لم يكتمل' },
+    { key:'review_near',   label:'مراجعة قريبة' },
     { key:'near_review',   label:'مراجعة قريبة' },
+    { key:'review_far',    label:'مراجعة بعيدة' },
     { key:'far_review',    label:'مراجعة بعيدة' },
     { key:'listening',     label:'ورد السماع' },
     { key:'listen',        label:'ورد السماع' },
