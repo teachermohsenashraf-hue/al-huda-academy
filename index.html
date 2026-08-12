@@ -691,6 +691,24 @@ details.rate-classic[open] summary{margin-bottom:8px;color:var(--navy-deep)}
 .tq-info b{display:block;color:var(--navy-deep);font-size:13.5px;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tq-meta{color:var(--muted);font-size:11.5px;line-height:1.6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tq-status{font-size:11.5px;font-weight:700;padding:3px 10px;border-radius:9px;white-space:nowrap;margin-inline-end:12px;flex:none}
+/* حوكمة المناهج */
+.cg-system{margin-bottom:14px;padding:18px}
+.cg-sys-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:6px}
+.cg-sys-info{display:flex;align-items:center;gap:12px;flex:1;min-width:200px}
+.cg-sys-badge{width:48px;height:48px;border-radius:12px;background:var(--cream);display:grid;place-items:center;font-size:24px;flex:none}
+.cg-sys-status{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cg-status{font-size:11.5px;font-weight:700;padding:4px 12px;border-radius:9px;white-space:nowrap}
+.cg-open{background:rgba(201,162,39,0.18);color:#8a6f18;font-size:11.5px;font-weight:700;padding:3px 10px;border-radius:9px}
+.cg-sec-label{color:var(--muted);font-size:11.5px;font-weight:700;margin:8px 0 6px;padding-inline-start:2px}
+.cg-forts{display:flex;flex-wrap:wrap;gap:6px}
+.cg-fort{background:#fff;border:1px solid;padding:3px 10px;border-radius:9px;font-size:11.5px;font-weight:600}
+.cg-fort-off{opacity:0.55;text-decoration:line-through}
+.cg-stations{display:flex;flex-direction:column;gap:6px}
+.cg-station{background:var(--cream);border-radius:10px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.cg-st-info{flex:1;min-width:200px;line-height:1.5}
+.cg-st-info b{color:var(--navy-deep);font-size:13.5px;display:block}
+.cg-st-info span{color:var(--muted);font-size:11.5px;display:block;margin-top:2px}
+.cg-st-acts{display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex:none}
 /* فاصل يوم داخل قائمة الرسائل — طراز واتساب: كبسولة مركزية شفافة، خفيفة الظل،
    لا تنافس محتوى الرسالة نفسها بصرياً */
 .chat-day-sep{display:flex;justify-content:center;margin:8px 0 4px;position:relative}
@@ -3490,6 +3508,7 @@ function buildShell(){
         ['teacher_quality', mi('star'), 'جودة المعلمين والحلقات'],
         ['science_cases', mi('warning'), 'الحالات العلمية'],
         ['quality_analytics', mi('chart'), 'تحليلات جودة التعليم'],
+        ['curriculum', mi('kaaba')||mi('books'), 'حوكمة المناهج'],
       ]});
     }
     // قسم "نظرة الشريك" — يظهر لمن يحمل علَم الشريك المؤسس فقط
@@ -7288,6 +7307,138 @@ PAGES.admin_partner_view = async function(){
 
   return pageHead('نظرة الشريك','') + heroNums + capMsg + help;
 };
+
+// ─── حوكمة المناهج (المسارات + المحطات + الحصون) ─────────────────────────
+// كل ما هو منشور حياً على الطلاب يظهر هنا مع مالكه العلمي وحدوده الفعلية،
+// وأي طلب تعديل يمرّ عبر صندوق الاعتمادات (content_approvals) لا يُطبَّق مباشرة.
+PAGES.admin_curriculum = async function(){
+  if(!_requireScientific()) return _noAccessCard('حوكمة المناهج للمدير العلمي.');
+  setTop('حوكمة المناهج','المسارات، المحطات، والحصون كما هي مُطبَّقة على الطلاب');
+  const [sysR, stR, foR, studsR, pendingR] = await Promise.all([
+    sb.from('quran_systems').select('*').order('created_at',{ascending:true}),
+    sb.from('quran_stations').select('*').order('system_id').order('order_index'),
+    sb.from('quran_fortresses').select('*').order('system_id').order('order_index'),
+    sb.from('students').select('id, plan:quran_student_plans!students_id_fkey(system_id)').eq('enrollment_status','active').limit(3000).then(x=>x, ()=>({data:[]})),
+    // طلبات اعتماد مفتوحة على أي عنصر من المناهج (نميّزها بالنوع)
+    sb.from('content_approvals').select('id,target_type,target_id,status,title,created_at').in('kind',['curriculum','path','station','fortress']).in('status',['draft','in_review','needs_edit','scientifically_approved','awaiting_executive','ready_to_publish']).order('created_at',{ascending:false}).limit(200).then(x=>x, ()=>({data:[]})),
+  ]);
+  const systems  = sysR.data || [];
+  const stations = stR.data || [];
+  const forts    = foR.data || [];
+  const pendingApprovals = pendingR.data || [];
+  // خريطة الطلاب لكل نظام (تقريبي — نستخدم quran_student_plans المرتبطة)
+  // نجلب مباشرة عدد الطلاب النشطين لكل system_id عبر استعلام مستقل بسيط
+  let studPerSystem = {};
+  try{
+    const { data:sPlans } = await sb.from('quran_student_plans').select('system_id, student_id').eq('status','active').limit(5000);
+    (sPlans||[]).forEach(p => { studPerSystem[p.system_id] = (studPerSystem[p.system_id]||0)+1; });
+  }catch(e){}
+  // خريطة الاعتمادات المفتوحة حسب target
+  const pendingByTarget = {}; pendingApprovals.forEach(a => {
+    const key = (a.target_type||'system') + ':' + (a.target_id||'');
+    (pendingByTarget[key] = pendingByTarget[key] || []).push(a);
+  });
+
+  const statusColor = (s) => s==='published' ? '#2E7D5B' : s==='draft' ? '#8a8a8a' : s==='archived' ? '#5a5a5a' : '#c9a227';
+  const statusLabel = (s) => ({ published:'معتمد ومنشور', draft:'مسودة', archived:'مؤرشف', in_review:'قيد المراجعة' }[s]||s||'—');
+
+  const surahName = (n) => n ? (surahByNo?.(n)?.name || ('سورة '+ar(n))) : '—';
+
+  if(!systems.length){
+    return pageHead('حوكمة المناهج','') + `<div class="card" style="text-align:center;padding:30px;color:var(--muted)">لا أنظمة مناهج مسجّلة بعد.</div>`;
+  }
+
+  const sysHtml = systems.map(sys => {
+    const sysStations = stations.filter(s => s.system_id === sys.id);
+    const sysForts    = forts.filter(f => f.system_id === sys.id);
+    const studCount   = studPerSystem[sys.id] || 0;
+    const openCount   = pendingByTarget['system:'+sys.id]?.length || 0;
+    const pathObj     = QURAN_PATHS.find(p=>p.id===sys.path_key);
+    const stationsHtml = sysStations.length ? sysStations.map(st => {
+      const boundLabel = (st.boundary_surah_from && st.boundary_surah_to)
+        ? (st.boundary_surah_from===st.boundary_surah_to && st.boundary_ayah_from && st.boundary_ayah_to
+            ? `${surahName(st.boundary_surah_from)} — الآيات ${ar(st.boundary_ayah_from)}–${ar(st.boundary_ayah_to)}`
+            : `${surahName(st.boundary_surah_from)} → ${surahName(st.boundary_surah_to)}`)
+        : (st.station_kind==='review'?'محطة مراجعة':'—');
+      const openStCount = pendingByTarget['station:'+st.id]?.length || 0;
+      return `<div class="cg-station">
+        <div class="cg-st-info">
+          <b>${esc(st.name)}</b>
+          <span>${esc(boundLabel)}${st.min_mastery_pct?' • حد الإتقان '+ar(st.min_mastery_pct)+'٪':''}${st.requires_exam?' • يتطلّب اختباراً':''}${st.expected_duration_days?' • '+ar(st.expected_duration_days)+' يوم':''}</span>
+        </div>
+        <div class="cg-st-acts">
+          ${openStCount?`<span class="cg-open">${ar(openStCount)} طلب مفتوح</span>`:''}
+          <button class="btn-sm ghost" onclick="_cgRequestEdit('station','${esc(st.id)}','محطة: '+'${escJs(st.name)}')">طلب تعديل</button>
+        </div>
+      </div>`;
+    }).join('') : `<div style="padding:12px;color:var(--muted);font-size:12.5px;text-align:center">لا محطات معرَّفة بعد لهذا النظام.</div>`;
+    const fortsChips = sysForts.length ? `<div class="cg-forts">${sysForts.map(f=>`<span class="cg-fort${f.is_enabled===false?' cg-fort-off':''}" style="border-color:${f.color||'#ccc'};color:${f.color||'#666'}">${esc(f.name||f.code)}${f.is_enabled===false?' (موقوف)':''}</span>`).join('')}</div>` : '';
+
+    return `<div class="card cg-system">
+      <div class="cg-sys-head">
+        <div class="cg-sys-info">
+          <div class="cg-sys-badge">${esc(pathObj?.icon || '📖')}</div>
+          <div>
+            <h3 style="margin:0 0 4px;color:var(--navy-deep);font-family:Amiri,serif;font-size:20px">${esc(sys.name)}</h3>
+            <div style="font-size:12px;color:var(--muted)">${pathObj?esc(pathObj.name)+' • ':''}${sys.target_audience?esc(sys.target_audience)+' • ':''}${sys.expected_duration_weeks?ar(sys.expected_duration_weeks)+' أسبوع • ':''}${ar(studCount)} طالب نشط</div>
+          </div>
+        </div>
+        <div class="cg-sys-status">
+          ${openCount?`<span class="cg-open">${ar(openCount)} طلب اعتماد مفتوح</span>`:''}
+          <span class="cg-status" style="background:${statusColor(sys.status)}22;color:${statusColor(sys.status)}">${esc(statusLabel(sys.status))}</span>
+          <button class="btn-sm" onclick="_cgRequestEdit('system','${esc(sys.id)}','نظام: '+'${escJs(sys.name)}')">طلب تعديل</button>
+        </div>
+      </div>
+      ${sys.description?`<p style="color:var(--muted);font-size:13px;line-height:1.9;margin:8px 0 12px">${esc(sys.description)}</p>`:''}
+      ${fortsChips?`<div style="margin-bottom:10px"><div class="cg-sec-label">الحصون (${ar(sysForts.length)})</div>${fortsChips}</div>`:''}
+      <div class="cg-sec-label">المحطات (${ar(sysStations.length)})</div>
+      <div class="cg-stations">${stationsHtml}</div>
+    </div>`;
+  }).join('');
+
+  const help = `<div class="card" style="margin-bottom:14px;background:linear-gradient(135deg,rgba(201,162,39,0.08),transparent);border-color:rgba(201,162,39,0.20)">
+    <div style="display:flex;align-items:flex-start;gap:12px">
+      <div style="flex:none;color:var(--gold,#c9a227);font-size:22px">${mi('info')||'ⓘ'}</div>
+      <div><b style="color:var(--navy-deep);font-size:14px">لا يُعدَّل نظام نشط مباشرة</b>
+      <p style="color:var(--muted);font-size:13px;line-height:1.9;margin-top:4px">أي طلب تعديل يمرّ عبر صندوق الاعتمادات (يفتح تلقائيًا عند الضغط على «طلب تعديل»)، ولا يظهر أثره على الطلاب قبل حالة «معتمد ومنشور». هذا يحفظ سجلاً كاملاً لكل نسخة.</p></div>
+    </div>
+  </div>`;
+
+  return pageHead('حوكمة المناهج','') + help + sysHtml;
+};
+function _cgRequestEdit(targetType, targetId, title){
+  $('#modalHost').innerHTML = `<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <h3>طلب تعديل — ${esc(title)}</h3>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:12px;line-height:1.7">لن يتغيّر شيء على الطلاب قبل اعتماد الطلب. الآن نُنشئ بطاقة في صندوق الاعتمادات تحمل تفاصيل تعديلك.</p>
+    <div class="field"><label>ما الذي تريد تعديله بالتحديد؟ <span class="req">*</span></label><textarea id="cgSummary" rows="3" placeholder="اذكر بدقة ما يجب أن يتغيّر"></textarea></div>
+    <div class="field"><label>سبب التعديل</label><textarea id="cgReason" rows="2" placeholder="مثال: نتائج ٣ أشهر أظهرت تعثّر ٢٥٪ من الطلاب في هذه المحطة"></textarea></div>
+    <div class="field"><label>الأثر المتوقع <span class="hint">(اختياري)</span></label><input id="cgImpact" placeholder="مثال: يتأثر ٤٠ طالب، ويحتاج المعلمون جلسة تدريب قصيرة"></div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeModal()">إلغاء</button>
+      <button class="btn" id="cgSaveBtn" onclick="_cgSubmit('${esc(targetType)}','${esc(targetId)}','${escJs(title)}')">إرسال للمراجعة</button>
+    </div>
+  </div></div>`;
+}
+async function _cgSubmit(targetType, targetId, title){
+  const summary = ($('#cgSummary')?.value||'').trim();
+  if(!summary){ toast('اكتب ما تريد تعديله'); return; }
+  const btn = document.getElementById('cgSaveBtn'); if(btn){ btn.disabled=true; btn.textContent='جارٍ الحفظ...'; }
+  const kindMap = { system:'curriculum', station:'station', fortress:'fortress' };
+  const rec = {
+    kind: kindMap[targetType] || 'curriculum',
+    target_type: targetType,
+    target_id: targetId,
+    title: title,
+    summary,
+    reason: ($('#cgReason')?.value||'').trim() || null,
+    impact: (($('#cgImpact')?.value||'').trim()) ? { note: $('#cgImpact').value.trim() } : null,
+    requested_by: ME.id,
+    status: 'in_review',
+  };
+  const { error } = await sb.from('content_approvals').insert(rec);
+  if(error){ if(btn){ btn.disabled=false; btn.textContent='إرسال للمراجعة'; } alert('تعذّر: '+error.message); return; }
+  closeModal(); toast('✅ فُتح طلب الاعتماد — راجعه من «الاعتمادات العلمية»'); navigate('curriculum');
+}
 
 PAGES.admin_dash=async function(){ setTop('لوحة القيادة 🛡️','نظرة شاملة.');
   const { count:studC }=await sb.from('students').select('*',{count:'exact',head:true});
