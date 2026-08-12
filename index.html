@@ -6879,26 +6879,48 @@ async function _caOpen(id){
 async function _caDecide(id, decision){
   const note = ($('#caNote')?.value||'').trim() || null;
   const patch = { scientific_reviewer: ME.id, scientific_reviewed_at: new Date().toISOString(), scientific_review_note: note, status: decision, updated_at: new Date().toISOString() };
-  // إن اعتُمد علمياً وكان النوع يستوجب موافقة تنفيذية (منتج/رسالة/…) نضعه awaiting_executive بدلاً من الاعتماد المباشر
   const needsExec = ['product','curriculum','path','message','material'];
-  if(decision === 'scientifically_approved'){
-    const { data:base } = await sb.from('content_approvals').select('kind').eq('id',id).maybeSingle();
-    if(base && needsExec.includes(base.kind)) patch.status = 'awaiting_executive';
-  }
+  const { data:base } = await sb.from('content_approvals').select('kind,requested_by,title').eq('id',id).maybeSingle();
+  if(decision === 'scientifically_approved' && base && needsExec.includes(base.kind)) patch.status = 'awaiting_executive';
   const { error } = await sb.from('content_approvals').update(patch).eq('id',id);
   if(error){ toast('تعذّر: '+error.message); return; }
+  // إشعار مقدّم الطلب بالقرار العلمي
+  try{
+    if(base?.requested_by && base.requested_by !== ME.id){
+      const msg = { scientifically_approved:'✅ اعتُمد علميًا', awaiting_executive:'✅ اعتُمد علميًا — ينتظر التنفيذي', needs_edit:'📝 يحتاج تعديلًا', rejected:'❌ رُفض' }[patch.status] || 'تحديث';
+      await pushNotif(base.requested_by, msg, (base.title||'طلب اعتماد') + (note?'\n'+note.slice(0,200):''), 'system', null);
+    }
+    // لو انتقل لـawaiting_executive: نُشعر التنفيذيين
+    if(patch.status === 'awaiting_executive'){
+      const { data:execs } = await sb.from('profiles').select('id').in('role',['admin','executive']);
+      for(const e of (execs||[])) if(e.id !== ME.id) try{ await pushNotif(e.id, '⏳ اعتماد ينتظر التنفيذي', base?.title||'طلب اعتماد', 'system', null); }catch(_){}
+    }
+  }catch(e){}
   closeModal(); toast('✅ سُجّل القرار'); navigate('approvals');
 }
 async function _caDecideExec(id, decision){
   const note = ($('#caNote')?.value||'').trim() || null;
   const patch = { executive_reviewer: ME.id, executive_reviewed_at: new Date().toISOString(), executive_review_note: note, status: decision, updated_at: new Date().toISOString() };
+  const { data:base } = await sb.from('content_approvals').select('requested_by,title').eq('id',id).maybeSingle();
   const { error } = await sb.from('content_approvals').update(patch).eq('id',id);
   if(error){ toast('تعذّر: '+error.message); return; }
+  try{
+    if(base?.requested_by && base.requested_by !== ME.id){
+      const msg = decision==='ready_to_publish' ? '✅ موافقة تنفيذية — جاهز للنشر' : '❌ قرار تنفيذي: رفض';
+      await pushNotif(base.requested_by, msg, (base.title||'طلب اعتماد')+(note?'\n'+note.slice(0,200):''), 'system', null);
+    }
+  }catch(e){}
   closeModal(); toast('✅ سُجّل القرار'); navigate('approvals');
 }
 async function _caPublish(id){
+  const { data:base } = await sb.from('content_approvals').select('requested_by,title').eq('id',id).maybeSingle();
   const { error } = await sb.from('content_approvals').update({ status:'published', published_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id',id);
   if(error){ toast('تعذّر: '+error.message); return; }
+  try{
+    if(base?.requested_by && base.requested_by !== ME.id){
+      await pushNotif(base.requested_by, '🚀 نُشرت المادة رسميًا', base?.title||'', 'system', null);
+    }
+  }catch(e){}
   closeModal(); toast('✅ نُشرت المادة'); navigate('approvals');
 }
 
@@ -7015,13 +7037,34 @@ async function _pdVote(id, side, position){
     else patch.status = 'awaiting_both';
   } else if(!nextSci) patch.status = 'awaiting_scientific';
   else if(!nextExe) patch.status = 'awaiting_executive';
+  const { data:baseP } = await sb.from('partnership_decisions').select('opened_by,title').eq('id',id).maybeSingle();
   const { error } = await sb.from('partnership_decisions').update(patch).eq('id',id);
   if(error){ toast('تعذّر: '+error.message); return; }
+  // إشعار مقدّم القرار + الطرف الآخر
+  try{
+    if(baseP?.opened_by && baseP.opened_by !== ME.id){
+      const sideAr = side==='scientific'?'المدير العلمي':'التنفيذي';
+      const posAr = { approve:'موافقة', reject:'رفض', request_edit:'طلب تعديل' }[position]||position;
+      await pushNotif(baseP.opened_by, '🤝 موقف على قرار الشراكة', baseP.title+' — '+sideAr+': '+posAr, 'system', null);
+    }
+    // نُشعر أيضاً الشركاء المؤسسين والتنفيذيين لإكمال الدائرة
+    const roles = side==='scientific' ? ['admin','executive'] : null;
+    if(roles){
+      const { data:others } = await sb.from('profiles').select('id').in('role',roles);
+      for(const o of (others||[])) if(o.id !== ME.id && o.id !== baseP?.opened_by) try{ await pushNotif(o.id, '🤝 قرار شراكة يحتاج موقفك', baseP?.title||'', 'system', null); }catch(_){}
+    }
+  }catch(e){}
   closeModal(); toast('✅ سُجّل موقفك'); navigate('partnership');
 }
 async function _pdFinalize(id, decision){
+  const { data:baseP } = await sb.from('partnership_decisions').select('opened_by,title,scientific_by,executive_by').eq('id',id).maybeSingle();
   const { error } = await sb.from('partnership_decisions').update({ final_decision:decision, finalized_at:new Date().toISOString(), status: decision, updated_at:new Date().toISOString() }).eq('id',id);
   if(error){ toast('تعذّر: '+error.message); return; }
+  try{
+    const msg = { approved:'✅ اعتُمد القرار نهائيًا', rejected:'❌ رُفض القرار نهائيًا', postponed:'⏸ أُجّل القرار' }[decision] || decision;
+    const targets = new Set([baseP?.opened_by, baseP?.scientific_by, baseP?.executive_by].filter(Boolean).filter(id => id !== ME.id));
+    for(const t of targets) try{ await pushNotif(t, msg, baseP?.title||'قرار شراكة', 'system', null); }catch(_){}
+  }catch(e){}
   closeModal(); toast('✅ اعتُمد القرار'); navigate('partnership');
 }
 
@@ -7141,7 +7184,6 @@ async function _tqOpen(teacherId, teacherName){
   </div></div>`;
 }
 async function _tqPlanDev(teacherId, teacherName){
-  // نُنشئ طلب اعتماد بنوع "material" ونستخدمه لتوثيق خطة تطوير المعلم
   const note = prompt('اكتب باختصار خطة تطوير المعلم '+teacherName+' (تُسجَّل في صندوق الاعتمادات كسجل رسمي):');
   if(!note || !note.trim()) return;
   const { error } = await sb.from('content_approvals').insert({
@@ -7152,7 +7194,9 @@ async function _tqPlanDev(teacherId, teacherName){
     scientific_review_note: 'اعتمدها المدير العلمي مباشرة'
   });
   if(error){ toast('تعذّر: '+error.message); return; }
-  closeModal(); toast('✅ سُجّلت خطة التطوير في صندوق الاعتمادات');
+  // إشعار المعلم نفسه بخطة التطوير
+  try{ await pushNotif(teacherId, '📚 خطة تطوير مهني جديدة', 'المدير العلمي اعتمد لك خطة تطوير:\n'+note.trim().slice(0,300), 'system', null); }catch(e){}
+  closeModal(); toast('✅ سُجّلت الخطة وأُرسلت للمعلم');
 }
 
 // ─── مركز الحالات العلمية (طلاب يحتاجون دعمًا) ───────────────────────────
@@ -7244,24 +7288,45 @@ async function _scOpen(studentId, studentName){
 async function _scApproveRemedial(studentId, studentName){
   const note = prompt('اكتب باختصار الخطة العلاجية المعتمدة للطالب '+studentName+':');
   if(!note || !note.trim()) return;
-  await sb.from('content_approvals').insert({
+  const { error } = await sb.from('content_approvals').insert({
     kind:'remedial', title:'خطة علاجية: '+studentName,
     summary: note.trim(), reason:'حالة علمية تحتاج دعمًا',
     requested_by: ME.id, status:'scientifically_approved',
     scientific_reviewer: ME.id, scientific_reviewed_at: new Date().toISOString(),
   });
-  closeModal(); toast('✅ اعتُمدت الخطة العلاجية وسُجّلت');
+  if(error){ toast('تعذّر: '+error.message); return; }
+  // إشعار معلم الطالب حتى يُنفّذ الخطة العلاجية فعلياً
+  try{
+    const { data:s } = await sb.from('students').select('group_id, g:groups!students_group_id_fkey(teacher_id)').eq('id',studentId).maybeSingle();
+    const teacherId = s?.g?.teacher_id;
+    if(teacherId) await pushNotif(teacherId, '🩺 خطة علاجية جديدة معتمدة', 'المدير العلمي اعتمد خطة للطالب '+studentName+':\n'+note.trim().slice(0,280), 'system', studentId);
+  }catch(e){}
+  closeModal(); toast('✅ اعتُمدت الخطة العلاجية وأُرسلت للمعلم');
 }
 async function _scAssignSupervisor(studentId, studentName){
-  // نُنشئ طلب اعتماد بنوع "message" لتوثيق الإسناد للمشرف
+  // نُنشئ طلب اعتماد بنوع "message" لتوثيق الإسناد + نُشعر المشرفين فعليًا
+  // (بدل الاعتماد على أن يفتح المشرف صفحة الاعتمادات صدفة)
   const note = prompt('اكتب باختصار المطلوب من المشرف تجاه الطالب '+studentName+':');
   if(!note || !note.trim()) return;
-  await sb.from('content_approvals').insert({
+  const { error } = await sb.from('content_approvals').insert({
     kind:'message', title:'إسناد متابعة: '+studentName,
     summary: note.trim(), reason:'المدير العلمي طلب متابعة إشرافية',
     requested_by: ME.id, status:'in_review',
   });
-  closeModal(); toast('✅ سُجّل الإسناد للمشرف');
+  if(error){ toast('تعذّر: '+error.message); return; }
+  // إشعار كل المشرفين المتاحين
+  try{
+    const { data:sups } = await sb.from('profiles').select('id,gender').eq('role','supervisor');
+    // نحاول توجيه الإسناد لمشرف من نفس جنس الطالب لو أمكن
+    let stuGender = null;
+    try{ const { data:st } = await sb.from('students').select('gender').eq('id',studentId).maybeSingle(); stuGender = st?.gender; }catch(e){}
+    const targeted = (sups||[]).filter(s => !stuGender || !s.gender || s.gender === stuGender);
+    const finalTargets = targeted.length ? targeted : (sups||[]);
+    for(const s of finalTargets){
+      try{ await pushNotif(s.id, '📌 إسناد متابعة طالب', 'إسناد من المدير العلمي: '+studentName+'\n'+note.trim().slice(0,300), 'system', studentId); }catch(e){}
+    }
+  }catch(e){}
+  closeModal(); toast('✅ سُجّل الإسناد وأُرسل الإشعار للمشرفين');
 }
 
 // ─── تحليلات جودة التعليم ─────────────────────────────────────────────────
@@ -7543,6 +7608,11 @@ async function _stdSubmit(){
   };
   const { error } = await sb.from('content_approvals').insert(rec);
   if(error){ if(btn){ btn.disabled=false; btn.textContent='إرسال للمراجعة'; } alert('تعذّر: '+error.message); return; }
+  // إشعار المدراء العلميين والأدمن ليعرفوا أن هناك مقترحًا جديدًا ينتظر مراجعتهم
+  try{
+    const { data:sciences } = await sb.from('profiles').select('id').or('role.eq.admin,is_scientific_director.eq.true');
+    for(const p of (sciences||[])) if(p.id !== ME.id) try{ await pushNotif(p.id, '📋 مقترح معيار جديد', title, 'system', null); }catch(_){}
+  }catch(e){}
   closeModal(); toast('✅ أُرسل المعيار للمراجعة العلمية'); navigate('standards');
 }
 async function _stdHistory(catKey){
@@ -8144,6 +8214,10 @@ async function _cgSubmit(targetType, targetId, title){
   };
   const { error } = await sb.from('content_approvals').insert(rec);
   if(error){ if(btn){ btn.disabled=false; btn.textContent='إرسال للمراجعة'; } alert('تعذّر: '+error.message); return; }
+  try{
+    const { data:sciences } = await sb.from('profiles').select('id').or('role.eq.admin,is_scientific_director.eq.true');
+    for(const p of (sciences||[])) if(p.id !== ME.id) try{ await pushNotif(p.id, '📋 طلب تعديل منهج جديد', title, 'system', null); }catch(_){}
+  }catch(e){}
   closeModal(); toast('✅ فُتح طلب الاعتماد — راجعه من «الاعتمادات العلمية»'); navigate('curriculum');
 }
 
@@ -10618,7 +10692,6 @@ function _sRoadmapArrange(planId){
   setTimeout(()=>navigate('qtoday'), 900);
 }
 async function _sRoadmapAskHelp(planId){
-  // نستخدم نظام طلبات المساعدة القائم — فئة "schedule_issue" هي الأنسب لترتيب التراكم
   try{
     const { error } = await sb.from('quran_help_requests').insert({
       plan_id: planId, requested_by: ME.id, category: 'schedule_issue',
@@ -10626,6 +10699,13 @@ async function _sRoadmapAskHelp(planId){
       status: 'open',
     });
     if(error){ toast('تعذّر: '+error.message); return; }
+    try{
+      const s = await myStudentRow();
+      let teacherId = null;
+      if(s?.group_id){ const { data:g } = await sb.from('groups').select('teacher_id').eq('id',s.group_id).maybeSingle(); teacherId = g?.teacher_id; }
+      if(!teacherId && s?.chosen_teacher_id) teacherId = s.chosen_teacher_id;
+      if(teacherId) await pushNotif(teacherId, '🆘 طلب مساعدة من طالب', (s?.full_name||'طالب')+': يطلب ترتيب تراكم في الخطة.', 'help_request', s?.id);
+    }catch(e){}
     toast('✅ تم إرسال طلب المساعدة لمعلمك — سيصلك رد قريباً');
   }catch(e){ toast('حدث خطأ'); }
 }
@@ -13622,6 +13702,14 @@ async function _recovAskTeacher(){
       status:'open',
     });
     if(error){ toast('تعذّر: '+error.message); return; }
+    // إشعار المعلم فعلياً في الجرس
+    try{
+      const s = await myStudentRow();
+      let teacherId = null;
+      if(s?.group_id){ const { data:g } = await sb.from('groups').select('teacher_id').eq('id',s.group_id).maybeSingle(); teacherId = g?.teacher_id; }
+      if(!teacherId && s?.chosen_teacher_id) teacherId = s.chosen_teacher_id;
+      if(teacherId) await pushNotif(teacherId, '🆘 طلب مساعدة من طالب', (s?.full_name||'طالب')+': يطلب ترتيب خطة استعادة للتراكم.', 'help_request', s?.id);
+    }catch(e){}
     toast('✅ وصل الطلب لمعلمك — ستراجع الخطة قريباً');
   }catch(e){ toast('حدث خطأ'); }
 }
