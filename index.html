@@ -633,6 +633,53 @@ details.rate-classic[open] summary{margin-bottom:8px;color:var(--navy-deep)}
 .qw-recov-info{flex:1;min-width:180px}
 .qw-recov-info b{color:var(--navy-deep);font-size:13.5px;display:block}
 .qw-recov-info span{color:var(--muted);font-size:12px;display:block;margin-top:2px}
+/* ═══ المكتب العلمي (Scientific Director / Founding Partner) ═══ */
+.sci-hero{background:linear-gradient(135deg,rgba(201,162,39,0.10),rgba(46,125,91,0.06));border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+.sci-hero-info{flex:1;min-width:220px}
+.sci-hero-title{font-family:'Amiri',serif;font-size:22px;color:var(--navy-deep);margin-bottom:6px}
+.sci-hero-sub{color:var(--muted);font-size:13.5px;line-height:1.8}
+.sci-hero-nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;flex:1;min-width:280px}
+.sci-num{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;text-align:center}
+.sci-num b{display:block;font-family:'Tajawal','Cairo',sans-serif;font-weight:700;font-size:20px;color:var(--navy-deep);line-height:1;margin-bottom:4px}
+.sci-num span{color:var(--muted);font-size:11px;font-weight:600}
+.sci-row{display:flex;align-items:center;gap:14px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.sci-row:last-child{border-bottom:none}
+.sci-row .sci-ic{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;flex:none;color:#fff}
+.sci-row .sci-ic svg{width:20px;height:20px}
+.sci-row .sci-txt{flex:1;min-width:0;line-height:1.5}
+.sci-row .sci-txt b{display:block;color:var(--navy-deep);font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sci-row .sci-txt span{display:block;color:var(--muted);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sci-row .sci-act{flex:none}
+.sci-row .sci-act .btn,.sci-row .sci-act .btn.ghost{padding:7px 14px;font-size:12.5px;border-radius:8px}
+/* قائمة الاعتمادات + تفاصيلها */
+.ca-list{display:flex;flex-direction:column;gap:8px}
+.ca-row{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;grid-template-columns:auto 1fr auto auto;gap:12px;align-items:center;cursor:pointer;transition:.15s}
+.ca-row:hover{border-color:var(--emerald);transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,0.04)}
+.ca-row .ca-kind{color:var(--muted);font-size:11.5px;font-weight:700}
+.ca-row .ca-title b{color:var(--navy-deep);font-size:14px;font-weight:700}
+.ca-row .ca-meta{color:var(--muted);font-size:11.5px}
+.ca-row .ca-status{font-size:11.5px;font-weight:700;padding:3px 10px;border-radius:9px;white-space:nowrap}
+@media(max-width:720px){.ca-row{grid-template-columns:1fr auto;gap:6px}.ca-row .ca-kind{grid-column:1/-1}.ca-row .ca-meta{grid-column:1/-1;font-size:11px}}
+.ca-detail-modal{max-width:640px;max-height:88vh;overflow-y:auto}
+.ca-detail-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.ca-detail-head h3{color:var(--navy-deep);font-family:'Amiri',serif;font-size:20px;line-height:1.3}
+.ca-details{margin-bottom:14px}
+.ca-drow{background:var(--cream);border-radius:10px;padding:10px 14px;margin-bottom:8px}
+.ca-drow b{display:block;color:var(--muted);font-size:11.5px;font-weight:700;margin-bottom:4px}
+.ca-drow div{color:var(--navy-deep);font-size:13px;line-height:1.8;white-space:pre-wrap}
+/* قائمة قرارات الشراكة */
+.pd-list{display:flex;flex-direction:column;gap:8px}
+.pd-row{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;gap:12px;align-items:center;cursor:pointer;transition:.15s;flex-wrap:wrap}
+.pd-row:hover{border-color:var(--gold,#c9a227);transform:translateY(-1px)}
+.pd-info{flex:1;min-width:180px;line-height:1.5}
+.pd-info b{color:var(--navy-deep);font-size:14px}
+.pd-info span{color:var(--muted);font-size:11.5px;display:block}
+.pd-positions{display:flex;gap:6px;flex-wrap:wrap}
+.pd-pos{font-size:11px;padding:3px 9px;border-radius:8px;background:rgba(0,0,0,0.05);color:var(--muted);font-weight:600}
+.pd-pos.approve{background:rgba(46,125,91,0.14);color:#1B4D3E}
+.pd-pos.reject{background:rgba(231,76,60,0.14);color:#c92e2e}
+.pd-pos.request_edit{background:rgba(224,122,31,0.14);color:#8a4715}
+.pd-status{font-size:11.5px;font-weight:700;padding:3px 10px;border-radius:9px;white-space:nowrap}
 /* فاصل يوم داخل قائمة الرسائل — طراز واتساب: كبسولة مركزية شفافة، خفيفة الظل،
    لا تنافس محتوى الرسالة نفسها بصرياً */
 .chat-day-sep{display:flex;justify-content:center;margin:8px 0 4px;position:relative}
@@ -3301,6 +3348,9 @@ const MENUS = {
     {label:'الإدارة', items:[['users',mi('users'),'المستخدمون'],['tracks',mi('cap'),'المسارات والدورات'],['staff',mi('teacher'),'الطاقم'],['content',mi('books'),'المحتوى'],['unassigned',mi('warning'),'طلاب بدون حلقة'],['leads',mi('clipboard'),'تسجيلات معلّقة']]},
     {label:'قسم القرآن', items:[['qsystems',mi('kaaba'),'أنظمة القرآن'],['qfortresses',mi('shield'),'الحصون والمحطات']]},
     {label:'المالية', items:[['finance',mi('card'),'المدفوعات']]},
+    // قسم "المكتب العلمي" يُحقَن في buildShell عندما يكون للمستخدم علَم
+    // is_scientific_director أو is_founding_partner (بدل توسيع القائمة لكل
+    // مدير حتى لو مش شريك مؤسس)
   ]},
   executive:{ skin:'s-navy', title:'لوحة المدير التنفيذي', sections:[
     {label:'القيادة', items:[['dash',mi('building'),'نظرة تنفيذية'],['analytics',mi('chart'),'التحليلات']]},
@@ -3412,6 +3462,20 @@ function replayTour(){ TOUR_STEP=0; renderTour(); }
 
 function buildShell(){
   const m=MENUS[ME.role]; const side=$('#sidebar'); side.className='side '+m.skin;
+  // حقن قسم "المكتب العلمي" لمن يحمل علَم is_scientific_director أو
+  // is_founding_partner (بغض النظر عن دوره القاعدي admin/executive/supervisor).
+  // نحقنه مرة واحدة فقط — نتحقق قبل الإضافة حتى لا يتكرر عند إعادة buildShell.
+  const wantsScience = !!(ME && (ME.is_scientific_director || ME.is_founding_partner));
+  if(wantsScience && m.sections && !m.sections.find(s=>s.label==='المكتب العلمي')){
+    const items = [];
+    items.push(['science_office',mi('star')||mi('shield'),'مكتبي العلمي']);
+    if(ME.is_scientific_director) items.push(['approvals',mi('check'),'الاعتمادات العلمية']);
+    if(ME.is_founding_partner)    items.push(['partnership',mi('handshake')||mi('users'),'قرارات الشراكة']);
+    // نضع القسم أعلى القوائم بعد "الرئيسية" مباشرة (لأولوية عرضه للشريك)
+    m.sections.splice(1, 0, { label:'المكتب العلمي', items });
+    // نُعدّل اللقب أيضاً حتى يعرف الشريك المؤسس أن اللوحة تخصّه
+    if(m.title === 'لوحة المدير'){ m.title = ME.is_founding_partner && ME.is_scientific_director ? 'المدير العلمي — شريك مؤسس' : (ME.is_scientific_director ? 'المدير العلمي' : 'شريك مؤسس'); }
+  }
   // نلفّ النصوص في span.lbl حتى نستطيع إخفاءها في وضع الشريط الضيّق (طي إلى أيقونات فقط)
   // دون فقد الأيقونة نفسها؛ واصفة title تعطي تلميحًا أصليًا في وضع الطي.
   let h=`<div class="brand"><div class="mark"><img src="assets/logo-icon.png" alt="أكاديمية الهدى" style="width:100%;height:100%;object-fit:contain;border-radius:inherit"></div><div class="name">أكاديمية الهدى<small>${m.title}</small></div></div><nav class="menu">`;
@@ -6459,6 +6523,379 @@ async function exportAcademyExcel(){
       ] });
     exportExcelMulti(sheets, 'أكاديمية_الهدى_تقرير_شامل');
   }catch(err){ alert('تعذّر التصدير: '+err.message); }
+}
+
+// ═══ المكتب العلمي (Scientific Director / Founding Partner) ═══════════════
+// نقيّد الوصول برمجياً بحيث لا يفتحها أي admin/executive عادي، فقط من يحمل
+// أعلام is_scientific_director أو is_founding_partner. حتى لو تنقل شخص لـURL
+// hash يدوياً، الصفحة ترفض العرض بأدب وتردّه.
+function _requireScientific(){ return !!(ME && ME.is_scientific_director); }
+function _requirePartner(){    return !!(ME && ME.is_founding_partner);    }
+function _noAccessCard(msg){
+  return `<div class="card" style="text-align:center;padding:40px"><div class="empty-ic">${mi('lock')}</div><h3 style="color:var(--navy-deep);margin-bottom:8px">هذه الصفحة مخصّصة لدور معيّن</h3><p style="color:var(--muted);font-size:14px;line-height:1.9">${esc(msg||'يحتاج الوصول لعلَم "مدير علمي" أو "شريك مؤسس" في ملفك.')}</p></div>`;
+}
+// أسماء وأنواع للاعتمادات — تُستخدم في كل الصفحات لتفادي التكرار
+const CA_KIND_AR = { curriculum:'منهج/برنامج', path:'مسار', station:'محطة', fortress:'حصن', test:'اختبار', standard:'معيار تقييم', remedial:'خطة علاجية', material:'مادة تعليمية', message:'رسالة موجهة', product:'منتج علمي', other:'أخرى' };
+const CA_STATUS_AR = {
+  draft:'مسودة', in_review:'قيد المراجعة العلمية', needs_edit:'يحتاج تعديل',
+  scientifically_approved:'معتمد علمياً', awaiting_executive:'ينتظر موافقة تنفيذية',
+  ready_to_publish:'جاهز للنشر', published:'منشور', rejected:'مرفوض', archived:'مؤرشف',
+};
+const CA_STATUS_COLOR = {
+  draft:'#8a8a8a', in_review:'#c9a227', needs_edit:'#e07a1f',
+  scientifically_approved:'#2E7D5B', awaiting_executive:'#c9a227',
+  ready_to_publish:'#1B4D3E', published:'#2E7D5B', rejected:'#c92e2e', archived:'#5a5a5a',
+};
+const PD_STATUS_AR = {
+  draft:'مسودة', awaiting_scientific:'ينتظر المدير العلمي', awaiting_executive:'ينتظر المدير التنفيذي',
+  awaiting_both:'ينتظر الشريكين', approved:'معتمد', rejected:'مرفوض', postponed:'مؤجّل',
+};
+const PD_STATUS_COLOR = {
+  draft:'#8a8a8a', awaiting_scientific:'#c9a227', awaiting_executive:'#c9a227', awaiting_both:'#c9a227',
+  approved:'#2E7D5B', rejected:'#c92e2e', postponed:'#5a5a5a',
+};
+
+// ─── مكتبي العلمي (لوحة يومية بأولوية علمية) ─────────────────────────────
+PAGES.admin_science_office = async function(){
+  if(!(_requireScientific() || _requirePartner())){ setTop('المكتب العلمي',''); return _noAccessCard(); }
+  const nm = (ME.full_name||'').split(' ')[0] || 'شريك';
+  setTop('مكتبي العلمي', 'مكتب القيادة العلمية — أولوياتك اليوم');
+  // ملخصات خفيفة بالتوازي
+  const [caPending, caAwaitExec, caPublished30, pdMine, teachersLow, studFail] = await Promise.all([
+    sb.from('content_approvals').select('id,title,kind,created_at,requested_by,status').in('status',['in_review','needs_edit']).order('created_at',{ascending:true}).limit(6).then(x=>x, ()=>({data:[]})),
+    sb.from('content_approvals').select('id,title,kind,scientific_reviewed_at').eq('status','awaiting_executive').order('scientific_reviewed_at',{ascending:true}).limit(3).then(x=>x, ()=>({data:[]})),
+    sb.from('content_approvals').select('id',{count:'exact',head:true}).eq('status','published').gte('published_at', new Date(Date.now()-30*86400000).toISOString()).then(x=>x, ()=>({count:0})),
+    sb.from('partnership_decisions').select('id,title,status,created_at').in('status',['awaiting_scientific','awaiting_both','awaiting_executive']).order('created_at',{ascending:true}).limit(4).then(x=>x, ()=>({data:[]})),
+    // معلمون ذوو مؤشر جودة منخفض تقريبي — عبر students.mastery المتوسط (المؤشر السريع الوحيد المتاح بلا استعلامات ثقيلة)
+    sb.from('groups').select('id,name,teacher_id, teacher:profiles!groups_teacher_id_fkey(id,full_name)').limit(50).then(x=>x, ()=>({data:[]})),
+    sb.from('students').select('id,full_name,mastery').lt('mastery',60).eq('enrollment_status','active').limit(6).then(x=>x, ()=>({data:[]})),
+  ]);
+  const pendCount   = (caPending.data||[]).length;
+  const execCount   = (caAwaitExec.data||[]).length;
+  const pubCount30  = caPublished30.count || 0;
+  const pdList      = pdMine.data || [];
+  const failStuds   = studFail.data || [];
+
+  // بطاقة الترحيب + الملخص الذكي
+  const hero = `<div class="card sci-hero">
+    <div class="sci-hero-info">
+      <div class="sci-hero-title">صباح الخير يا ${esc(nm)}</div>
+      <div class="sci-hero-sub">لديك اليوم <b>${ar(pendCount)}</b> اعتماد علمي ${execCount?`، و<b>${ar(execCount)}</b> ينتظر التنفيذي`:''}${pdList.length?`، و<b>${ar(pdList.length)}</b> قرار شراكة`:''}.</div>
+    </div>
+    <div class="sci-hero-nums">
+      <div class="sci-num"><b>${ar(pendCount)}</b><span>اعتماد ينتظرك</span></div>
+      <div class="sci-num"><b>${ar(pdList.length)}</b><span>قرارات شراكة</span></div>
+      <div class="sci-num"><b>${ar(failStuds.length)}</b><span>حالات علمية</span></div>
+      <div class="sci-num"><b>${ar(pubCount30)}</b><span>منشور آخر ٣٠ يوم</span></div>
+    </div>
+  </div>`;
+
+  // قائمة الأولوية العلمية
+  const queue = [];
+  (caPending.data||[]).forEach(c => {
+    queue.push({
+      urgency: 90, kind:'approval', color:'#c9a227', icon: mi('check')||'',
+      title: 'اعتماد علمي: ' + (CA_KIND_AR[c.kind]||c.kind),
+      subtitle: c.title,
+      action: `<button class="btn" onclick="event.stopPropagation();_caOpen('${esc(c.id)}')">راجع واعتمد</button>`,
+    });
+  });
+  (caAwaitExec.data||[]).forEach(c => {
+    queue.push({
+      urgency: 70, kind:'exec', color:'#3498db', icon: mi('info')||'',
+      title: 'ينتظر موافقة التنفيذي: ' + (CA_KIND_AR[c.kind]||c.kind),
+      subtitle: c.title,
+      action: `<button class="btn ghost" onclick="event.stopPropagation();_caOpen('${esc(c.id)}')">فتح</button>`,
+    });
+  });
+  pdList.forEach(p => {
+    queue.push({
+      urgency: 80, kind:'partnership', color:'#8a6f18', icon: mi('handshake')||mi('users')||'',
+      title: 'قرار شراكة: ' + (PD_STATUS_AR[p.status]||p.status),
+      subtitle: p.title,
+      action: `<button class="btn" onclick="event.stopPropagation();_pdOpen('${esc(p.id)}')">راجع القرار</button>`,
+    });
+  });
+  failStuds.forEach(s => {
+    queue.push({
+      urgency: 60, kind:'stud', color:'#c92e2e', icon: mi('warning')||'',
+      title: 'حالة علمية: ' + s.full_name,
+      subtitle: 'مستوى الإتقان: '+ar(s.mastery||0)+'٪ — تحتاج مراجعة خطة',
+      action: `<button class="btn ghost" onclick="event.stopPropagation();navigate('cases')">فتح المتابعة</button>`,
+    });
+  });
+  queue.sort((a,b)=>b.urgency-a.urgency);
+
+  const queueHtml = queue.length ? queue.slice(0,10).map(q => `
+    <div class="sci-row">
+      <div class="sci-ic" style="background:${q.color};color:#fff">${q.icon}</div>
+      <div class="sci-txt"><b>${esc(q.title)}</b><span>${esc(q.subtitle)}</span></div>
+      <div class="sci-act">${q.action}</div>
+    </div>`).join('') : `<div style="text-align:center;padding:36px 20px;color:var(--muted)"><div style="font-size:34px;margin-bottom:8px">${mi('check')||'✅'}</div><b style="color:var(--navy-deep)">لا شيء علمي ينتظرك الآن</b><div style="font-size:12.5px;margin-top:6px">كل الاعتمادات تمت، ولا قرارات شراكة معلّقة.</div></div>`;
+
+  return pageHead('مكتبي العلمي','') + hero +
+    `<div class="card" style="margin-top:14px;padding:0;overflow:hidden">
+      <div style="padding:14px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center">
+        <b style="color:var(--navy-deep);font-size:15px">ما يحتاج انتباهك اليوم${queue.length?' — '+ar(queue.length):''}</b>
+        ${queue.length>10?`<span style="color:var(--muted);font-size:12px">أعلى ١٠ حسب الأولوية</span>`:''}
+      </div>
+      ${queueHtml}
+    </div>`;
+};
+
+// ─── صندوق الاعتمادات العلمية ─────────────────────────────────────────────
+PAGES.admin_approvals = async function(){
+  if(!(_requireScientific() || _requirePartner())){ setTop('الاعتمادات العلمية',''); return _noAccessCard('صفحة الاعتمادات لمن يحمل علَم المدير العلمي.'); }
+  setTop('الاعتمادات العلمية','بوابة نشر وحوكمة المحتوى العلمي');
+  const filter = SESSION._caFilter || 'active';
+  const filterMatch = {
+    active: ['draft','in_review','needs_edit','scientifically_approved','awaiting_executive','ready_to_publish'],
+    published: ['published'],
+    rejected: ['rejected'],
+    archived: ['archived'],
+  };
+  const st = filterMatch[filter] || filterMatch.active;
+  const [listR, countsR] = await Promise.all([
+    sb.from('content_approvals').select('id,title,kind,status,version,created_at,requested_by').in('status', st).order('created_at',{ascending:false}).limit(50).then(x=>x, ()=>({data:[]})),
+    // نجلب عدد كل مجموعة بسرعة عبر استعلامَي head-count بسيطَين
+    Promise.all([
+      sb.from('content_approvals').select('id',{count:'exact',head:true}).in('status', filterMatch.active).then(x=>x, ()=>({count:0})),
+      sb.from('content_approvals').select('id',{count:'exact',head:true}).eq('status','published').then(x=>x, ()=>({count:0})),
+    ]),
+  ]);
+  const rows = listR.data || [];
+  const [aCnt, pCnt] = countsR || [{count:0},{count:0}];
+
+  const chips = `<div class="grpfilters" style="margin-bottom:14px">
+    <button class="grpchip ${filter==='active'?'on':''}" onclick="_caFilter('active')">نشطة <span>${ar(aCnt.count||0)}</span></button>
+    <button class="grpchip ${filter==='published'?'on':''}" onclick="_caFilter('published')">منشورة <span>${ar(pCnt.count||0)}</span></button>
+    <button class="grpchip ${filter==='rejected'?'on':''}" onclick="_caFilter('rejected')">مرفوضة</button>
+    <button class="grpchip ${filter==='archived'?'on':''}" onclick="_caFilter('archived')">مؤرشفة</button>
+    <span style="flex:1"></span>
+    <button class="btn" onclick="_caNew()">+ طلب اعتماد جديد</button>
+  </div>`;
+  const listHtml = rows.length ? `<div class="ca-list">${rows.map(r => `
+    <div class="ca-row" onclick="_caOpen('${esc(r.id)}')">
+      <div class="ca-kind">${esc(CA_KIND_AR[r.kind]||r.kind)}${r.version?' • '+esc(r.version):''}</div>
+      <div class="ca-title"><b>${esc(r.title)}</b></div>
+      <div class="ca-meta">${esc(new Date(r.created_at).toLocaleDateString('ar-EG',{day:'numeric',month:'long'}))}</div>
+      <span class="ca-status" style="background:${CA_STATUS_COLOR[r.status]||'#8a8a8a'}22;color:${CA_STATUS_COLOR[r.status]||'#8a8a8a'}">${esc(CA_STATUS_AR[r.status]||r.status)}</span>
+    </div>`).join('')}</div>` : `<div class="card" style="text-align:center;padding:30px;color:var(--muted)">لا اعتمادات في هذه المجموعة.</div>`;
+
+  return pageHead('الاعتمادات العلمية','') + chips + listHtml;
+};
+function _caFilter(f){ SESSION._caFilter = f; navigate('approvals'); }
+async function _caNew(){
+  $('#modalHost').innerHTML = `<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <h3>${mi('check')||''} طلب اعتماد جديد</h3>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:12px;line-height:1.7">أي محتوى علمي (منهج/مسار/محطة/اختبار/معيار/خطة علاجية/مادة/رسالة/منتج) يمرّ عبر هذا المسار قبل النشر.</p>
+    <div class="field"><label>نوع المحتوى</label>
+      <select id="caKind">${Object.entries(CA_KIND_AR).map(([k,l])=>`<option value="${k}">${esc(l)}</option>`).join('')}</select>
+    </div>
+    <div class="field"><label>العنوان <span class="req">*</span></label><input id="caTitle" placeholder="مثال: برنامج حفظ جزء عم — النسخة ١.٣"></div>
+    <div class="field"><label>النسخة الحالية <span class="hint">(اختياري)</span></label><input id="caVer" placeholder="مثال: 1.3"></div>
+    <div class="field"><label>ما الذي تغيّر</label><textarea id="caSummary" rows="3" placeholder="اذكر التعديلات باختصار عملي"></textarea></div>
+    <div class="field"><label>سبب التعديل</label><textarea id="caReason" rows="2" placeholder="مثال: نتائج ٣ أشهر أظهرت تعثّر ٢٥٪ من الطلاب في المحطة الثانية"></textarea></div>
+    <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إلغاء</button><button class="btn" id="caNewBtn" onclick="_caSaveNew()">إرسال للمراجعة العلمية</button></div>
+  </div></div>`;
+}
+async function _caSaveNew(){
+  const title = ($('#caTitle')?.value||'').trim();
+  if(!title){ toast('العنوان مطلوب'); return; }
+  const btn = document.getElementById('caNewBtn'); if(btn){ btn.disabled=true; btn.textContent='جارٍ الإرسال...'; }
+  const rec = {
+    kind: $('#caKind').value,
+    title,
+    version: ($('#caVer')?.value||'').trim() || null,
+    summary: ($('#caSummary')?.value||'').trim() || null,
+    reason: ($('#caReason')?.value||'').trim() || null,
+    requested_by: ME.id,
+    status: 'in_review',
+  };
+  const { error } = await sb.from('content_approvals').insert(rec);
+  if(error){ if(btn){ btn.disabled=false; btn.textContent='إرسال للمراجعة'; } alert('تعذّر: '+error.message); return; }
+  closeModal(); toast('✅ أُرسل الطلب للمراجعة العلمية'); navigate('approvals');
+}
+async function _caOpen(id){
+  const { data:c, error } = await sb.from('content_approvals').select('*, requester:profiles!content_approvals_requested_by_fkey(full_name)').eq('id',id).maybeSingle();
+  if(error || !c){ toast('تعذّر جلب الطلب'); return; }
+  const canScientific = _requireScientific() && ['draft','in_review','needs_edit'].includes(c.status);
+  const canExecutive = (ME.role==='admin' || ME.role==='executive' || _requirePartner()) && c.status==='awaiting_executive';
+  const readyPub = c.status==='ready_to_publish' && (_requireScientific() || _requirePartner());
+  const statusColor = CA_STATUS_COLOR[c.status]||'#8a8a8a';
+  const detailRow = (label, val) => val ? `<div class="ca-drow"><b>${esc(label)}</b><div>${esc(val)}</div></div>` : '';
+  $('#modalHost').innerHTML = `<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal ca-detail-modal">
+    <div class="ca-detail-head">
+      <div><div style="font-size:12px;color:var(--muted);font-weight:700">${esc(CA_KIND_AR[c.kind]||c.kind)}${c.version?' • '+esc(c.version):''}</div><h3 style="margin:4px 0 6px">${esc(c.title)}</h3><div style="font-size:12px;color:var(--muted)">مقدّم الطلب: ${esc(c.requester?.full_name||'—')} • ${esc(new Date(c.created_at).toLocaleDateString('ar-EG',{day:'numeric',month:'long',year:'numeric'}))}</div></div>
+      <span class="ca-status" style="background:${statusColor}22;color:${statusColor};font-size:12px;padding:5px 12px">${esc(CA_STATUS_AR[c.status]||c.status)}</span>
+    </div>
+    <div class="ca-details">
+      ${detailRow('ما الذي تغيّر', c.summary)}
+      ${detailRow('سبب التعديل', c.reason)}
+      ${c.scientific_review_note?`<div class="ca-drow"><b>ملاحظة المدير العلمي</b><div>${esc(c.scientific_review_note)}</div></div>`:''}
+      ${c.executive_review_note?`<div class="ca-drow"><b>ملاحظة التنفيذي</b><div>${esc(c.executive_review_note)}</div></div>`:''}
+      ${c.scientific_reviewed_at?`<div class="ca-drow"><b>معتمد علمياً في</b><div>${esc(new Date(c.scientific_reviewed_at).toLocaleString('ar-EG'))}</div></div>`:''}
+      ${c.published_at?`<div class="ca-drow"><b>نُشر في</b><div>${esc(new Date(c.published_at).toLocaleString('ar-EG'))}</div></div>`:''}
+    </div>
+    ${canScientific?`<div class="field"><label>ملاحظة قرارك (تُسجَّل في السجل)</label><textarea id="caNote" rows="2" placeholder="اختياري"></textarea></div>
+      <div class="modal-actions">
+        <button class="btn ghost" onclick="closeModal()">إغلاق</button>
+        <button class="btn ghost" onclick="_caDecide('${esc(id)}','needs_edit')">أعِد للمراجعة</button>
+        <button class="btn ghost" style="color:#c92e2e" onclick="_caDecide('${esc(id)}','rejected')">رفض</button>
+        <button class="btn" onclick="_caDecide('${esc(id)}','scientifically_approved')">${mi('check')||''} اعتماد علمي</button>
+      </div>`
+    : canExecutive ? `<div class="field"><label>ملاحظة تنفيذية</label><textarea id="caNote" rows="2"></textarea></div>
+      <div class="modal-actions">
+        <button class="btn ghost" onclick="closeModal()">إغلاق</button>
+        <button class="btn ghost" style="color:#c92e2e" onclick="_caDecideExec('${esc(id)}','rejected')">رفض تنفيذي</button>
+        <button class="btn" onclick="_caDecideExec('${esc(id)}','ready_to_publish')">موافقة تنفيذية</button>
+      </div>`
+    : readyPub ? `<div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إغلاق</button><button class="btn" onclick="_caPublish('${esc(id)}')">${mi('check')||''} نشر رسمي</button></div>`
+    : `<div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إغلاق</button></div>`}
+  </div></div>`;
+}
+async function _caDecide(id, decision){
+  const note = ($('#caNote')?.value||'').trim() || null;
+  const patch = { scientific_reviewer: ME.id, scientific_reviewed_at: new Date().toISOString(), scientific_review_note: note, status: decision, updated_at: new Date().toISOString() };
+  // إن اعتُمد علمياً وكان النوع يستوجب موافقة تنفيذية (منتج/رسالة/…) نضعه awaiting_executive بدلاً من الاعتماد المباشر
+  const needsExec = ['product','curriculum','path','message','material'];
+  if(decision === 'scientifically_approved'){
+    const { data:base } = await sb.from('content_approvals').select('kind').eq('id',id).maybeSingle();
+    if(base && needsExec.includes(base.kind)) patch.status = 'awaiting_executive';
+  }
+  const { error } = await sb.from('content_approvals').update(patch).eq('id',id);
+  if(error){ toast('تعذّر: '+error.message); return; }
+  closeModal(); toast('✅ سُجّل القرار'); navigate('approvals');
+}
+async function _caDecideExec(id, decision){
+  const note = ($('#caNote')?.value||'').trim() || null;
+  const patch = { executive_reviewer: ME.id, executive_reviewed_at: new Date().toISOString(), executive_review_note: note, status: decision, updated_at: new Date().toISOString() };
+  const { error } = await sb.from('content_approvals').update(patch).eq('id',id);
+  if(error){ toast('تعذّر: '+error.message); return; }
+  closeModal(); toast('✅ سُجّل القرار'); navigate('approvals');
+}
+async function _caPublish(id){
+  const { error } = await sb.from('content_approvals').update({ status:'published', published_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id',id);
+  if(error){ toast('تعذّر: '+error.message); return; }
+  closeModal(); toast('✅ نُشرت المادة'); navigate('approvals');
+}
+
+// ─── قرارات الشراكة ───────────────────────────────────────────────────────
+PAGES.admin_partnership = async function(){
+  if(!(_requirePartner() || _requireScientific() || ME.role==='admin' || ME.role==='executive')) return _noAccessCard('صفحة قرارات الشراكة للشركاء والمديرين فقط.');
+  setTop('قرارات الشراكة','قرارات كبرى تحتاج توثيقاً ومشاركة');
+  const { data:rows } = await sb.from('partnership_decisions').select('id,title,status,created_at,scientific_position,executive_position,final_decision').order('created_at',{ascending:false}).limit(50).then(x=>x, ()=>({data:[]}));
+  const list = rows || [];
+  const listHtml = list.length ? `<div class="pd-list">${list.map(r=>`
+    <div class="pd-row" onclick="_pdOpen('${esc(r.id)}')">
+      <div class="pd-info"><b>${esc(r.title)}</b><span>${esc(new Date(r.created_at).toLocaleDateString('ar-EG',{day:'numeric',month:'long',year:'numeric'}))}</span></div>
+      <div class="pd-positions">
+        <span class="pd-pos ${r.scientific_position||''}" title="موقف المدير العلمي">علمي: ${esc(r.scientific_position?({approve:'موافق',reject:'رفض',request_edit:'طلب تعديل'}[r.scientific_position]||r.scientific_position):'—')}</span>
+        <span class="pd-pos ${r.executive_position||''}" title="موقف التنفيذي">تنفيذي: ${esc(r.executive_position?({approve:'موافق',reject:'رفض',request_edit:'طلب تعديل'}[r.executive_position]||r.executive_position):'—')}</span>
+      </div>
+      <span class="pd-status" style="background:${(PD_STATUS_COLOR[r.status]||'#8a8a8a')}22;color:${PD_STATUS_COLOR[r.status]||'#8a8a8a'}">${esc(PD_STATUS_AR[r.status]||r.status)}</span>
+    </div>`).join('')}</div>` : `<div class="card" style="text-align:center;padding:30px;color:var(--muted)">لا قرارات شراكة مسجّلة بعد.</div>`;
+  const newBtn = (_requirePartner() || ME.role==='admin') ? `<button class="btn" onclick="_pdNew()">+ قرار شراكة جديد</button>` : '';
+  return pageHead('قرارات الشراكة','') + `<div style="margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap">${newBtn}</div>` + listHtml;
+};
+async function _pdNew(){
+  $('#modalHost').innerHTML = `<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <h3>قرار شراكة جديد</h3>
+    <p style="color:var(--muted);font-size:12.5px;margin-bottom:12px;line-height:1.7">قرارات كبرى تحتاج موافقة الشركاء: منتج علمي كبير، تعاقد، تغيير نشاط، شراكة، استخدام العلامة خارج المشروع، بيع/إغلاق.</p>
+    <div class="field"><label>عنوان القرار <span class="req">*</span></label><input id="pdTitle" placeholder="مثال: إطلاق برنامج «إجازات المتون» في الرياض"></div>
+    <div class="field"><label>ملخص</label><textarea id="pdSum" rows="2"></textarea></div>
+    <div class="field"><label>لماذا الآن؟</label><textarea id="pdWhy" rows="2"></textarea></div>
+    <div class="qform">
+      <div class="qrow">
+        <div><label>الأثر العلمي</label><textarea id="pdSci" rows="2"></textarea></div>
+        <div><label>الأثر التشغيلي</label><textarea id="pdOps" rows="2"></textarea></div>
+      </div>
+    </div>
+    <div class="field"><label>الأثر المالي</label><textarea id="pdFin" rows="2"></textarea></div>
+    <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إلغاء</button><button class="btn" id="pdNewBtn" onclick="_pdSaveNew()">فتح القرار للمراجعة</button></div>
+  </div></div>`;
+}
+async function _pdSaveNew(){
+  const title = ($('#pdTitle')?.value||'').trim();
+  if(!title){ toast('العنوان مطلوب'); return; }
+  const btn = document.getElementById('pdNewBtn'); if(btn){ btn.disabled=true; btn.textContent='جارٍ الحفظ...'; }
+  // نضعه بحالة تنتظر الطرف الآخر — الطرف الذي فتح القرار يُفترض أنه يعرف رأيه فوراً
+  const startStatus = _requireScientific() ? 'awaiting_executive' : (ME.role==='executive'||ME.role==='admin' ? 'awaiting_scientific' : 'awaiting_both');
+  const rec = {
+    title,
+    summary: ($('#pdSum')?.value||'').trim() || null,
+    why_now: ($('#pdWhy')?.value||'').trim() || null,
+    scientific_impact: ($('#pdSci')?.value||'').trim() || null,
+    operational_impact: ($('#pdOps')?.value||'').trim() || null,
+    financial_impact: ($('#pdFin')?.value||'').trim() || null,
+    opened_by: ME.id,
+    status: startStatus,
+  };
+  const { error } = await sb.from('partnership_decisions').insert(rec);
+  if(error){ if(btn){ btn.disabled=false; btn.textContent='فتح القرار'; } alert('تعذّر: '+error.message); return; }
+  closeModal(); toast('✅ فُتح القرار'); navigate('partnership');
+}
+async function _pdOpen(id){
+  const { data:p, error } = await sb.from('partnership_decisions').select('*, opener:profiles!partnership_decisions_opened_by_fkey(full_name)').eq('id',id).maybeSingle();
+  if(error || !p){ toast('تعذّر جلب القرار'); return; }
+  const canScientific = _requireScientific() && !p.scientific_position;
+  const canExecutive  = (ME.role==='admin'||ME.role==='executive'||_requirePartner()) && !p.executive_position;
+  const canFinalize   = _requirePartner() && p.scientific_position && p.executive_position && !p.final_decision;
+  const row = (l,v)=> v?`<div class="ca-drow"><b>${esc(l)}</b><div>${esc(v)}</div></div>`:'';
+  const posLabel = { approve:'موافق', reject:'رفض', request_edit:'طلب تعديل' };
+  $('#modalHost').innerHTML = `<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal ca-detail-modal">
+    <div class="ca-detail-head">
+      <div><h3 style="margin:0 0 6px">${esc(p.title)}</h3><div style="font-size:12px;color:var(--muted)">فتحه: ${esc(p.opener?.full_name||'—')} • ${esc(new Date(p.created_at).toLocaleDateString('ar-EG',{day:'numeric',month:'long',year:'numeric'}))}</div></div>
+      <span class="pd-status" style="background:${(PD_STATUS_COLOR[p.status]||'#8a8a8a')}22;color:${PD_STATUS_COLOR[p.status]||'#8a8a8a'};font-size:12px;padding:5px 12px">${esc(PD_STATUS_AR[p.status]||p.status)}</span>
+    </div>
+    <div class="ca-details">
+      ${row('ملخص', p.summary)}
+      ${row('لماذا الآن', p.why_now)}
+      ${row('الأثر العلمي', p.scientific_impact)}
+      ${row('الأثر التشغيلي', p.operational_impact)}
+      ${row('الأثر المالي', p.financial_impact)}
+      ${p.scientific_position?`<div class="ca-drow"><b>موقف المدير العلمي</b><div>${esc(posLabel[p.scientific_position]||p.scientific_position)}${p.scientific_note?' — '+esc(p.scientific_note):''}${p.scientific_at?' <span style="color:var(--muted);font-size:11px">('+esc(new Date(p.scientific_at).toLocaleDateString('ar-EG'))+')</span>':''}</div></div>`:''}
+      ${p.executive_position?`<div class="ca-drow"><b>موقف التنفيذي</b><div>${esc(posLabel[p.executive_position]||p.executive_position)}${p.executive_note?' — '+esc(p.executive_note):''}${p.executive_at?' <span style="color:var(--muted);font-size:11px">('+esc(new Date(p.executive_at).toLocaleDateString('ar-EG'))+')</span>':''}</div></div>`:''}
+    </div>
+    ${canScientific?`<div class="field"><label>ملاحظتك العلمية</label><textarea id="pdSciNote" rows="2"></textarea></div>
+      <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إغلاق</button><button class="btn ghost" onclick="_pdVote('${esc(id)}','scientific','request_edit')">طلب تعديل</button><button class="btn ghost" style="color:#c92e2e" onclick="_pdVote('${esc(id)}','scientific','reject')">رفض</button><button class="btn" onclick="_pdVote('${esc(id)}','scientific','approve')">${mi('check')||''} موافقة</button></div>`
+    : canExecutive?`<div class="field"><label>ملاحظتك التنفيذية</label><textarea id="pdExecNote" rows="2"></textarea></div>
+      <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إغلاق</button><button class="btn ghost" onclick="_pdVote('${esc(id)}','executive','request_edit')">طلب تعديل</button><button class="btn ghost" style="color:#c92e2e" onclick="_pdVote('${esc(id)}','executive','reject')">رفض</button><button class="btn" onclick="_pdVote('${esc(id)}','executive','approve')">${mi('check')||''} موافقة</button></div>`
+    : canFinalize?`<div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إغلاق</button><button class="btn ghost" onclick="_pdFinalize('${esc(id)}','postponed')">تأجيل</button><button class="btn ghost" style="color:#c92e2e" onclick="_pdFinalize('${esc(id)}','rejected')">رفض نهائي</button><button class="btn" onclick="_pdFinalize('${esc(id)}','approved')">اعتماد نهائي</button></div>`
+    : `<div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إغلاق</button></div>`}
+  </div></div>`;
+}
+async function _pdVote(id, side, position){
+  const patch = { updated_at: new Date().toISOString() };
+  if(side === 'scientific'){
+    patch.scientific_position = position;
+    patch.scientific_note = ($('#pdSciNote')?.value||'').trim() || null;
+    patch.scientific_by = ME.id;
+    patch.scientific_at = new Date().toISOString();
+  } else {
+    patch.executive_position = position;
+    patch.executive_note = ($('#pdExecNote')?.value||'').trim() || null;
+    patch.executive_by = ME.id;
+    patch.executive_at = new Date().toISOString();
+  }
+  // نُحدّث الحالة الكلية لو اكتمل الطرفان
+  const { data:cur } = await sb.from('partnership_decisions').select('scientific_position,executive_position').eq('id',id).maybeSingle();
+  const nextSci = side==='scientific' ? position : cur?.scientific_position;
+  const nextExe = side==='executive'  ? position : cur?.executive_position;
+  if(nextSci && nextExe){
+    if(nextSci==='approve' && nextExe==='approve') patch.status = 'approved';
+    else if(nextSci==='reject' || nextExe==='reject') patch.status = 'rejected';
+    else patch.status = 'awaiting_both';
+  } else if(!nextSci) patch.status = 'awaiting_scientific';
+  else if(!nextExe) patch.status = 'awaiting_executive';
+  const { error } = await sb.from('partnership_decisions').update(patch).eq('id',id);
+  if(error){ toast('تعذّر: '+error.message); return; }
+  closeModal(); toast('✅ سُجّل موقفك'); navigate('partnership');
+}
+async function _pdFinalize(id, decision){
+  const { error } = await sb.from('partnership_decisions').update({ final_decision:decision, finalized_at:new Date().toISOString(), status: decision, updated_at:new Date().toISOString() }).eq('id',id);
+  if(error){ toast('تعذّر: '+error.message); return; }
+  closeModal(); toast('✅ اعتُمد القرار'); navigate('partnership');
 }
 
 PAGES.admin_dash=async function(){ setTop('لوحة القيادة 🛡️','نظرة شاملة.');
