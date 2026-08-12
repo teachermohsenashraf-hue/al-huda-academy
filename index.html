@@ -8659,7 +8659,7 @@ async function sRoadmapLite(plan, student){
   const in7   = new Date(Date.now()+6*86400000).toISOString().slice(0,10);
   // ─── تخزين مؤقت (TTL 5 دقائق) لكل هذه الاستعلامات — يجعل زيارة مساري
   // الثانية فورية بدل ٧ استعلامات، وينمحي تلقائياً عند إنجاز ورد أو تعديل الخطة.
-  const cacheKey = 'srlite_v2_' + plan.id + '_' + today;
+  const cacheKey = 'srlite_v3_' + plan.id + '_' + today;
   const CACHE_TTL_MS = 5 * 60 * 1000;
   let dashR, wardsR, sysR, stationR, lastHifzR, sysFortsR, surahsR;
   let usedCache = false;
@@ -8688,10 +8688,14 @@ async function sRoadmapLite(plan, student){
       fortressesFor(plan.system_id),
       sb.from('quran_surahs').select('surah_no,name_ar').order('surah_no'),
     ]);
-    // نُخزّن النتائج للجلسة (لا localStorage — لأن الأوراد قد تتغيّر عبر أجهزة)
-    try{
-      sessionStorage.setItem(cacheKey, JSON.stringify({ _at: Date.now(), data: [dashR, wardsR, sysR, stationR, lastHifzR, sysFortsR, surahsR] }));
-    }catch(e){}
+    // نُخزّن النتائج للجلسة فقط لو ما فيش أخطاء في أي استعلام حرج
+    // (استعلام أوراد فاضي بسبب خطأ RLS/عمود سيتم كاشه لخمس دقائق ويحجب الأوراد الحقيقية)
+    const anyErr = [dashR, wardsR, sysR, stationR, lastHifzR, surahsR].some(r => r && r.error);
+    if(!anyErr){
+      try{
+        sessionStorage.setItem(cacheKey, JSON.stringify({ _at: Date.now(), data: [dashR, wardsR, sysR, stationR, lastHifzR, sysFortsR, surahsR] }));
+      }catch(e){}
+    }
   }
   const dash = (dashR && dashR.data && !dashR.data.error) ? dashR.data : null;
   const wards = wardsR.data || [];
@@ -8829,10 +8833,11 @@ async function sRoadmapLite(plan, student){
 // إبطال ذاكرة "خطة مساري" — يُستدعى بعد إنجاز ورد أو أي تعديل خطة
 function _srInvalidateRoadmapCache(planId){
   try{
-    const prefix = 'srlite_' + planId + '_';
+    // نمسح أي إصدار كاش قديم/جديد لخطة هذا الطالب
+    const prefixes = ['srlite_' + planId + '_', 'srlite_v2_' + planId + '_', 'srlite_v3_' + planId + '_'];
     for(let i = sessionStorage.length - 1; i >= 0; i--){
       const k = sessionStorage.key(i);
-      if(k && k.startsWith(prefix)) sessionStorage.removeItem(k);
+      if(k && prefixes.some(p => k.startsWith(p))) sessionStorage.removeItem(k);
     }
   }catch(e){}
 }
