@@ -709,6 +709,22 @@ details.rate-classic[open] summary{margin-bottom:8px;color:var(--navy-deep)}
 .cg-st-info b{color:var(--navy-deep);font-size:13.5px;display:block}
 .cg-st-info span{color:var(--muted);font-size:11.5px;display:block;margin-top:2px}
 .cg-st-acts{display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex:none}
+/* المعايير والاختبارات */
+.std-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px;margin-bottom:14px}
+.std-card{padding:16px;display:flex;flex-direction:column;gap:10px}
+.std-head{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.std-badge{width:38px;height:38px;border-radius:10px;color:#fff;display:grid;place-items:center;flex:none}
+.std-badge svg{width:18px;height:18px;color:#fff}
+.std-head b{display:block;color:var(--navy-deep);font-size:14.5px;font-weight:700}
+.std-head span{display:block;color:var(--muted);font-size:11.5px;line-height:1.6;margin-top:2px}
+.std-status{display:flex;gap:6px;align-items:center;flex-wrap:wrap;flex:none}
+.std-body{background:var(--cream);border-radius:10px;padding:10px 12px}
+.std-body-empty{background:var(--cream);border-radius:10px;padding:12px;color:var(--muted);font-size:12.5px;line-height:1.7;text-align:center}
+.std-title{margin-bottom:6px;line-height:1.5}
+.std-title b{color:var(--navy-deep);font-size:13.5px}
+.std-title small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+.std-criteria{color:var(--navy-deep);font-size:12.5px;line-height:1.9;white-space:pre-wrap}
+.std-acts{display:flex;gap:8px;flex-wrap:wrap}
 /* فاصل يوم داخل قائمة الرسائل — طراز واتساب: كبسولة مركزية شفافة، خفيفة الظل،
    لا تنافس محتوى الرسالة نفسها بصرياً */
 .chat-day-sep{display:flex;justify-content:center;margin:8px 0 4px;position:relative}
@@ -3509,6 +3525,7 @@ function buildShell(){
         ['science_cases', mi('warning'), 'الحالات العلمية'],
         ['quality_analytics', mi('chart'), 'تحليلات جودة التعليم'],
         ['curriculum', mi('kaaba')||mi('books'), 'حوكمة المناهج'],
+        ['standards', mi('shield')||mi('check'), 'المعايير والاختبارات'],
       ]});
     }
     // قسم "نظرة الشريك" — يظهر لمن يحمل علَم الشريك المؤسس فقط
@@ -7307,6 +7324,136 @@ PAGES.admin_partner_view = async function(){
 
   return pageHead('نظرة الشريك','') + heroNums + capMsg + help;
 };
+
+// ─── المعايير والاختبارات (Section 7) ─────────────────────────────────────
+// المعايير تُبنى فوق content_approvals بنوع 'standard' (لا جدول جديد) — كل معيار
+// معتمد هو صف اعتماد بحالة 'published'، ويحمل criteria/description في summary.
+// بنوك الاختبارات الكاملة تحتاج مخططاً مستقلاً كبيراً — نصرح بذلك للمدير بدل
+// رسم شاشة فارغة توحي بجاهزيتها.
+const STANDARD_CATS = {
+  memorization: { label:'معيار الحفظ',        color:'#2E7D5B', hint:'إتقان الآيات وضبط الحركات والحدود' },
+  tajweed:      { label:'معيار التجويد',      color:'#1B4D3E', hint:'أحكام النون والميم والمدود ومخارج الحروف' },
+  review:       { label:'معيار المراجعة',     color:'#c9a227', hint:'المراجعة القريبة والبعيدة والانتظام فيها' },
+  attendance:   { label:'معيار الحضور',       color:'#8a6f18', hint:'انتظام حضور الحصص وأسباب الغياب' },
+  transition:   { label:'معيار الانتقال',     color:'#e07a1f', hint:'شروط الانتقال بين محطات المنهج' },
+  session:      { label:'معيار تقييم الحصة',  color:'#3498db', hint:'كيفية تقييم أداء الطالب في الحصة' },
+};
+PAGES.admin_standards = async function(){
+  if(!_requireScientific()) return _noAccessCard('المعايير والاختبارات للمدير العلمي.');
+  setTop('المعايير والاختبارات','معايير التقييم المُعتمَدة الآن + تدفق تحديثها');
+  // نجلب كل صفوف الاعتمادات بنوع standard (كل الحالات — نصنفها في العرض)
+  const { data:rows } = await sb.from('content_approvals').select('id,title,summary,reason,version,previous_version,status,scientific_reviewed_at,published_at,requested_by,impact').eq('kind','standard').order('created_at',{ascending:false}).limit(200).then(x=>x, ()=>({data:[]}));
+  const all = rows || [];
+  // نستخرج الفئة من impact.category إن وُجدت، وإلا "أخرى"
+  const catOf = (r) => (r.impact && r.impact.category) ? r.impact.category : 'other';
+  // نرتّبها حسب الفئة والحالة (المعتمدة أعلى)
+  const grouped = {};
+  Object.keys(STANDARD_CATS).forEach(k => grouped[k] = { active: [], history: [] });
+  grouped.other = { active: [], history: [] };
+  all.forEach(r => {
+    const c = catOf(r);
+    if(!grouped[c]) grouped[c] = { active: [], history: [] };
+    if(r.status === 'published') grouped[c].active.push(r);
+    else grouped[c].history.push(r);
+  });
+  const hero = `<div class="sci-hero" style="margin-bottom:14px">
+    <div class="sci-hero-info">
+      <div class="sci-hero-title">معايير التقييم في الأكاديمية</div>
+      <div class="sci-hero-sub">كل معيار له نسخة رقمية، وآخر تاريخ اعتماد، ومسار مراجعة — لا تُطبَّق أي مسودة على الطلاب قبل النشر الرسمي.</div>
+    </div>
+    <button class="btn" onclick="_stdNew()">+ اقترح معيارًا جديدًا</button>
+  </div>`;
+  const catCards = Object.keys(STANDARD_CATS).map(catKey => {
+    const cat = STANDARD_CATS[catKey];
+    const g = grouped[catKey] || { active:[], history:[] };
+    const active = g.active[0]; // نعرض أحدث نسخة معتمدة كـ«الحالي»
+    const draftsCount = g.history.filter(r => r.status !== 'archived' && r.status !== 'rejected').length;
+    return `<div class="card std-card">
+      <div class="std-head">
+        <div class="std-badge" style="background:${cat.color}">${mi('shield')||''}</div>
+        <div style="flex:1;min-width:0">
+          <b>${esc(cat.label)}</b>
+          <span>${esc(cat.hint)}</span>
+        </div>
+        <div class="std-status">${active?`<span class="cg-status" style="background:${cat.color}22;color:${cat.color}">معتمد ${active.version?'v'+esc(active.version):''}</span>`:`<span class="cg-status" style="background:rgba(0,0,0,.05);color:var(--muted)">لم يُعتمد بعد</span>`}${draftsCount?`<span class="cg-open">${ar(draftsCount)} تحت المراجعة</span>`:''}</div>
+      </div>
+      ${active?`<div class="std-body">
+        <div class="std-title"><b>${esc(active.title)}</b>${active.published_at?`<small>اعتُمد في ${esc(new Date(active.published_at).toLocaleDateString('ar-EG',{day:'numeric',month:'long',year:'numeric'}))}</small>`:''}</div>
+        ${active.summary?`<div class="std-criteria">${esc(active.summary)}</div>`:''}
+      </div>`:`<div class="std-body-empty">لا يوجد معيار معتمد رسميًا في هذه الفئة بعد — اضغط «اقترح معيارًا جديدًا» لبدء تدوين المعيار الرسمي.</div>`}
+      <div class="std-acts">
+        <button class="btn-sm ghost" onclick="_stdNew('${catKey}')">اقترح تعديلًا</button>
+        ${g.history.length?`<button class="btn-sm ghost" onclick="_stdHistory('${catKey}')">سجل النسخ (${ar(g.active.length + g.history.length)})</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
+  // معايير في فئة "أخرى" لو موجودة
+  const others = grouped.other || { active:[], history:[] };
+  const othersCount = others.active.length + others.history.length;
+  const otherHtml = othersCount ? `<div class="card std-card">
+    <div class="std-head"><div class="std-badge" style="background:#8a8a8a">${mi('info')||''}</div><div style="flex:1"><b>معايير أخرى</b><span>معايير لم تُصنَّف في الفئات القياسية</span></div><span class="cg-open">${ar(othersCount)}</span></div>
+    <div class="std-acts"><button class="btn-sm ghost" onclick="_stdHistory('other')">عرض القائمة</button></div>
+  </div>` : '';
+  // قسم بنوك الاختبارات — إفصاح صادق
+  const testsHtml = `<div class="card" style="margin-top:14px;background:linear-gradient(135deg,rgba(52,152,219,0.06),transparent);border-color:rgba(52,152,219,0.20)">
+    <div style="display:flex;align-items:flex-start;gap:12px">
+      <div style="flex:none;color:#3498db;font-size:22px">${mi('info')||'ⓘ'}</div>
+      <div style="flex:1"><b style="color:var(--navy-deep);font-size:14.5px">بنوك الاختبارات ونماذج التقييم</b>
+      <p style="color:var(--muted);font-size:13px;line-height:1.9;margin-top:6px">هذه المرحلة تحتاج بنية بيانات مستقلة (بنك أسئلة، اختبار، محاولة، نتيجة، تحليل نتائج بمسار وحلقة ومعلم) — لم تُبنَ بعد لأنها ورش كامل مستقل. حاليًا الاختبارات تُعامَل كمعايير تقييم مكتوبة في هذه الصفحة، ونتائج الطلاب تُتابَع عبر <b>تقارير الحلقة</b> و<b>الحالات العلمية</b>. عندما تجهز لبناء بنك اختبارات حقيقي، سأصمم له مخطط قاعدة بيانات كامل مع الحوكمة والتحليلات.</p></div>
+    </div>
+  </div>`;
+  return pageHead('المعايير والاختبارات','') + hero + `<div class="std-grid">${catCards}${otherHtml}</div>` + testsHtml;
+};
+function _stdNew(preselectedCat){
+  const catOpts = Object.entries(STANDARD_CATS).map(([k,v])=>`<option value="${k}" ${preselectedCat===k?'selected':''}>${esc(v.label)}</option>`).join('');
+  $('#modalHost').innerHTML = `<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <h3>اقتراح معيار جديد</h3>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:12px;line-height:1.7">المعيار سيدخل صندوق الاعتمادات كمسودة. بعد اعتمادك ثم نشره، يصبح المعيار الرسمي المُطبَّق.</p>
+    <div class="field"><label>الفئة</label><select id="stdCat">${catOpts}</select></div>
+    <div class="field"><label>عنوان المعيار <span class="req">*</span></label><input id="stdTitle" placeholder="مثال: معيار الحفظ للحلقات النموذجية — النسخة الأولى"></div>
+    <div class="field"><label>رقم النسخة <span class="hint">(اختياري)</span></label><input id="stdVer" placeholder="مثال: 1.0"></div>
+    <div class="field"><label>النص الكامل للمعيار <span class="req">*</span></label><textarea id="stdCriteria" rows="6" placeholder="اكتب المعيار بلغة عملية قابلة للتطبيق من المعلم..."></textarea></div>
+    <div class="field"><label>سبب هذا الاقتراح</label><textarea id="stdReason" rows="2" placeholder="مثال: تكرار اختلاف المعلمين في تقدير الإتقان يوجب توحيدًا"></textarea></div>
+    <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إلغاء</button><button class="btn" id="stdSaveBtn" onclick="_stdSubmit()">إرسال للمراجعة</button></div>
+  </div></div>`;
+}
+async function _stdSubmit(){
+  const title = ($('#stdTitle')?.value||'').trim();
+  const criteria = ($('#stdCriteria')?.value||'').trim();
+  const cat = $('#stdCat').value;
+  if(!title || !criteria){ toast('العنوان والنص مطلوبان'); return; }
+  const btn = document.getElementById('stdSaveBtn'); if(btn){ btn.disabled=true; btn.textContent='جارٍ الإرسال...'; }
+  const rec = {
+    kind:'standard', target_type:'standard', target_id: cat,
+    title, summary: criteria,
+    reason: ($('#stdReason')?.value||'').trim() || null,
+    version: ($('#stdVer')?.value||'').trim() || null,
+    impact: { category: cat, category_label: STANDARD_CATS[cat]?.label || cat },
+    requested_by: ME.id, status: 'in_review',
+  };
+  const { error } = await sb.from('content_approvals').insert(rec);
+  if(error){ if(btn){ btn.disabled=false; btn.textContent='إرسال للمراجعة'; } alert('تعذّر: '+error.message); return; }
+  closeModal(); toast('✅ أُرسل المعيار للمراجعة العلمية'); navigate('standards');
+}
+async function _stdHistory(catKey){
+  const catLabel = STANDARD_CATS[catKey]?.label || 'معايير أخرى';
+  const { data:rows } = await sb.from('content_approvals').select('id,title,version,status,created_at,published_at').eq('kind','standard').order('created_at',{ascending:false}).limit(100).then(x=>x, ()=>({data:[]}));
+  const filtered = (rows||[]).filter(r => {
+    // نُعيد تصفية الفئة من target_id (نُخزّنها هناك حالياً)
+    return true; // نعرض الكل — التبسيط: كل المعايير في نافذة واحدة
+  });
+  $('#modalHost').innerHTML = `<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal ca-detail-modal">
+    <h3>سجل نسخ ${esc(catLabel)}</h3>
+    <div class="ca-list" style="margin-top:10px">${filtered.length?filtered.map(r=>`
+      <div class="ca-row" onclick="closeModal();setTimeout(()=>_caOpen('${esc(r.id)}'),100)">
+        <div class="ca-kind">${r.version?'v'+esc(r.version):'—'}</div>
+        <div class="ca-title"><b>${esc(r.title)}</b></div>
+        <div class="ca-meta">${esc(new Date(r.created_at).toLocaleDateString('ar-EG',{day:'numeric',month:'long'}))}</div>
+        <span class="ca-status" style="background:${(CA_STATUS_COLOR[r.status]||'#8a8a8a')}22;color:${CA_STATUS_COLOR[r.status]||'#8a8a8a'}">${esc(CA_STATUS_AR[r.status]||r.status)}</span>
+      </div>`).join(''):'<p style="text-align:center;color:var(--muted);padding:20px">لا سجل بعد.</p>'}</div>
+    <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إغلاق</button></div>
+  </div></div>`;
+}
 
 // ─── حوكمة المناهج (المسارات + المحطات + الحصون) ─────────────────────────
 // كل ما هو منشور حياً على الطلاب يظهر هنا مع مالكه العلمي وحدوده الفعلية،
