@@ -6832,8 +6832,15 @@ async function _caSaveNew(){
   closeModal(); toast('✅ أُرسل الطلب للمراجعة العلمية'); navigate('approvals');
 }
 async function _caOpen(id){
-  const { data:c, error } = await sb.from('content_approvals').select('*, requester:profiles!content_approvals_requested_by_fkey(full_name)').eq('id',id).maybeSingle();
-  if(error || !c){ toast('تعذّر جلب الطلب'); return; }
+  // نجلب الطلب ثم اسم مقدّمه باستعلام منفصل بدل embed عبر FK يمر بـauth.users
+  // (PostgREST لا يستطيع الوصول لـprofiles تلقائياً عبر content_approvals_requested_by_fkey
+  // لأن الـFK يشير إلى auth.users مباشرة، وليس إلى profiles)
+  const { data:c, error } = await sb.from('content_approvals').select('*').eq('id',id).maybeSingle();
+  if(error || !c){ toast('تعذّر جلب الطلب: '+(error?.message||'غير موجود')); return; }
+  if(c.requested_by){
+    const { data:reqProf } = await sb.from('profiles').select('full_name').eq('id',c.requested_by).maybeSingle();
+    c.requester = reqProf || null;
+  }
   const canScientific = _requireScientific() && ['draft','in_review','needs_edit'].includes(c.status);
   const canExecutive = (ME.role==='admin' || ME.role==='executive' || _requirePartner()) && c.status==='awaiting_executive';
   const readyPub = c.status==='ready_to_publish' && (_requireScientific() || _requirePartner());
@@ -6951,8 +6958,13 @@ async function _pdSaveNew(){
   closeModal(); toast('✅ فُتح القرار'); navigate('partnership');
 }
 async function _pdOpen(id){
-  const { data:p, error } = await sb.from('partnership_decisions').select('*, opener:profiles!partnership_decisions_opened_by_fkey(full_name)').eq('id',id).maybeSingle();
-  if(error || !p){ toast('تعذّر جلب القرار'); return; }
+  // نفس المشكلة في partnership_decisions.opened_by (FK إلى auth.users)
+  const { data:p, error } = await sb.from('partnership_decisions').select('*').eq('id',id).maybeSingle();
+  if(error || !p){ toast('تعذّر جلب القرار: '+(error?.message||'غير موجود')); return; }
+  if(p.opened_by){
+    const { data:openProf } = await sb.from('profiles').select('full_name').eq('id',p.opened_by).maybeSingle();
+    p.opener = openProf || null;
+  }
   const canScientific = _requireScientific() && !p.scientific_position;
   const canExecutive  = (ME.role==='admin'||ME.role==='executive'||_requirePartner()) && !p.executive_position;
   const canFinalize   = _requirePartner() && p.scientific_position && p.executive_position && !p.final_decision;
