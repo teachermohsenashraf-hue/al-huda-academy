@@ -6736,7 +6736,7 @@ PAGES.admin_science_office = async function(){
       urgency: 60, kind:'stud', color:'#c92e2e', icon: mi('warning')||'',
       title: 'حالة علمية: ' + s.full_name,
       subtitle: 'مستوى الإتقان: '+ar(s.mastery||0)+'٪ — تحتاج مراجعة خطة',
-      action: `<button class="btn ghost" onclick="event.stopPropagation();navigate('cases')">فتح المتابعة</button>`,
+      action: `<button class="btn ghost" onclick="event.stopPropagation();_scOpen(${s.id},'${escJs(s.full_name)}')">فتح المتابعة</button>`,
     });
   });
   queue.sort((a,b)=>b.urgency-a.urgency);
