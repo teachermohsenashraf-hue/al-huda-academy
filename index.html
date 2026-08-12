@@ -8765,7 +8765,7 @@ async function sRoadmapLite(plan, student){
     const d = new Date(iso);
     return d.toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long'});
   };
-  const fortShort = { new_hifz:'حفظ جديد', near_review:'مراجعة قريبة', far_review:'مراجعة بعيدة', listening:'سماع', reading:'قراءة', remedial:'مراجعة علاجية' };
+  const fortShort = { new_hifz:'حفظ جديد', near_review:'مراجعة قريبة', review_near:'مراجعة قريبة', far_review:'مراجعة بعيدة', review_far:'مراجعة بعيدة', listening:'سماع', listen:'سماع', reading:'قراءة', remedial:'مراجعة علاجية' };
   const wardsByDate = {};
   wards.forEach(w=>{ (wardsByDate[w.planned_date] = wardsByDate[w.planned_date] || []).push(w); });
   const weekDatesSorted = Object.keys(wardsByDate).sort();
@@ -8868,7 +8868,7 @@ async function _sRoadmapLoadMore(planId){
     const d = new Date(iso);
     return d.toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long'});
   };
-  const fortShort = { new_hifz:'حفظ جديد', near_review:'مراجعة قريبة', far_review:'مراجعة بعيدة', listening:'سماع', reading:'قراءة', remedial:'مراجعة علاجية' };
+  const fortShort = { new_hifz:'حفظ جديد', near_review:'مراجعة قريبة', review_near:'مراجعة قريبة', far_review:'مراجعة بعيدة', review_far:'مراجعة بعيدة', listening:'سماع', listen:'سماع', reading:'قراءة', remedial:'مراجعة علاجية' };
   const byDate = {};
   wards.forEach(w=>{ (byDate[w.planned_date] = byDate[w.planned_date] || []).push(w); });
   const html = Object.keys(byDate).sort().map(dt => {
