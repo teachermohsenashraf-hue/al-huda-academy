@@ -680,6 +680,17 @@ details.rate-classic[open] summary{margin-bottom:8px;color:var(--navy-deep)}
 .pd-pos.reject{background:rgba(231,76,60,0.14);color:#c92e2e}
 .pd-pos.request_edit{background:rgba(224,122,31,0.14);color:#8a4715}
 .pd-status{font-size:11.5px;font-weight:700;padding:3px 10px;border-radius:9px;white-space:nowrap}
+/* جودة المعلمين والحلقات */
+.tq-list{display:flex;flex-direction:column;gap:8px}
+.tq-row{background:#fff;border:1px solid var(--line);border-radius:12px;display:flex;align-items:center;gap:12px;padding:0;overflow:hidden;cursor:pointer;transition:.15s}
+.tq-row:hover{border-color:rgba(46,125,91,0.28);transform:translateY(-1px)}
+.tq-side{width:4px;align-self:stretch;flex:none}
+.tq-avatar{width:38px;height:38px;border-radius:50%;background:var(--cream);color:var(--emerald-deep,#1B4D3E);display:grid;place-items:center;flex:none;font-family:'Amiri',serif;font-weight:700;overflow:hidden}
+.tq-avatar img{width:100%;height:100%;object-fit:cover}
+.tq-info{flex:1;min-width:0;padding:10px 4px 10px 0}
+.tq-info b{display:block;color:var(--navy-deep);font-size:13.5px;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tq-meta{color:var(--muted);font-size:11.5px;line-height:1.6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tq-status{font-size:11.5px;font-weight:700;padding:3px 10px;border-radius:9px;white-space:nowrap;margin-inline-end:12px;flex:none}
 /* فاصل يوم داخل قائمة الرسائل — طراز واتساب: كبسولة مركزية شفافة، خفيفة الظل،
    لا تنافس محتوى الرسالة نفسها بصرياً */
 .chat-day-sep{display:flex;justify-content:center;margin:8px 0 4px;position:relative}
@@ -3473,6 +3484,21 @@ function buildShell(){
     if(ME.is_founding_partner)    items.push(['partnership',mi('handshake')||mi('users'),'قرارات الشراكة']);
     // نضع القسم أعلى القوائم بعد "الرئيسية" مباشرة (لأولوية عرضه للشريك)
     m.sections.splice(1, 0, { label:'المكتب العلمي', items });
+    // قسم "الجودة والحالات" — يظهر لمن يحمل علَم المدير العلمي فقط
+    if(ME.is_scientific_director){
+      m.sections.splice(2, 0, { label:'الجودة والحالات', items: [
+        ['teacher_quality', mi('star'), 'جودة المعلمين والحلقات'],
+        ['science_cases', mi('warning'), 'الحالات العلمية'],
+        ['quality_analytics', mi('chart'), 'تحليلات جودة التعليم'],
+      ]});
+    }
+    // قسم "نظرة الشريك" — يظهر لمن يحمل علَم الشريك المؤسس فقط
+    if(ME.is_founding_partner){
+      const insertAt = ME.is_scientific_director ? 3 : 2;
+      m.sections.splice(insertAt, 0, { label:'نظرة الشريك', items: [
+        ['partner_view', mi('chart'), 'صحة المشروع'],
+      ]});
+    }
     // نُعدّل اللقب أيضاً حتى يعرف الشريك المؤسس أن اللوحة تخصّه
     if(m.title === 'لوحة المدير'){ m.title = ME.is_founding_partner && ME.is_scientific_director ? 'المدير العلمي — شريك مؤسس' : (ME.is_scientific_director ? 'المدير العلمي' : 'شريك مؤسس'); }
   }
@@ -6897,6 +6923,371 @@ async function _pdFinalize(id, decision){
   if(error){ toast('تعذّر: '+error.message); return; }
   closeModal(); toast('✅ اعتُمد القرار'); navigate('partnership');
 }
+
+// ─── مركز جودة المعلمين والحلقات ──────────────────────────────────────────
+// جميع المؤشرات محسوبة من البيانات القائمة (students.mastery, sessions,
+// session_ratings, groups) — بلا مخطط جديد ولا حسابات ثقيلة على السيرفر
+PAGES.admin_teacher_quality = async function(){
+  if(!_requireScientific()) return _noAccessCard('صفحة جودة المعلمين للمدير العلمي.');
+  setTop('جودة المعلمين والحلقات','مؤشرات حية مبنية على أداء طلاب كل معلم');
+  const today = qTodayStr();
+  const iso30 = new Date(Date.now()-30*86400000).toISOString().slice(0,10);
+  // بالتوازي: قائمة المعلمين + مجموعاتهم + طلابهم + حصصهم + تقييماتهم
+  const [teachersR, groupsR] = await Promise.all([
+    sb.from('profiles').select('id,full_name,avatar_url,available,is_available').eq('role','teacher').limit(200),
+    sb.from('groups').select('id,name,teacher_id').limit(500),
+  ]);
+  const teachers = teachersR.data || [];
+  const groups = groupsR.data || [];
+  const gByTeacher = {}; groups.forEach(g => { (gByTeacher[g.teacher_id] = gByTeacher[g.teacher_id] || []).push(g); });
+  const teacherGroupIds = {}; teachers.forEach(t => { teacherGroupIds[t.id] = (gByTeacher[t.id]||[]).map(g=>g.id); });
+  const allGroupIds = groups.map(g=>g.id);
+  const [studsR, sesR, ratingsR] = await Promise.all([
+    allGroupIds.length ? sb.from('students').select('id,group_id,mastery,enrollment_status').in('group_id',allGroupIds).eq('enrollment_status','active') : Promise.resolve({data:[]}),
+    allGroupIds.length ? sb.from('sessions').select('id,group_id,session_date,session_time,duration_min,status').in('group_id',allGroupIds).neq('status','cancelled').gte('session_date',iso30) : Promise.resolve({data:[]}),
+    // نجلب ids التقييمات فقط ثم نقاطعها مع الحصص المنتهية
+    Promise.resolve({data:[]}),
+  ]);
+  const students = studsR.data || [];
+  const sessions = sesR.data || [];
+  const sesIds = sessions.map(s=>s.id);
+  let ratedSet = new Set();
+  if(sesIds.length){
+    const { data:rr } = await sb.from('session_ratings').select('session_id').in('session_id',sesIds);
+    (rr||[]).forEach(r => ratedSet.add(r.session_id));
+  }
+  const studByGroup = {}; students.forEach(s => { (studByGroup[s.group_id] = studByGroup[s.group_id] || []).push(s); });
+  // لكل معلم: احسب مؤشرات القائمة
+  const rows = teachers.map(t => {
+    const gids = teacherGroupIds[t.id] || [];
+    const studs = gids.flatMap(gid => studByGroup[gid] || []);
+    const gSes = sessions.filter(s => gids.includes(s.group_id));
+    const finishedSes = gSes.filter(s => {
+      if(!s.session_date) return false;
+      const end = new Date(s.session_date+'T'+(s.session_time||'00:00'));
+      if(s.duration_min) end.setMinutes(end.getMinutes()+s.duration_min);
+      return end < new Date();
+    });
+    const unrated = finishedSes.filter(s => !ratedSet.has(s.id)).length;
+    const avgMastery = studs.length ? Math.round(studs.reduce((a,s)=>a+(s.mastery||0),0)/studs.length) : null;
+    const lowMastery = studs.filter(s => (s.mastery||0) < 60).length;
+    const ratingRate = finishedSes.length ? Math.round((finishedSes.length - unrated)/finishedSes.length*100) : null;
+    // حالة إجمالية
+    let statusLabel, statusColor;
+    if(!studs.length){ statusLabel='بلا طلاب'; statusColor='#8a8a8a'; }
+    else if(unrated >= 5 || (avgMastery!==null && avgMastery < 55)){ statusLabel='يحتاج تدريب'; statusColor='#c92e2e'; }
+    else if(unrated >= 2 || lowMastery >= Math.ceil(studs.length*0.3)){ statusLabel='يحتاج متابعة'; statusColor='#c9a227'; }
+    else{ statusLabel='مستقر'; statusColor='#2E7D5B'; }
+    return { t, studCount: studs.length, groupCount: gids.length, avgMastery, unrated, lowMastery, ratingRate, statusLabel, statusColor };
+  }).sort((a,b) => {
+    // نرتّب: يحتاج تدريب أولاً، ثم يحتاج متابعة، ثم مستقر، ثم بلا طلاب
+    const rank = { 'يحتاج تدريب':0, 'يحتاج متابعة':1, 'مستقر':2, 'بلا طلاب':3 };
+    return (rank[a.statusLabel]||9) - (rank[b.statusLabel]||9);
+  });
+  const totalCount = rows.length;
+  const needAtt = rows.filter(r => r.statusLabel==='يحتاج تدريب' || r.statusLabel==='يحتاج متابعة').length;
+
+  const summary = `<div class="sci-hero" style="margin-bottom:14px">
+    <div class="sci-hero-info">
+      <div class="sci-hero-title">جودة التعليم — نظرة سريعة</div>
+      <div class="sci-hero-sub">${ar(totalCount)} معلم — منهم <b>${ar(needAtt)}</b> يحتاجون تدخّلاً</div>
+    </div>
+  </div>`;
+  const listHtml = rows.length ? `<div class="tq-list">${rows.map(r => `
+    <div class="tq-row" onclick="_tqOpen('${esc(r.t.id)}','${escJs(r.t.full_name)}')">
+      <div class="tq-side" style="background:${r.statusColor}"></div>
+      <div class="tq-avatar">${r.t.avatar_url?`<img src="${esc(r.t.avatar_url)}">`:esc((r.t.full_name||'؟').slice(0,2))}</div>
+      <div class="tq-info">
+        <b>${esc(r.t.full_name)}</b>
+        <div class="tq-meta">${ar(r.studCount)} طالب • ${ar(r.groupCount)} حلقة${r.avgMastery!==null?' • متوسط الإتقان '+ar(r.avgMastery)+'٪':''}${r.ratingRate!==null?' • تقييم في وقته '+ar(r.ratingRate)+'٪':''}${r.unrated?' • '+ar(r.unrated)+' غير مقيّم':''}${r.lowMastery?' • '+ar(r.lowMastery)+' طالب ضعيف':''}</div>
+      </div>
+      <span class="tq-status" style="background:${r.statusColor}22;color:${r.statusColor}">${esc(r.statusLabel)}</span>
+    </div>`).join('')}</div>` : `<div class="card" style="text-align:center;padding:30px;color:var(--muted)">لا معلمين في النظام بعد.</div>`;
+  return pageHead('جودة المعلمين والحلقات','') + summary + listHtml;
+};
+async function _tqOpen(teacherId, teacherName){
+  // ملف المعلم المصغر — بيانات مباشرة بلا استعلامات ثقيلة
+  const [gR, ratingsR] = await Promise.all([
+    sb.from('groups').select('id,name').eq('teacher_id',teacherId),
+    sb.from('session_ratings').select('rating_score,attendance,memorization,created_at').eq('teacher_id',teacherId).order('created_at',{ascending:false}).limit(50),
+  ]);
+  const gids = (gR.data||[]).map(g=>g.id);
+  const { data:studs } = gids.length ? await sb.from('students').select('id,full_name,mastery').in('group_id',gids).eq('enrollment_status','active') : { data:[] };
+  const ratings = ratingsR.data || [];
+  const avgScore = ratings.length ? Math.round(ratings.reduce((a,r)=>a+(r.rating_score||0),0)/ratings.length) : null;
+  const attCounts = { present:0, late:0, absent_excused:0, absent_unexcused:0, absent:0 };
+  ratings.forEach(r => { if(r.attendance && attCounts[r.attendance]!==undefined) attCounts[r.attendance]++; });
+  const totalAtt = Object.values(attCounts).reduce((a,b)=>a+b,0);
+  const attRate = totalAtt ? Math.round((attCounts.present + attCounts.late*0.5)/totalAtt*100) : null;
+  const studBreakdown = (studs||[]).sort((a,b)=>(a.mastery||0)-(b.mastery||0)).slice(0,10);
+
+  $('#modalHost').innerHTML = `<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal ca-detail-modal">
+    <div class="ca-detail-head">
+      <div><h3 style="margin:0 0 6px">${esc(teacherName)}</h3><div style="font-size:12px;color:var(--muted)">ملف جودة مبسّط — آخر ٥٠ تقييم حصة</div></div>
+    </div>
+    <div class="sci-hero-nums" style="margin-bottom:14px">
+      <div class="sci-num"><b>${ar((studs||[]).length)}</b><span>طالب نشط</span></div>
+      <div class="sci-num"><b>${ar(gids.length)}</b><span>حلقة</span></div>
+      <div class="sci-num"><b>${avgScore!==null?ar(avgScore)+'٪':'—'}</b><span>متوسط تقييم الحصص</span></div>
+      <div class="sci-num"><b>${attRate!==null?ar(attRate)+'٪':'—'}</b><span>انتظام الحضور</span></div>
+    </div>
+    ${studBreakdown.length?`<div class="ca-drow"><b>أضعف ١٠ طلاب لديه (لتحديد الأولوية)</b><div>${studBreakdown.map(s=>esc(s.full_name)+' — '+ar(s.mastery||0)+'٪').join('<br>')}</div></div>`:''}
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeModal()">إغلاق</button>
+      <button class="btn ghost" onclick="startChatWith('${teacherId}','${escJs(teacherName)}');closeModal()">${mi('chat')||''} راسل المعلم</button>
+      <button class="btn" onclick="_tqPlanDev('${teacherId}','${escJs(teacherName)}')">إنشاء خطة تطوير</button>
+    </div>
+  </div></div>`;
+}
+async function _tqPlanDev(teacherId, teacherName){
+  // نُنشئ طلب اعتماد بنوع "material" ونستخدمه لتوثيق خطة تطوير المعلم
+  const note = prompt('اكتب باختصار خطة تطوير المعلم '+teacherName+' (تُسجَّل في صندوق الاعتمادات كسجل رسمي):');
+  if(!note || !note.trim()) return;
+  const { error } = await sb.from('content_approvals').insert({
+    kind:'material', title:'خطة تطوير المعلم: '+teacherName,
+    summary: note.trim(), reason:'مبنية على مؤشرات جودة الحلقات',
+    requested_by: ME.id, status:'scientifically_approved',
+    scientific_reviewer: ME.id, scientific_reviewed_at: new Date().toISOString(),
+    scientific_review_note: 'اعتمدها المدير العلمي مباشرة'
+  });
+  if(error){ toast('تعذّر: '+error.message); return; }
+  closeModal(); toast('✅ سُجّلت خطة التطوير في صندوق الاعتمادات');
+}
+
+// ─── مركز الحالات العلمية (طلاب يحتاجون دعمًا) ───────────────────────────
+PAGES.admin_science_cases = async function(){
+  if(!_requireScientific()) return _noAccessCard('صفحة الحالات العلمية للمدير العلمي.');
+  setTop('الحالات العلمية','طلاب تظهر مؤشراتهم حاجة لدعم علمي');
+  const today = qTodayStr();
+  // بالتوازي: طلاب ضعف + خطط نشطة + طلبات مساعدة مفتوحة
+  const [lowR, plansR, helpR] = await Promise.all([
+    sb.from('students').select('id,full_name,mastery,group_id,quran_path').eq('enrollment_status','active').lt('mastery',60).order('mastery',{ascending:true}).limit(50),
+    sb.from('quran_student_plans').select('id,student_id,status').eq('status','active'),
+    sb.from('quran_help_requests').select('plan_id,category,note,created_at').eq('status','open'),
+  ]);
+  const low = lowR.data || [];
+  const activePlans = plansR.data || [];
+  const helps = helpR.data || [];
+  const planByStud = {}; activePlans.forEach(p => { planByStud[p.student_id] = p; });
+  const helpByPlan = {}; helps.forEach(h => { (helpByPlan[h.plan_id] = helpByPlan[h.plan_id] || []).push(h); });
+
+  // الطلاب مع خطة + متأخرات كثيرة
+  const activePlanIds = activePlans.map(p=>p.id);
+  let lateByPlan = {};
+  if(activePlanIds.length){
+    const { data:lateW } = await sb.from('quran_plan_wards').select('plan_id').in('plan_id',activePlanIds).lt('planned_date',today).eq('is_rest_day',false).limit(5000);
+    (lateW||[]).forEach(w => { lateByPlan[w.plan_id] = (lateByPlan[w.plan_id]||0)+1; });
+  }
+  // اجمع كل الحالات المحتملة
+  const casesMap = {};
+  low.forEach(s => { casesMap[s.id] = { s, reasons: ['ضعف إتقان (' + ar(s.mastery||0) + '٪)'] }; });
+  // أضف الطلاب ذوي المتأخرات الكبيرة
+  activePlans.forEach(p => {
+    const late = lateByPlan[p.id] || 0;
+    if(late >= 15){
+      if(!casesMap[p.student_id]) casesMap[p.student_id] = { s:{ id:p.student_id }, reasons:[] };
+      casesMap[p.student_id].reasons.push('تراكم ' + ar(late) + ' ورد متأخر');
+    }
+    if(helpByPlan[p.id] && helpByPlan[p.id].length){
+      if(!casesMap[p.student_id]) casesMap[p.student_id] = { s:{ id:p.student_id }, reasons:[] };
+      casesMap[p.student_id].reasons.push(ar(helpByPlan[p.id].length) + ' طلب مساعدة مفتوح');
+    }
+  });
+  // نجلب أسماء الطلاب الذين ليس عندنا بياناتهم بعد
+  const missingIds = Object.keys(casesMap).map(id => +id).filter(id => !casesMap[id].s.full_name);
+  if(missingIds.length){
+    const { data:extra } = await sb.from('students').select('id,full_name,mastery,group_id,quran_path').in('id',missingIds);
+    (extra||[]).forEach(s => { if(casesMap[s.id]) casesMap[s.id].s = s; });
+  }
+  // نجلب أسماء المعلمين للحلقات
+  const gids = [...new Set(Object.values(casesMap).map(c=>c.s.group_id).filter(Boolean))];
+  let teacherByGroup = {};
+  if(gids.length){
+    const { data:gs } = await sb.from('groups').select('id, teacher:profiles!groups_teacher_id_fkey(id,full_name)').in('id',gids);
+    (gs||[]).forEach(g => { if(g.teacher) teacherByGroup[g.id] = g.teacher; });
+  }
+  const cases = Object.values(casesMap).filter(c => c.s.full_name).sort((a,b) => b.reasons.length - a.reasons.length);
+  const summary = `<div class="sci-hero" style="margin-bottom:14px">
+    <div class="sci-hero-info">
+      <div class="sci-hero-title">حالات علمية تحتاج دعمًا</div>
+      <div class="sci-hero-sub">${ar(cases.length)} طالب مؤشراتهم تشير لحاجة تدخّل — الأدلة موثّقة أدناه بلا اجتهاد</div>
+    </div>
+  </div>`;
+  const rowsHtml = cases.length ? `<div class="tq-list">${cases.map(c => {
+    const t = teacherByGroup[c.s.group_id];
+    return `<div class="tq-row" onclick="_scOpen(${c.s.id},'${escJs(c.s.full_name)}')">
+      <div class="tq-side" style="background:${c.reasons.length>=2?'#c92e2e':'#c9a227'}"></div>
+      <div class="tq-avatar">${esc((c.s.full_name||'؟').slice(0,2))}</div>
+      <div class="tq-info">
+        <b>${esc(c.s.full_name)}</b>
+        <div class="tq-meta">${c.reasons.map(esc).join(' • ')}${t?' • معلمه: '+esc(t.full_name):''}</div>
+      </div>
+      <span class="tq-status" style="background:${c.reasons.length>=2?'rgba(231,76,60,.14)':'rgba(201,162,39,.18)'};color:${c.reasons.length>=2?'#c92e2e':'#8a6f18'}">${c.reasons.length>=2?'أولوية عالية':'يحتاج مراجعة'}</span>
+    </div>`;
+  }).join('')}</div>` : `<div class="card" style="text-align:center;padding:30px;color:var(--muted)">لا حالات علمية بارزة الآن.</div>`;
+  return pageHead('الحالات العلمية','') + summary + rowsHtml;
+};
+async function _scOpen(studentId, studentName){
+  const plan = (await sb.from('quran_student_plans').select('id').eq('student_id',studentId).eq('status','active').maybeSingle()).data;
+  $('#modalHost').innerHTML = `<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <h3>حالة علمية: ${esc(studentName)}</h3>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:12px;line-height:1.7">اختر التصرّف المناسب — كل قرار يُسجَّل في صندوق الاعتمادات كسجل علمي.</p>
+    <div class="modal-actions" style="flex-direction:column;align-items:stretch;gap:8px">
+      ${plan?`<button class="btn" onclick="qOpenStudentPlan('${esc(plan.id)}');closeModal()">${mi('book')||''} افتح خطة الطالب</button>`:''}
+      <button class="btn ghost" onclick="_scApproveRemedial(${studentId},'${escJs(studentName)}')">اعتماد خطة علاجية للطالب</button>
+      <button class="btn ghost" onclick="_scAssignSupervisor(${studentId},'${escJs(studentName)}')">إسناد متابعة لمشرف</button>
+      <button class="btn ghost" onclick="closeModal()">إغلاق</button>
+    </div>
+  </div></div>`;
+}
+async function _scApproveRemedial(studentId, studentName){
+  const note = prompt('اكتب باختصار الخطة العلاجية المعتمدة للطالب '+studentName+':');
+  if(!note || !note.trim()) return;
+  await sb.from('content_approvals').insert({
+    kind:'remedial', title:'خطة علاجية: '+studentName,
+    summary: note.trim(), reason:'حالة علمية تحتاج دعمًا',
+    requested_by: ME.id, status:'scientifically_approved',
+    scientific_reviewer: ME.id, scientific_reviewed_at: new Date().toISOString(),
+  });
+  closeModal(); toast('✅ اعتُمدت الخطة العلاجية وسُجّلت');
+}
+async function _scAssignSupervisor(studentId, studentName){
+  // نُنشئ طلب اعتماد بنوع "message" لتوثيق الإسناد للمشرف
+  const note = prompt('اكتب باختصار المطلوب من المشرف تجاه الطالب '+studentName+':');
+  if(!note || !note.trim()) return;
+  await sb.from('content_approvals').insert({
+    kind:'message', title:'إسناد متابعة: '+studentName,
+    summary: note.trim(), reason:'المدير العلمي طلب متابعة إشرافية',
+    requested_by: ME.id, status:'in_review',
+  });
+  closeModal(); toast('✅ سُجّل الإسناد للمشرف');
+}
+
+// ─── تحليلات جودة التعليم ─────────────────────────────────────────────────
+PAGES.admin_quality_analytics = async function(){
+  if(!_requireScientific()) return _noAccessCard('تحليلات جودة التعليم للمدير العلمي.');
+  setTop('تحليلات جودة التعليم','متوسط الإتقان والحضور والتقييم عبر المسارات والحلقات');
+  const iso30 = new Date(Date.now()-30*86400000).toISOString().slice(0,10);
+  const [studsR, sesR, ratingsR] = await Promise.all([
+    sb.from('students').select('id,quran_path,mastery,group_id').eq('enrollment_status','active').limit(2000),
+    sb.from('sessions').select('id,group_id,session_date,session_time,duration_min,status').neq('status','cancelled').gte('session_date',iso30).limit(2000),
+    sb.from('session_ratings').select('session_id,attendance,memorization,tajweed,review,rating_score,created_at').gte('created_at',iso30).limit(2000),
+  ]);
+  const studs = studsR.data || [];
+  const ses = sesR.data || [];
+  const ratings = ratingsR.data || [];
+  // إتقان حسب المسار
+  const pathAgg = {};
+  studs.forEach(s => {
+    const p = s.quran_path || 'other';
+    if(!pathAgg[p]) pathAgg[p] = { sum:0, count:0, low:0 };
+    pathAgg[p].sum += s.mastery || 0;
+    pathAgg[p].count++;
+    if((s.mastery||0) < 60) pathAgg[p].low++;
+  });
+  const pathRows = Object.entries(pathAgg).map(([k,v]) => {
+    const pObj = QURAN_PATHS.find(p=>p.id===k);
+    return { pathId:k, pathName: pObj?pObj.name:k, count:v.count, avg:Math.round(v.sum/v.count), low:v.low };
+  }).sort((a,b)=>b.count-a.count);
+  // نسبة تقييم الحصص في وقتها
+  const finishedSes = ses.filter(s => {
+    if(!s.session_date) return false;
+    const end = new Date(s.session_date+'T'+(s.session_time||'00:00'));
+    if(s.duration_min) end.setMinutes(end.getMinutes()+s.duration_min);
+    return end < new Date();
+  });
+  const ratedIds = new Set(ratings.map(r=>r.session_id));
+  const ratedFinished = finishedSes.filter(s => ratedIds.has(s.id)).length;
+  const ratingRate = finishedSes.length ? Math.round(ratedFinished/finishedSes.length*100) : null;
+  // حضور
+  const att = { present:0, late:0, absent_excused:0, absent_unexcused:0, absent:0 };
+  ratings.forEach(r => { if(r.attendance && att[r.attendance]!==undefined) att[r.attendance]++; });
+  const totalAtt = Object.values(att).reduce((a,b)=>a+b,0);
+  const attRate = totalAtt ? Math.round((att.present + att.late*0.5)/totalAtt*100) : null;
+  // متوسط تقييم الحفظ/التجويد/المراجعة
+  const scoreMap = { excellent:100, good:75, weak:40 };
+  const avgOf = (field) => {
+    const vals = ratings.map(r=>scoreMap[r[field]]).filter(v=>v!=null);
+    return vals.length ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length) : null;
+  };
+  const memAvg = avgOf('memorization');
+  const tajAvg = avgOf('tajweed');
+  const revAvg = avgOf('review');
+
+  const heroNums = `<div class="sci-hero-nums" style="margin-bottom:14px">
+    <div class="sci-num"><b>${ratingRate!==null?ar(ratingRate)+'٪':'—'}</b><span>تقييم الحصص في وقته</span></div>
+    <div class="sci-num"><b>${attRate!==null?ar(attRate)+'٪':'—'}</b><span>انتظام الحضور</span></div>
+    <div class="sci-num"><b>${memAvg!==null?ar(memAvg)+'٪':'—'}</b><span>متوسط الحفظ</span></div>
+    <div class="sci-num"><b>${tajAvg!==null?ar(tajAvg)+'٪':'—'}</b><span>متوسط التجويد</span></div>
+    <div class="sci-num"><b>${revAvg!==null?ar(revAvg)+'٪':'—'}</b><span>متوسط المراجعة</span></div>
+  </div>`;
+  const pathHtml = pathRows.length ? `<div class="card" style="margin-bottom:14px"><div class="ch"><h3>${mi('map')||''} متوسط الإتقان حسب المسار</h3><span class="tagline-sm">آخر ٣٠ يوم</span></div>
+    <div class="tq-list">${pathRows.map(p => `<div class="tq-row" style="cursor:default">
+      <div class="tq-side" style="background:${p.avg>=80?'#2E7D5B':p.avg>=60?'#c9a227':'#c92e2e'}"></div>
+      <div class="tq-info"><b>${esc(p.pathName)}</b><div class="tq-meta">${ar(p.count)} طالب${p.low?' • '+ar(p.low)+' طالب ضعيف':''}</div></div>
+      <span class="tq-status" style="background:${p.avg>=80?'rgba(46,125,91,.14)':p.avg>=60?'rgba(201,162,39,.18)':'rgba(231,76,60,.14)'};color:${p.avg>=80?'#1B4D3E':p.avg>=60?'#8a6f18':'#c92e2e'}">${ar(p.avg)}٪</span>
+    </div>`).join('')}</div>
+  </div>` : '';
+  const interpret = ratingRate!==null && ratingRate < 70
+    ? `<div class="trend-explain trend-load"><b>ملاحظة:</b> ${ar(100-ratingRate)}٪ من الحصص المنتهية لم تُقيَّم بعد — الأولوية تدريب المعلمين على التقييم في وقته حتى تصير بيانات الجودة موثوقة.</div>`
+    : attRate!==null && attRate < 70
+    ? `<div class="trend-explain trend-absence"><b>ملاحظة:</b> انتظام الحضور ${ar(attRate)}٪ فقط — قد يفسّر هذا انخفاض الإتقان في بعض المسارات، تحقّق من فلترة الأسباب في مركز الحالات العلمية.</div>`
+    : `<div class="trend-explain trend-good"><b>ملاحظة:</b> المؤشرات في مدى صحّي — استمر في متابعة الاتجاه أسبوعيًا.</div>`;
+
+  return pageHead('تحليلات جودة التعليم','') + heroNums + pathHtml + interpret;
+};
+
+// ─── نظرة الشريك ──────────────────────────────────────────────────────────
+PAGES.admin_partner_view = async function(){
+  if(!_requirePartner()) return _noAccessCard('نظرة الشريك للشركاء المؤسسين.');
+  setTop('نظرة الشريك','صحة المشروع اليوم — من دون التداخل في التشغيل');
+  const iso30 = new Date(Date.now()-30*86400000).toISOString();
+  const iso90 = new Date(Date.now()-90*86400000).toISOString();
+  const [payR, studAllR, teachersR] = await Promise.all([
+    sb.from('payments').select('amount,status,paid_at,is_subsidized,created_at').gte('created_at',iso90).limit(5000),
+    sb.from('students').select('id,enrollment_status,created_at').limit(5000),
+    sb.from('profiles').select('id,is_available').eq('role','teacher'),
+  ]);
+  const pays = payR.data || [];
+  const studs = studAllR.data || [];
+  const teachers = teachersR.data || [];
+  // الإيراد المحصّل آخر ٣٠ يوم
+  const confirmed30 = pays.filter(p => p.status==='confirmed' && p.paid_at && p.paid_at >= iso30);
+  const revenue30 = confirmed30.reduce((a,p)=>a+(+p.amount||0),0);
+  // مدفوعات معلّقة
+  const pending = pays.filter(p => p.status==='pending').length;
+  // طلاب نشطين
+  const active = studs.filter(s => s.enrollment_status==='active').length;
+  const newSt30 = studs.filter(s => s.enrollment_status==='active' && s.created_at >= iso30).length;
+  const inactive = studs.filter(s => s.enrollment_status !== 'active').length;
+  // معلمون متاحون
+  const teachersAvail = teachers.filter(t => t.is_available !== false).length;
+  // معدل تجديد تقريبي: طلاب دفعوا > مرة
+  const paysByStudent = {}; pays.filter(p=>p.status==='confirmed').forEach(p => { const sid = p.student_id||'x'; paysByStudent[sid] = (paysByStudent[sid]||0)+1; });
+  const renewers = Object.values(paysByStudent).filter(n => n >= 2).length;
+  const payingStuds = Object.keys(paysByStudent).length;
+  const renewalRate = payingStuds ? Math.round(renewers/payingStuds*100) : null;
+
+  const heroNums = `<div class="sci-hero-nums" style="margin-bottom:14px;grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
+    <div class="sci-num"><b>${ar(Math.round(revenue30))}</b><span>إيراد ٣٠ يوم (تقديري)</span></div>
+    <div class="sci-num"><b>${ar(pending)}</b><span>مدفوعات معلّقة</span></div>
+    <div class="sci-num"><b>${ar(active)}</b><span>طلاب نشطون</span></div>
+    <div class="sci-num"><b>${ar(newSt30)}</b><span>طلاب جدد ٣٠ يوم</span></div>
+    <div class="sci-num"><b>${ar(inactive)}</b><span>غير نشط/منسحب</span></div>
+    <div class="sci-num"><b>${renewalRate!==null?ar(renewalRate)+'٪':'—'}</b><span>معدل التجديد (تقريبي)</span></div>
+    <div class="sci-num"><b>${ar(teachersAvail)}/${ar(teachers.length)}</b><span>معلمون متاحون</span></div>
+  </div>`;
+  const capacity = teachersAvail ? Math.round(active/teachersAvail) : null;
+  const capMsg = capacity!==null
+    ? (capacity >= 15 ? `<div class="trend-explain trend-load"><b>مخاطر:</b> متوسط ${ar(capacity)} طالب/معلم متاح — قد يفوق الطاقة، فكّر في استقبال معلمين جدد قبل زيادة التسويق.</div>`
+    : capacity >= 8 ? `<div class="trend-explain trend-steady"><b>ملاحظة:</b> متوسط ${ar(capacity)} طالب/معلم متاح — يعتبر مساحة صحية للنمو المدروس.</div>`
+    : `<div class="trend-explain trend-good"><b>ملاحظة:</b> متوسط ${ar(capacity)} طالب/معلم متاح — طاقة استيعابية عالية، يمكن التوسع تسويقيًا.</div>`)
+    : '';
+  const help = `<div class="card" style="margin-top:14px"><div class="ch"><h3>ملاحظة</h3></div>
+    <p style="color:var(--muted);font-size:13px;line-height:1.9">هذه نظرة اطّلاع للشريك المؤسس فقط — التشغيل اليومي والقرارات المالية التفصيلية تظل بيد المدير التنفيذي. لتوثيق قرار مؤثّر (شراكة، تعاقد، منتج كبير)، افتح <b>قرارات الشراكة</b> ليمر بالمسار المشترك.</p></div>`;
+
+  return pageHead('نظرة الشريك','') + heroNums + capMsg + help;
+};
 
 PAGES.admin_dash=async function(){ setTop('لوحة القيادة 🛡️','نظرة شاملة.');
   const { count:studC }=await sb.from('students').select('*',{count:'exact',head:true});
