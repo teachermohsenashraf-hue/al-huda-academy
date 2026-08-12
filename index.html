@@ -7674,13 +7674,26 @@ async function sendHalqaMsg(){
 }
 // تقارير الحلقة (تقييمات الحصص + الحصون الخمسة)
 async function halqaReports(g, student, ratedIds, sessions){
-  // ─── جلب كل ما نحتاجه للتقارير المتقدمة بالتوازي ───
+  // ─── كاش HTML جاهز لجلسة المتصفح (TTL ٣ دقائق) — يُلغى ضمنياً بعد أي تحرك
+  //     مؤثّر على البيانات (تسجيل ورد، تقييم حصة) عبر نفس محرك invalidateRoadmap
   const today = qTodayStr();
+  const cacheKey = 'halqarpt_v1_' + student.id + '_' + today;
+  try{
+    const cached = sessionStorage.getItem(cacheKey);
+    if(cached){
+      const parsed = JSON.parse(cached);
+      if(parsed && (Date.now() - parsed._at) < 3*60*1000 && parsed.html) return parsed.html;
+    }
+  }catch(e){}
   const iso7  = new Date(Date.now()-7*86400000).toISOString().slice(0,10);
   const iso30 = new Date(Date.now()-30*86400000).toISOString().slice(0,10);
+  const iso7fromToday = new Date(Date.now()-6*86400000).toISOString().slice(0,10);
+  // ─── جلب كل شيء في موجتين: (١) الأساسيات (٣ استعلامات) — نقرر الخطة بعدها
+  //     ثم (٢) موجة واحدة للأوراد+الحصون+التقييمات المرتبطة بالخطة — لا نجلب
+  //     جدول quran_surahs الكامل (اسم السورة من دالة surahByNo المحلية).
   const [ratingsR, asgsR, planR] = await Promise.all([
     sb.from('session_ratings').select('*, ses:sessions(title,session_date)').eq('student_id',student.id).order('created_at',{ascending:false}),
-    sb.from('assignments').select('*').eq('student_id',student.id).order('created_at',{ascending:false}).then(x=>x, ()=>({data:[]})),
+    sb.from('assignments').select('id,title,due_date,status,review_status,proof_url,kind,notes,created_at,done_at').eq('student_id',student.id).order('created_at',{ascending:false}).then(x=>x, ()=>({data:[]})),
     sb.from('quran_student_plans').select('id,system_id,status,created_at').eq('student_id',student.id).order('created_at',{ascending:false}).limit(1).maybeSingle(),
   ]);
   const r = ratingsR.data || [];
@@ -7700,13 +7713,14 @@ async function halqaReports(g, student, ratedIds, sessions){
   // ─── تحليل خطة الطالب: نوافذ 7 و30 يوم + التأخر وتفسيره ───
   let win7 = null, win30 = null, adherenceExplain = null, difficultSurahs = [], recentAttempts = [];
   if(plan){
-    const [wardsAllR, forts30R, surahsR] = await Promise.all([
-      sb.from('quran_plan_wards').select('id,fortress_code,surah_no,planned_date,is_rest_day').eq('plan_id',plan.id).gte('planned_date',iso30).lte('planned_date',today),
-      sb.from('quran_plan_wards').select('id,surah_no').eq('plan_id',plan.id).gte('planned_date',iso30).lte('planned_date',today).eq('is_rest_day',false),
-      sb.from('quran_surahs').select('surah_no,name_ar'),
-    ]);
-    const surahName = {}; (surahsR.data||[]).forEach(s=>{ surahName[s.surah_no]=s.name_ar; });
-    const wards = (wardsAllR.data||[]).filter(w=>!w.is_rest_day);
+    // استعلام واحد فقط لأوراد آخر ٣٠ يوم — كان اثنان بنفس المحتوى تقريباً
+    const { data: wardsAllData } = await sb.from('quran_plan_wards')
+      .select('id,fortress_code,surah_no,planned_date,is_rest_day')
+      .eq('plan_id',plan.id).gte('planned_date',iso30).lte('planned_date',today);
+    // اسم السورة من الثابت المحلي QURAN_SURAHS (بلا استعلام لجدول ١١٤ صف)
+    const surahName = {};
+    const surahOf = (n)=> surahName[n] || (surahName[n] = (surahByNo(n)?.name) || ('سورة '+n));
+    const wards = (wardsAllData||[]).filter(w=>!w.is_rest_day);
     const wardIds = wards.map(w=>w.id);
     let progs = [];
     if(wardIds.length){ progs = await qFetchProgress(wardIds); }
@@ -7745,38 +7759,36 @@ async function halqaReports(g, student, ratedIds, sessions){
         if(w && w.surah_no){ diffCount[w.surah_no] = (diffCount[w.surah_no]||0) + 1; }
       }
     });
-    difficultSurahs = Object.entries(diffCount).map(([n,c])=>({ surah_no:+n, name:surahName[n]||('سورة '+n), count:c })).sort((a,b)=>b.count-a.count).slice(0,5);
+    difficultSurahs = Object.entries(diffCount).map(([n,c])=>({ surah_no:+n, name:surahOf(n), count:c })).sort((a,b)=>b.count-a.count).slice(0,5);
     // آخر ٥ محاولات مسجّلة (لعرض النشاط الفعلي)
     recentAttempts = (progs||[]).filter(p=>p.marked_at).sort((a,b)=>(b.marked_at||'').localeCompare(a.marked_at||'')).slice(0,5).map(p=>{
       const w = wards.find(x=>x.id===p.ward_id);
-      return w ? { date:p.marked_at, surah:surahName[w.surah_no]||('سورة '+w.surah_no), status:p.status } : null;
+      return w ? { date:p.marked_at, surah:surahOf(w.surah_no), status:p.status } : null;
     }).filter(Boolean);
+    // متابعة الحصون آخر ٧ أيام — من نفس البيانات (بلا استعلام إضافي)
+    const byDate = {};
+    wards.filter(w => w.planned_date >= iso7fromToday && w.planned_date <= today).forEach(w => {
+      if(!byDate[w.planned_date]) byDate[w.planned_date] = { date: w.planned_date };
+      byDate[w.planned_date][w.fortress_code] = progMap[w.id] && progMap[w.id].status === 'done';
+    });
+    window._hifzDays = Object.values(byDate).sort((a,b) => b.date.localeCompare(a.date));
+    window._hasAnyHifzEver = wards.length > 0;
   }
   // متابعة الحصون: كانت معتمدة على جدول "daily_hifz" القديم (٥ حصون ثابتة يعلّمها
   // الطالب يدوياً بلا علاقة بخطته الفعلية)، فكانت تظهر "لا توجد بيانات" دائماً
   // لأي طالب يسجّل أوراده من نظام المسارات الفعلي بدل الصفحة القديمة. الآن نبني
   // نفس الجدول من quran_plan_wards/quran_ward_progress الحقيقيَين، بأعمدة الحصون
   // الفعلية المفعّلة في خطة الطالب (تختلف حسب النظام والمحطة — حفظ أو مراجعة).
-  const since=new Date(Date.now()-6*86400000).toISOString().slice(0,10);
+  // متابعة الحصون اليومية (آخر ٧ أيام) — hifzDays مُبنى بالفعل داخل قسم الخطة
+  // أعلاه من نفس البيانات. هنا نجلب أسماء الحصون فقط (إعدادات ثابتة لكل نظام).
   let hifzFortCols=[], hifzDays=[], hasAnyHifzEver=false;
   const hifzPlan = plan && plan.status==='active' ? plan : null;
   if(hifzPlan){
-    const { data:hifzForts } = await sb.from('quran_fortresses').select('*').eq('system_id',hifzPlan.system_id).order('order_index');
+    const { data:hifzForts } = await sb.from('quran_fortresses').select('code,name,color,order_index').eq('system_id',hifzPlan.system_id).order('order_index');
     hifzFortCols = hifzForts||[];
-    // 🔴 كان بلا حد أعلى للتاريخ (.gte فقط بلا .lte)، فيجلب كل أوراد الخطة
-    // المستقبلية كمان (شهور/سنين) بدل آخر ٧ أيام فقط كما يوحي العنوان
-    const { data:hifzWards } = await sb.from('quran_plan_wards').select('id,fortress_code,planned_date').eq('plan_id',hifzPlan.id).gte('planned_date',since).lte('planned_date',today).order('planned_date',{ascending:false});
-    const wIds=(hifzWards||[]).map(w=>w.id);
-    // 🔴 نجلب id أيضاً ونستخدم qProgMapFromRows بدل الدمج المباشر — لو فيه صفوف
-    // تقدّم مكررة قديمة (قبل قيد UNIQUE) كانت الصفحة بتاخد صفاً عشوائياً وتُظهر
-    // الورد "لسه مش منجَز" حتى لو الطالب سجّله فعلاً من "ورد اليوم"
-    let hifzProgMap={};
-    { const hp=await qFetchProgress(wIds, 'id,ward_id,status'); const merged=qProgMapFromRows(hp); Object.keys(merged).forEach(k=>{ hifzProgMap[k]=merged[k].status; }); }
-    const byDate={};
-    (hifzWards||[]).forEach(w=>{ if(!byDate[w.planned_date]) byDate[w.planned_date]={ date:w.planned_date }; byDate[w.planned_date][w.fortress_code]=hifzProgMap[w.id]==='done'; });
-    hifzDays=Object.values(byDate).sort((a,b)=>b.date.localeCompare(a.date));
-    hasAnyHifzEver = hifzDays.length>0;
-    if(!hasAnyHifzEver){ const { count }=await sb.from('quran_plan_wards').select('id',{count:'exact',head:true}).eq('plan_id',hifzPlan.id); hasAnyHifzEver=!!count; }
+    hifzDays = window._hifzDays || [];
+    hasAnyHifzEver = !!window._hasAnyHifzEver;
+    try{ delete window._hifzDays; delete window._hasAnyHifzEver; }catch(e){}
   }
   // متوسطات التقييمات
   const scoreMap={excellent:3,good:2,weak:1,done:3,partial:2,none:1,present:3,late:2,absent:1};
@@ -7834,7 +7846,7 @@ async function halqaReports(g, student, ratedIds, sessions){
     <div class="ch"><h3>${mi('book')} آخر نشاط في الخطة</h3></div>
     <div class="act-list">${recentAttempts.map(a=>`<div class="act-row"><span class="act-status act-${a.status||'none'}">${esc(actLabel[a.status]||a.status||'—')}</span><b>${esc(a.surah)}</b><small>${new Date(a.date).toLocaleDateString('ar-EG',{day:'numeric',month:'short'})}</small></div>`).join('')}</div>
   </div>` : '';
-  return `${topBlock}${trendCard}${difficultCard}${activityCard}
+  const _html = `${topBlock}${trendCard}${difficultCard}${activityCard}
   ${asgs.length?`<div class="card" style="margin-bottom:16px"><div class="ch"><h3>${mi('pencil')} الواجبات وحالتها</h3><span class="tagline-sm">${ar(asgDone)} مُنجَز • ${ar(asgApproved)} معتمد${asgLate?' • '+ar(asgLate)+' متأخر':''}</span></div>
     <div class="hw-list">${asgs.map(a=>{
       const k=(typeof ASG_KINDS!=='undefined'&&ASG_KINDS[a.kind])||['🔗','رابط'];
@@ -7865,6 +7877,8 @@ async function halqaReports(g, student, ratedIds, sessions){
     ${x.notes?`<p class="ri-note">«${esc(x.notes)}»</p>`:''}</div>`;
   }).join('')}</div></div>`
   :`<div class="card" style="text-align:center;padding:36px"><div class="empty-ic">${mi('chart')}</div><h3 style="color:var(--navy-deep)">لا تقييمات حصص بعد</h3><p style="color:var(--muted);font-size:14px">بعد كل حصة، يقيّمك معلمك ويظهر التقرير هنا.</p></div>`}`;
+  try{ sessionStorage.setItem(cacheKey, JSON.stringify({ _at: Date.now(), html: _html })); }catch(e){}
+  return _html;
 }
 // ===== نظام الواجبات داخل الحلقة =====
 const ASG_KINDS={ youtube:['▶️','يوتيوب'], pdf:['📄','PDF'], video:['🎬','فيديو'], audio:['🎧','صوت'], drive:['📁','درايف'], link:['🔗','رابط'] };
@@ -8833,8 +8847,8 @@ async function sRoadmapLite(plan, student){
 // إبطال ذاكرة "خطة مساري" — يُستدعى بعد إنجاز ورد أو أي تعديل خطة
 function _srInvalidateRoadmapCache(planId){
   try{
-    // نمسح أي إصدار كاش قديم/جديد لخطة هذا الطالب
-    const prefixes = ['srlite_' + planId + '_', 'srlite_v2_' + planId + '_', 'srlite_v3_' + planId + '_'];
+    // نمسح كاش خطة مساري + كاش تقارير حلقتي (كلاهما يتأثر بعد تسجيل ورد)
+    const prefixes = ['srlite_' + planId + '_', 'srlite_v2_' + planId + '_', 'srlite_v3_' + planId + '_', 'halqarpt_v1_'];
     for(let i = sessionStorage.length - 1; i >= 0; i--){
       const k = sessionStorage.key(i);
       if(k && prefixes.some(p => k.startsWith(p))) sessionStorage.removeItem(k);
