@@ -725,6 +725,38 @@ details.rate-classic[open] summary{margin-bottom:8px;color:var(--navy-deep)}
 .std-title small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
 .std-criteria{color:var(--navy-deep);font-size:12.5px;line-height:1.9;white-space:pre-wrap}
 .std-acts{display:flex;gap:8px;flex-wrap:wrap}
+/* بنوك الاختبارات */
+.tb-list{display:flex;flex-direction:column;gap:10px}
+.tb-card{background:#fff;border:1px solid var(--line);border-radius:12px;display:flex;gap:12px;padding:0;overflow:hidden;cursor:pointer;transition:.15s}
+.tb-card:hover{border-color:rgba(46,125,91,0.28);transform:translateY(-1px)}
+.tb-side{width:4px;align-self:stretch;flex:none}
+.tb-main{flex:1;min-width:0;padding:12px 14px 12px 0}
+.tb-title-row{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+.tb-cat{font-size:11px;color:var(--muted);font-weight:700;margin-bottom:2px}
+.tb-title-row b{color:var(--navy-deep);font-size:14.5px}
+.tb-status{font-size:11px;font-weight:700;padding:3px 10px;border-radius:9px;white-space:nowrap;flex:none}
+.tb-desc{color:var(--muted);font-size:12.5px;line-height:1.7;margin:4px 0 6px}
+.tb-stats{display:flex;flex-wrap:wrap;gap:12px;font-size:11.5px;color:var(--muted)}
+.tb-stats span{display:inline-flex;align-items:center;gap:4px}
+.tb-stats svg{width:12px;height:12px}
+/* أسئلة داخل نافذة البنك */
+.tq-list{display:flex;flex-direction:column;gap:8px}
+.tq-item{background:var(--cream);border-radius:10px;padding:10px 12px;display:flex;gap:10px;align-items:flex-start}
+.tq-num{width:26px;height:26px;border-radius:50%;background:var(--emerald,#2E7D5B);color:#fff;display:grid;place-items:center;font-weight:700;font-size:12px;flex:none}
+.tq-content{flex:1;min-width:0;line-height:1.7}
+.tq-kind{font-size:11px;color:var(--muted);font-weight:700}
+.tq-prompt{color:var(--navy-deep);font-size:13.5px;margin:4px 0;white-space:pre-wrap}
+.tq-choices{list-style:none;padding:0;margin:6px 0 0}
+.tq-choices li{padding:5px 12px;background:#fff;border-radius:8px;margin-bottom:4px;font-size:12.5px;color:var(--navy-deep)}
+.tq-choices li.correct{background:rgba(46,125,91,0.10);color:#1B4D3E;font-weight:700}
+.tq-answer{background:rgba(212,180,68,0.10);border-radius:8px;padding:6px 10px;font-size:12px;color:#8a6f18;margin-top:6px}
+.tq-acts{flex:none}
+/* محاولات */
+.ta-list{display:flex;flex-direction:column;gap:6px}
+.ta-row{display:grid;grid-template-columns:1fr auto auto auto;gap:10px;align-items:center;padding:8px 12px;background:var(--cream);border-radius:8px;font-size:12.5px}
+.ta-row b{color:var(--navy-deep)}
+.ta-row span{color:var(--muted);font-size:11.5px}
+@media(max-width:640px){.ta-row{grid-template-columns:1fr auto}.ta-row span:nth-child(2){grid-column:1/-1;font-size:11px}}
 /* فاصل يوم داخل قائمة الرسائل — طراز واتساب: كبسولة مركزية شفافة، خفيفة الظل،
    لا تنافس محتوى الرسالة نفسها بصرياً */
 .chat-day-sep{display:flex;justify-content:center;margin:8px 0 4px;position:relative}
@@ -3525,7 +3557,8 @@ function buildShell(){
         ['science_cases', mi('warning'), 'الحالات العلمية'],
         ['quality_analytics', mi('chart'), 'تحليلات جودة التعليم'],
         ['curriculum', mi('kaaba')||mi('books'), 'حوكمة المناهج'],
-        ['standards', mi('shield')||mi('check'), 'المعايير والاختبارات'],
+        ['standards', mi('shield')||mi('check'), 'المعايير'],
+        ['tests', mi('clipboard')||mi('check'), 'بنوك الاختبارات'],
       ]});
     }
     // قسم "نظرة الشريك" — يظهر لمن يحمل علَم الشريك المؤسس فقط
@@ -7394,12 +7427,15 @@ PAGES.admin_standards = async function(){
     <div class="std-head"><div class="std-badge" style="background:#8a8a8a">${mi('info')||''}</div><div style="flex:1"><b>معايير أخرى</b><span>معايير لم تُصنَّف في الفئات القياسية</span></div><span class="cg-open">${ar(othersCount)}</span></div>
     <div class="std-acts"><button class="btn-sm ghost" onclick="_stdHistory('other')">عرض القائمة</button></div>
   </div>` : '';
-  // قسم بنوك الاختبارات — إفصاح صادق
-  const testsHtml = `<div class="card" style="margin-top:14px;background:linear-gradient(135deg,rgba(52,152,219,0.06),transparent);border-color:rgba(52,152,219,0.20)">
-    <div style="display:flex;align-items:flex-start;gap:12px">
-      <div style="flex:none;color:#3498db;font-size:22px">${mi('info')||'ⓘ'}</div>
-      <div style="flex:1"><b style="color:var(--navy-deep);font-size:14.5px">بنوك الاختبارات ونماذج التقييم</b>
-      <p style="color:var(--muted);font-size:13px;line-height:1.9;margin-top:6px">هذه المرحلة تحتاج بنية بيانات مستقلة (بنك أسئلة، اختبار، محاولة، نتيجة، تحليل نتائج بمسار وحلقة ومعلم) — لم تُبنَ بعد لأنها ورش كامل مستقل. حاليًا الاختبارات تُعامَل كمعايير تقييم مكتوبة في هذه الصفحة، ونتائج الطلاب تُتابَع عبر <b>تقارير الحلقة</b> و<b>الحالات العلمية</b>. عندما تجهز لبناء بنك اختبارات حقيقي، سأصمم له مخطط قاعدة بيانات كامل مع الحوكمة والتحليلات.</p></div>
+  // بنوك الاختبارات صارت صفحة مستقلة كاملة — نشير إليها فقط
+  const testsHtml = `<div class="card" style="margin-top:14px;background:linear-gradient(135deg,rgba(46,125,91,0.06),transparent);border-color:rgba(46,125,91,0.20)">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <div style="display:flex;align-items:flex-start;gap:12px;flex:1;min-width:220px">
+        <div style="flex:none;color:var(--emerald,#2E7D5B);font-size:22px">${mi('clipboard')||''}</div>
+        <div><b style="color:var(--navy-deep);font-size:14.5px">بنوك الاختبارات ونماذج التقييم</b>
+        <p style="color:var(--muted);font-size:12.5px;line-height:1.9;margin-top:4px">أنشئ بنوك أسئلة، سجّل محاولات الطلاب، وتابع النتائج والاعتماد — نظام مستقل بحوكمته الخاصة.</p></div>
+      </div>
+      <button class="btn" onclick="navigate('tests')">افتح بنوك الاختبارات ←</button>
     </div>
   </div>`;
   return pageHead('المعايير والاختبارات','') + hero + `<div class="std-grid">${catCards}${otherHtml}</div>` + testsHtml;
@@ -7453,6 +7489,266 @@ async function _stdHistory(catKey){
       </div>`).join(''):'<p style="text-align:center;color:var(--muted);padding:20px">لا سجل بعد.</p>'}</div>
     <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إغلاق</button></div>
   </div></div>`;
+}
+
+// ─── بنوك الاختبارات (Section 7 كامل — بنية بيانات حقيقية) ──────────────
+const TEST_CAT_AR = {
+  memorization:'اختبار حفظ', tajweed:'اختبار تجويد', review:'اختبار مراجعة',
+  placement:'اختبار مستوى', transition:'اختبار انتقال محطة', other:'أخرى',
+};
+const TB_STATUS_AR = { draft:'مسودة', active:'مُفعَّل', archived:'مؤرشف' };
+const TB_STATUS_COLOR = { draft:'#8a8a8a', active:'#2E7D5B', archived:'#5a5a5a' };
+const TQ_KIND_AR = { mcq:'اختيار من متعدد', text:'إجابة نصية', recite:'تسميع (تقييم يدوي)', rating:'تقييم رقمي' };
+
+PAGES.admin_tests = async function(){
+  if(!_requireScientific() && ME.role !== 'admin' && ME.role !== 'teacher') return _noAccessCard('بنوك الاختبارات للمدير العلمي والمعلمين.');
+  setTop('بنوك الاختبارات','بنك أسئلة → محاولات طلاب → نتائج وتحليل');
+  const filter = SESSION._tbFilter || 'active';
+  const filterMatch = { active:['active'], draft:['draft'], archived:['archived'] };
+  const st = filterMatch[filter] || filterMatch.active;
+  const [banksR, statsR] = await Promise.all([
+    sb.from('test_banks').select('*, creator:profiles!test_banks_created_by_fkey(full_name)').in('status',st).order('created_at',{ascending:false}).limit(100).then(x=>x,()=>({data:[]})),
+    Promise.all([
+      sb.from('test_banks').select('id',{count:'exact',head:true}).eq('status','active').then(x=>x,()=>({count:0})),
+      sb.from('test_banks').select('id',{count:'exact',head:true}).eq('status','draft').then(x=>x,()=>({count:0})),
+      sb.from('test_banks').select('id',{count:'exact',head:true}).eq('status','archived').then(x=>x,()=>({count:0})),
+    ]),
+  ]);
+  const banks = banksR.data || [];
+  const [aCnt, dCnt, xCnt] = statsR || [{count:0},{count:0},{count:0}];
+  const bankIds = banks.map(b=>b.id);
+  // نجلب عدد الأسئلة + عدد المحاولات لكل بنك بضربة واحدة
+  let qCountByBank = {}, aCountByBank = {}, avgByBank = {};
+  if(bankIds.length){
+    const [qR, aR] = await Promise.all([
+      sb.from('test_questions').select('bank_id').in('bank_id',bankIds).then(x=>x,()=>({data:[]})),
+      sb.from('test_attempts').select('bank_id,pct,status').in('bank_id',bankIds).then(x=>x,()=>({data:[]})),
+    ]);
+    (qR.data||[]).forEach(q => { qCountByBank[q.bank_id] = (qCountByBank[q.bank_id]||0) + 1; });
+    (aR.data||[]).forEach(a => { aCountByBank[a.bank_id] = (aCountByBank[a.bank_id]||0) + 1; });
+    // متوسط النسبة للمحاولات المُقيَّمة
+    const byBank = {};
+    (aR.data||[]).filter(a => a.status==='graded' && a.pct!=null).forEach(a => { (byBank[a.bank_id] = byBank[a.bank_id] || []).push(a.pct); });
+    Object.entries(byBank).forEach(([bid, arr]) => { avgByBank[bid] = Math.round(arr.reduce((x,y)=>x+y,0)/arr.length); });
+  }
+
+  const chips = `<div class="grpfilters" style="margin-bottom:14px">
+    <button class="grpchip ${filter==='active'?'on':''}" onclick="_tbFilter('active')">مُفعَّلة <span>${ar(aCnt.count||0)}</span></button>
+    <button class="grpchip ${filter==='draft'?'on':''}" onclick="_tbFilter('draft')">مسودات <span>${ar(dCnt.count||0)}</span></button>
+    <button class="grpchip ${filter==='archived'?'on':''}" onclick="_tbFilter('archived')">مؤرشفة <span>${ar(xCnt.count||0)}</span></button>
+    <span style="flex:1"></span>
+    ${_requireScientific()||ME.role==='admin' ? `<button class="btn" onclick="_tbNew()">+ بنك اختبار جديد</button>` : ''}
+  </div>`;
+
+  const cardsHtml = banks.length ? `<div class="tb-list">${banks.map(b => {
+    const pathObj = QURAN_PATHS.find(p=>p.id===b.path_key);
+    const qCnt = qCountByBank[b.id] || 0;
+    const aCntBk = aCountByBank[b.id] || 0;
+    const avgPct = avgByBank[b.id];
+    const isReady = qCnt > 0;
+    const isApproved = !!b.approved_at;
+    return `<div class="tb-card" onclick="_tbOpen('${esc(b.id)}')">
+      <div class="tb-side" style="background:${TB_STATUS_COLOR[b.status]||'#8a8a8a'}"></div>
+      <div class="tb-main">
+        <div class="tb-title-row">
+          <div>
+            <div class="tb-cat">${esc(TEST_CAT_AR[b.category]||b.category||'—')}${b.version?' • v'+esc(b.version):''}${pathObj?' • '+esc(pathObj.name):''}</div>
+            <b>${esc(b.name)}</b>
+          </div>
+          <span class="tb-status" style="background:${(TB_STATUS_COLOR[b.status]||'#8a8a8a')}22;color:${TB_STATUS_COLOR[b.status]||'#8a8a8a'}">${esc(TB_STATUS_AR[b.status]||b.status)}${isApproved?' • معتمد':''}</span>
+        </div>
+        ${b.description?`<p class="tb-desc">${esc(b.description)}</p>`:''}
+        <div class="tb-stats">
+          <span>${mi('clipboard')||''} ${ar(qCnt)} سؤال</span>
+          <span>${mi('users')||''} ${ar(aCntBk)} محاولة</span>
+          ${avgPct!=null?`<span style="color:${avgPct>=80?'#2E7D5B':avgPct>=60?'#c9a227':'#c92e2e'}">متوسط النتيجة: ${ar(avgPct)}٪</span>`:''}
+          ${b.pass_score_pct?`<span>حد النجاح: ${ar(b.pass_score_pct)}٪</span>`:''}
+          ${!isReady?'<span style="color:#c9a227">لا أسئلة بعد</span>':''}
+        </div>
+      </div>
+    </div>`;
+  }).join('')}</div>` : `<div class="card" style="text-align:center;padding:30px;color:var(--muted)">لا بنوك في هذه المجموعة.${(_requireScientific()||ME.role==='admin')?' اضغط "+ بنك اختبار جديد" أعلاه.':''}</div>`;
+  return pageHead('بنوك الاختبارات','') + chips + cardsHtml;
+};
+function _tbFilter(f){ SESSION._tbFilter = f; navigate('tests'); }
+function _tbNew(){
+  const catOpts = Object.entries(TEST_CAT_AR).map(([k,l])=>`<option value="${k}">${esc(l)}</option>`).join('');
+  const pathOpts = '<option value="">(بلا مسار محدد)</option>' + QURAN_PATHS.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  $('#modalHost').innerHTML = `<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <h3>+ بنك اختبار جديد</h3>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:12px;line-height:1.7">أنشئ البنك أولاً بحالة مسودة، أضف أسئلته، ثم فعّله ليتاح للمعلمين والطلاب.</p>
+    <div class="field"><label>اسم البنك <span class="req">*</span></label><input id="tbName" placeholder="مثال: اختبار محطة جزء عم — النسخة الأولى"></div>
+    <div class="qform">
+      <div class="qrow">
+        <div><label>الفئة</label><select id="tbCat">${catOpts}</select></div>
+        <div><label>المسار (اختياري)</label><select id="tbPath">${pathOpts}</select></div>
+      </div>
+      <div class="qrow">
+        <div><label>رقم الإصدار</label><input id="tbVer" placeholder="1.0"></div>
+        <div><label>مدة الاختبار (دقائق)</label><input id="tbDur" type="number" min="5"></div>
+      </div>
+      <div class="qrow">
+        <div><label>حد النجاح ٪</label><input id="tbPass" type="number" min="0" max="100" value="60"></div>
+        <div></div>
+      </div>
+    </div>
+    <div class="field"><label>الوصف</label><textarea id="tbDesc" rows="2" placeholder="ماذا يقيس هذا البنك بالضبط؟"></textarea></div>
+    <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إلغاء</button><button class="btn" id="tbNewBtn" onclick="_tbSaveNew()">إنشاء البنك</button></div>
+  </div></div>`;
+}
+async function _tbSaveNew(){
+  const name = ($('#tbName')?.value||'').trim();
+  if(!name){ toast('اسم البنك مطلوب'); return; }
+  const btn = document.getElementById('tbNewBtn'); if(btn){ btn.disabled=true; btn.textContent='جارٍ الإنشاء...'; }
+  const rec = {
+    name, category: $('#tbCat').value,
+    path_key: $('#tbPath').value || null,
+    version: ($('#tbVer')?.value||'').trim() || null,
+    duration_min: +($('#tbDur')?.value||0) || null,
+    pass_score_pct: +($('#tbPass')?.value||60) || 60,
+    description: ($('#tbDesc')?.value||'').trim() || null,
+    status:'draft', created_by: ME.id,
+  };
+  const { data:inserted, error } = await sb.from('test_banks').insert(rec).select('id').maybeSingle();
+  if(error){ if(btn){ btn.disabled=false; btn.textContent='إنشاء البنك'; } alert('تعذّر: '+error.message); return; }
+  closeModal(); toast('✅ أُنشئ البنك — أضف أسئلته الآن');
+  if(inserted?.id) setTimeout(()=>_tbOpen(inserted.id), 200);
+  else navigate('tests');
+}
+async function _tbOpen(bankId){
+  const [bR, qR, aR] = await Promise.all([
+    sb.from('test_banks').select('*').eq('id',bankId).maybeSingle(),
+    sb.from('test_questions').select('*').eq('bank_id',bankId).order('order_index'),
+    sb.from('test_attempts').select('id,student_id,pct,score,max_score,status,submitted_at, stu:students!test_attempts_student_id_fkey(full_name)').eq('bank_id',bankId).order('submitted_at',{ascending:false,nullsFirst:false}).limit(30).then(x=>x,()=>({data:[]})),
+  ]);
+  const b = bR.data;
+  if(!b){ toast('البنك غير موجود'); return; }
+  const questions = qR.data || [];
+  const attempts = aR.data || [];
+  const canEdit = _requireScientific() || ME.role==='admin';
+  const pathObj = QURAN_PATHS.find(p=>p.id===b.path_key);
+
+  const qHtml = questions.length ? `<div class="tq-list">${questions.map((q,i)=>`
+    <div class="tq-item">
+      <div class="tq-num">${ar(i+1)}</div>
+      <div class="tq-content">
+        <div class="tq-kind">${esc(TQ_KIND_AR[q.kind]||q.kind)} • ${ar(q.points||1)} نقطة${q.reference?' • '+esc(q.reference):''}</div>
+        <div class="tq-prompt">${esc(q.prompt)}</div>
+        ${q.kind==='mcq' && q.choices ? `<ul class="tq-choices">${(q.choices||[]).map(c=>`<li class="${c.is_correct?'correct':''}">${esc(c.text)}${c.is_correct?' ✓':''}</li>`).join('')}</ul>` : ''}
+        ${q.correct_text?`<div class="tq-answer"><b>الإجابة المرجعية:</b> ${esc(q.correct_text)}</div>`:''}
+      </div>
+      ${canEdit?`<div class="tq-acts"><button class="icon-act" onclick="_tqDelete('${esc(q.id)}','${esc(bankId)}')" title="حذف">${mi('x')||'✕'}</button></div>`:''}
+    </div>`).join('')}</div>` : `<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">لا أسئلة في البنك بعد.${canEdit?' اضغط "+ سؤال" لبدء الإضافة.':''}</div>`;
+
+  const attemptsHtml = attempts.length ? `<div class="ta-list">${attempts.map(a=>{
+    const stColor = a.status==='graded' ? (a.pct>=(b.pass_score_pct||60)?'#2E7D5B':'#c92e2e') : '#c9a227';
+    const stLabel = a.status==='graded' ? (a.pct>=(b.pass_score_pct||60)?'نجح':'رسب') : a.status==='submitted' ? 'ينتظر تقييم' : 'قيد التنفيذ';
+    return `<div class="ta-row">
+      <b>${esc(a.stu?.full_name||'—')}</b>
+      <span>${a.submitted_at?esc(new Date(a.submitted_at).toLocaleDateString('ar-EG',{day:'numeric',month:'short'})):'—'}</span>
+      <span>${a.score!=null?ar(a.score)+'/'+ar(a.max_score||0):'—'}</span>
+      <span style="background:${stColor}22;color:${stColor};padding:3px 10px;border-radius:8px;font-size:11.5px;font-weight:700">${esc(stLabel)}${a.pct!=null?' — '+ar(a.pct)+'٪':''}</span>
+    </div>`;
+  }).join('')}</div>` : `<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">لا محاولات بعد.</div>`;
+
+  const activateBtn = canEdit && b.status==='draft' && questions.length ? `<button class="btn" onclick="_tbActivate('${esc(bankId)}')">${mi('check')||''} تفعيل البنك</button>` : '';
+  const archiveBtn = canEdit && b.status==='active' ? `<button class="btn ghost" onclick="_tbArchive('${esc(bankId)}')">أرشفة</button>` : '';
+
+  $('#modalHost').innerHTML = `<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal ca-detail-modal" style="max-width:720px">
+    <div class="ca-detail-head">
+      <div>
+        <div style="font-size:12px;color:var(--muted);font-weight:700">${esc(TEST_CAT_AR[b.category]||'')}${b.version?' • v'+esc(b.version):''}${pathObj?' • '+esc(pathObj.name):''}</div>
+        <h3 style="margin:4px 0 6px">${esc(b.name)}</h3>
+        <div style="font-size:12px;color:var(--muted)">${ar(questions.length)} سؤال • ${ar(attempts.length)} محاولة${b.duration_min?' • مدة '+ar(b.duration_min)+' دقيقة':''} • حد النجاح ${ar(b.pass_score_pct||60)}٪</div>
+      </div>
+      <span class="tb-status" style="background:${(TB_STATUS_COLOR[b.status]||'#8a8a8a')}22;color:${TB_STATUS_COLOR[b.status]||'#8a8a8a'};padding:5px 12px">${esc(TB_STATUS_AR[b.status]||b.status)}</span>
+    </div>
+    ${b.description?`<div class="ca-drow"><b>الوصف</b><div>${esc(b.description)}</div></div>`:''}
+    <div style="margin-top:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <b style="color:var(--navy-deep);font-size:14px">الأسئلة</b>
+        ${canEdit?`<button class="btn-sm" onclick="_tqNew('${esc(bankId)}')">+ سؤال</button>`:''}
+      </div>
+      ${qHtml}
+    </div>
+    <div style="margin-top:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <b style="color:var(--navy-deep);font-size:14px">آخر ٣٠ محاولة</b>
+      </div>
+      ${attemptsHtml}
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeModal()">إغلاق</button>
+      ${archiveBtn}
+      ${activateBtn}
+    </div>
+  </div></div>`;
+}
+async function _tbActivate(bankId){
+  const { error } = await sb.from('test_banks').update({ status:'active', approved_by: ME.id, approved_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id',bankId);
+  if(error){ toast('تعذّر: '+error.message); return; }
+  closeModal(); toast('✅ فُعّل البنك'); navigate('tests');
+}
+async function _tbArchive(bankId){
+  if(!confirm('أرشفة هذا البنك؟ لن يظهر للمعلمين بعدها.')) return;
+  const { error } = await sb.from('test_banks').update({ status:'archived', updated_at: new Date().toISOString() }).eq('id',bankId);
+  if(error){ toast('تعذّر: '+error.message); return; }
+  closeModal(); toast('✅ أُرشف البنك'); navigate('tests');
+}
+function _tqNew(bankId){
+  const kindOpts = Object.entries(TQ_KIND_AR).map(([k,l])=>`<option value="${k}">${esc(l)}</option>`).join('');
+  $('#modalHost').innerHTML = `<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <h3>+ سؤال جديد</h3>
+    <div class="field"><label>نوع السؤال</label><select id="tqKind" onchange="_tqKindChanged()">${kindOpts}</select></div>
+    <div class="field"><label>نص السؤال <span class="req">*</span></label><textarea id="tqPrompt" rows="3" placeholder="مثال: اقرأ الآيات 1-5 من سورة البقرة"></textarea></div>
+    <div class="field"><label>المرجع القرآني (اختياري)</label><input id="tqRef" placeholder="مثال: سورة البقرة، الآيات 1–5"></div>
+    <div class="field"><label>عدد النقاط</label><input id="tqPoints" type="number" min="1" value="1"></div>
+    <div id="tqMcqWrap" style="display:none">
+      <div class="field"><label>الخيارات (سطر لكل خيار — ابدأ بـ* للإجابة الصحيحة)</label>
+        <textarea id="tqChoices" rows="4" placeholder="*البقرة&#10;آل عمران&#10;النساء&#10;المائدة"></textarea>
+      </div>
+    </div>
+    <div id="tqTextWrap" style="display:none">
+      <div class="field"><label>الإجابة المتوقعة (مرجعية للمصحح)</label><textarea id="tqAnswer" rows="2"></textarea></div>
+    </div>
+    <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إلغاء</button><button class="btn" id="tqSaveBtn" onclick="_tqSave('${esc(bankId)}')">حفظ السؤال</button></div>
+  </div></div>`;
+  _tqKindChanged();
+}
+function _tqKindChanged(){
+  const k = $('#tqKind').value;
+  document.getElementById('tqMcqWrap').style.display = k==='mcq' ? '' : 'none';
+  document.getElementById('tqTextWrap').style.display = (k==='text'||k==='recite') ? '' : 'none';
+}
+async function _tqSave(bankId){
+  const prompt_ = ($('#tqPrompt')?.value||'').trim();
+  if(!prompt_){ toast('نص السؤال مطلوب'); return; }
+  const kind = $('#tqKind').value;
+  const btn = document.getElementById('tqSaveBtn'); if(btn){ btn.disabled=true; btn.textContent='جارٍ الحفظ...'; }
+  // نحصل على أعلى order_index لتُضاف الأسئلة بالترتيب
+  const { data:existing } = await sb.from('test_questions').select('order_index').eq('bank_id',bankId).order('order_index',{ascending:false}).limit(1);
+  const nextIdx = existing && existing[0] ? (existing[0].order_index||0)+1 : 0;
+  const rec = {
+    bank_id: bankId, order_index: nextIdx, kind, prompt: prompt_,
+    reference: ($('#tqRef')?.value||'').trim() || null,
+    points: +($('#tqPoints')?.value||1) || 1,
+  };
+  if(kind === 'mcq'){
+    const lines = ($('#tqChoices')?.value||'').split('\n').map(l=>l.trim()).filter(Boolean);
+    rec.choices = lines.map(l => l.startsWith('*') ? { text: l.slice(1).trim(), is_correct: true } : { text: l, is_correct: false });
+    if(!rec.choices.some(c => c.is_correct)){ if(btn){ btn.disabled=false; btn.textContent='حفظ السؤال'; } toast('حدد إجابة صحيحة بإضافة * قبلها'); return; }
+  } else if(kind === 'text' || kind === 'recite'){
+    rec.correct_text = ($('#tqAnswer')?.value||'').trim() || null;
+  }
+  const { error } = await sb.from('test_questions').insert(rec);
+  if(error){ if(btn){ btn.disabled=false; btn.textContent='حفظ السؤال'; } alert('تعذّر: '+error.message); return; }
+  closeModal(); toast('✅ أُضيف السؤال'); setTimeout(()=>_tbOpen(bankId), 200);
+}
+async function _tqDelete(qId, bankId){
+  if(!confirm('حذف هذا السؤال؟')) return;
+  const { error } = await sb.from('test_questions').delete().eq('id',qId);
+  if(error){ toast('تعذّر: '+error.message); return; }
+  toast('✅ حُذف السؤال'); setTimeout(()=>_tbOpen(bankId), 200);
 }
 
 // ─── حوكمة المناهج (المسارات + المحطات + الحصون) ─────────────────────────
