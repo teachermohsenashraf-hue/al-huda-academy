@@ -757,6 +757,26 @@ details.rate-classic[open] summary{margin-bottom:8px;color:var(--navy-deep)}
 .ta-row b{color:var(--navy-deep)}
 .ta-row span{color:var(--muted);font-size:11.5px}
 @media(max-width:640px){.ta-row{grid-template-columns:1fr auto}.ta-row span:nth-child(2){grid-column:1/-1;font-size:11px}}
+/* تدفق تسميع الاختبار */
+.tg-list{display:flex;flex-direction:column;gap:10px;max-height:min(60vh,500px);overflow-y:auto;padding-inline-end:4px}
+.tg-item{background:var(--cream);border-radius:10px;padding:12px;display:flex;gap:10px}
+.tg-num{width:28px;height:28px;border-radius:50%;background:var(--emerald,#2E7D5B);color:#fff;display:grid;place-items:center;font-weight:700;font-size:12.5px;flex:none}
+.tg-body{flex:1;min-width:0}
+.tg-kind{font-size:11px;color:var(--muted);font-weight:700;margin-bottom:4px}
+.tg-prompt{color:var(--navy-deep);font-size:13.5px;line-height:1.9;margin-bottom:8px;white-space:pre-wrap}
+.tg-mcq{display:flex;flex-direction:column;gap:6px}
+.tg-choice{display:flex;align-items:center;gap:8px;background:#fff;padding:8px 12px;border-radius:8px;cursor:pointer;transition:.15s;font-size:13px;color:var(--navy-deep)}
+.tg-choice:hover{background:rgba(46,125,91,0.06)}
+.tg-choice input[type=radio]{width:18px;height:18px;accent-color:var(--emerald,#2E7D5B)}
+.tg-text{width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:8px;font-family:'Cairo';font-size:13px;background:#fff}
+.tg-refanswer{background:rgba(212,180,68,.10);color:#8a6f18;padding:6px 10px;border-radius:8px;font-size:12px;margin-top:6px}
+.tg-grade,.tg-recite{color:var(--muted);font-size:12.5px;margin-top:8px;display:flex;align-items:center;gap:8px}
+.tg-grade input,.tg-recite-score{width:70px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;text-align:center;font-family:'Tajawal';font-weight:700}
+.tg-recite{background:rgba(52,152,219,0.08);border-radius:8px;padding:8px 12px;color:#2c6a9c}
+.tg-rating{display:flex;gap:6px;margin-top:6px}
+.tg-star{width:36px;height:36px;border:1px solid var(--line);background:#fff;border-radius:8px;font-weight:700;color:var(--muted);cursor:pointer;transition:.15s}
+.tg-star.on{background:var(--gold,#c9a227);color:#fff;border-color:var(--gold,#c9a227)}
+.tg-star:hover{border-color:var(--gold,#c9a227)}
 /* فاصل يوم داخل قائمة الرسائل — طراز واتساب: كبسولة مركزية شفافة، خفيفة الظل،
    لا تنافس محتوى الرسالة نفسها بصرياً */
 .chat-day-sep{display:flex;justify-content:center;margin:8px 0 4px;position:relative}
@@ -7653,6 +7673,9 @@ async function _tbOpen(bankId){
 
   const activateBtn = canEdit && b.status==='draft' && questions.length ? `<button class="btn" onclick="_tbActivate('${esc(bankId)}')">${mi('check')||''} تفعيل البنك</button>` : '';
   const archiveBtn = canEdit && b.status==='active' ? `<button class="btn ghost" onclick="_tbArchive('${esc(bankId)}')">أرشفة</button>` : '';
+  // بدء محاولة اختبار لطالب — متاح للمعلم/الأدمن/المدير العلمي عند تفعيل البنك
+  const launchBtn = b.status==='active' && questions.length && (ME.role==='teacher' || ME.role==='admin' || _requireScientific())
+    ? `<button class="btn" onclick="_taLaunchPicker('${esc(bankId)}')">${mi('star')||''} بدء اختبار لطالب</button>` : '';
 
   $('#modalHost').innerHTML = `<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal ca-detail-modal" style="max-width:720px">
     <div class="ca-detail-head">
@@ -7681,8 +7704,195 @@ async function _tbOpen(bankId){
       <button class="btn ghost" onclick="closeModal()">إغلاق</button>
       ${archiveBtn}
       ${activateBtn}
+      ${launchBtn}
     </div>
   </div></div>`;
+}
+// ─── تدفق تسميع الاختبار ─────────────────────────────────────────────────
+// المعلم يختار طالبًا من طلابه (أو الأدمن/المدير العلمي من كل الطلاب النشطين)،
+// نُنشئ محاولة test_attempts (status=in_progress) ثم نفتح شاشة تسميع فيها كل
+// سؤال بحقل درجة + ملاحظة، وعند الحفظ نحسب المجموع تلقائيًا.
+async function _taLaunchPicker(bankId){
+  const isTeacher = ME.role === 'teacher';
+  let studs = [];
+  if(isTeacher){
+    const { data:gs } = await sb.from('groups').select('id').eq('teacher_id',ME.id);
+    const gids = (gs||[]).map(g=>g.id);
+    if(gids.length){
+      const { data:st } = await sb.from('students').select('id,full_name,group_id').in('group_id',gids).eq('enrollment_status','active').order('full_name');
+      studs = st || [];
+    }
+  } else {
+    const { data:st } = await sb.from('students').select('id,full_name').eq('enrollment_status','active').order('full_name').limit(200);
+    studs = st || [];
+  }
+  if(!studs.length){ toast('لا طلاب متاحون'); return; }
+  $('#modalHost').innerHTML = `<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <h3>بدء اختبار لطالب</h3>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:12px;line-height:1.7">اختر الطالب الذي ستُسمّع له الاختبار — ستُنشأ محاولة رسمية تُحفظ درجاتها بعد التصحيح.</p>
+    ${studs.length > 6 ? `<div class="field"><label>ابحث</label><input id="taSearch" placeholder="اكتب اسم الطالب..." oninput="_taFilterStuds(this.value)"></div>` : ''}
+    <div class="field"><label>الطالب</label>
+      <div id="taStudList" style="max-height:280px;overflow-y:auto;border:1px solid var(--line);border-radius:12px">
+        ${studs.map((s,i)=>`<div class="cp-item" data-idx="${i}" data-name="${esc(s.full_name.toLowerCase())}" data-sid="${s.id}" onclick="_taPickStud(${s.id},'${escJs(s.full_name)}','${esc(bankId)}')"><div class="cp-info"><b>${esc(s.full_name)}</b></div><span class="cp-go">←</span></div>`).join('')}
+      </div>
+    </div>
+    <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إلغاء</button></div>
+  </div></div>`;
+}
+function _taFilterStuds(q){
+  const nq = (q||'').trim().toLowerCase();
+  document.querySelectorAll('#taStudList .cp-item').forEach(el => {
+    el.style.display = (!nq || (el.dataset.name||'').includes(nq)) ? '' : 'none';
+  });
+}
+async function _taPickStud(studentId, studentName, bankId){
+  // نُنشئ المحاولة (in_progress) ثم نفتح شاشة التصحيح
+  const rec = { bank_id: bankId, student_id: studentId, teacher_id: ME.id, status: 'in_progress' };
+  const { data:att, error } = await sb.from('test_attempts').insert(rec).select('id').maybeSingle();
+  if(error){ alert('تعذّر بدء المحاولة: '+error.message); return; }
+  if(!att?.id){ toast('لم يتم إنشاء المحاولة'); return; }
+  closeModal();
+  setTimeout(()=>_taGrade(att.id, studentName), 200);
+}
+// شاشة التصحيح: كل سؤال بمدخلاته الخاصة (mcq أزرار خيار، text/recite حقل تقييم يدوي)
+async function _taGrade(attemptId, studentNameOpt){
+  const [aR, qBankR] = await Promise.all([
+    sb.from('test_attempts').select('*, bank:test_banks(id,name,pass_score_pct,duration_min), stu:students!test_attempts_student_id_fkey(full_name)').eq('id',attemptId).maybeSingle(),
+    Promise.resolve(null),
+  ]);
+  const a = aR.data;
+  if(!a){ toast('المحاولة غير موجودة'); return; }
+  const { data:questions } = await sb.from('test_questions').select('*').eq('bank_id',a.bank_id).order('order_index');
+  const qs = questions || [];
+  const existingAnswers = a.answers || {};
+  const studName = studentNameOpt || a.stu?.full_name || '—';
+
+  const questionRows = qs.map((q,i) => {
+    const prev = existingAnswers[q.id] || {};
+    let inputHtml = '';
+    if(q.kind === 'mcq'){
+      inputHtml = `<div class="tg-mcq">${(q.choices||[]).map((c,ci)=>`
+        <label class="tg-choice">
+          <input type="radio" name="q_${q.id}" value="${ci}" ${prev.choice===ci?'checked':''} onchange="_tgAnswer('${q.id}',${ci},${c.is_correct?'true':'false'},${q.points||1})">
+          <span>${esc(c.text)}</span>
+        </label>`).join('')}</div>`;
+    } else if(q.kind === 'text') {
+      inputHtml = `<div>
+        <input type="text" class="tg-text" placeholder="إجابة الطالب النصية" value="${esc(prev.value||'')}" oninput="_tgText('${q.id}',this.value)">
+        ${q.correct_text?`<div class="tg-refanswer">الإجابة المرجعية: ${esc(q.correct_text)}</div>`:''}
+        <div class="tg-grade">قيّم من ${ar(q.points||1)}:
+          <input type="number" min="0" max="${q.points||1}" value="${prev.score||0}" oninput="_tgScore('${q.id}',+this.value,${q.points||1})">
+        </div>
+      </div>`;
+    } else if(q.kind === 'recite'){
+      inputHtml = `<div>
+        <div class="tg-recite">استمع لتسميع الطالب ثم قيّمه من ${ar(q.points||1)} نقاط:</div>
+        <input type="number" class="tg-recite-score" min="0" max="${q.points||1}" value="${prev.score||0}" oninput="_tgScore('${q.id}',+this.value,${q.points||1})">
+        <input type="text" placeholder="ملاحظة موضع/تصحيح (اختياري)" value="${esc(prev.note||'')}" oninput="_tgNote('${q.id}',this.value)" style="width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:8px;margin-top:6px;font-family:'Cairo';font-size:12.5px">
+      </div>`;
+    } else if(q.kind === 'rating'){
+      inputHtml = `<div class="tg-rating">${[1,2,3,4,5].map(n=>`<button type="button" class="tg-star ${prev.value>=n?'on':''}" onclick="_tgRating('${q.id}',${n},${q.points||1})">${n}</button>`).join('')}</div>`;
+    }
+    return `<div class="tg-item">
+      <div class="tg-num">${ar(i+1)}</div>
+      <div class="tg-body">
+        <div class="tg-kind">${esc(TQ_KIND_AR[q.kind]||q.kind)} • ${ar(q.points||1)} نقطة${q.reference?' • '+esc(q.reference):''}</div>
+        <div class="tg-prompt">${esc(q.prompt)}</div>
+        ${inputHtml}
+      </div>
+    </div>`;
+  }).join('');
+
+  const totalPoints = qs.reduce((s,q)=>s+(q.points||1),0);
+  SESSION._taState = { attemptId, bankId: a.bank_id, questions: qs, answers: { ...existingAnswers }, totalPoints };
+
+  $('#modalHost').innerHTML = `<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal ca-detail-modal" style="max-width:720px">
+    <div class="ca-detail-head">
+      <div>
+        <div style="font-size:12px;color:var(--muted);font-weight:700">${esc(a.bank?.name||'اختبار')}</div>
+        <h3 style="margin:4px 0 6px">${esc(studName)}</h3>
+        <div style="font-size:12px;color:var(--muted)">${ar(qs.length)} سؤال • مجموع ${ar(totalPoints)} نقطة • حد النجاح ${ar(a.bank?.pass_score_pct||60)}٪</div>
+      </div>
+      <div id="taRunningScore" class="tb-status" style="background:rgba(46,125,91,.14);color:#1B4D3E">الدرجة الحالية: 0/${ar(totalPoints)}</div>
+    </div>
+    <div class="tg-list">${questionRows}</div>
+    <div class="field" style="margin-top:12px"><label>ملاحظة معلم عامة على الأداء (اختياري)</label><textarea id="taTeacherNote" rows="2">${esc(a.teacher_note||'')}</textarea></div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="_taSaveDraft()">حفظ ومتابعة لاحقاً</button>
+      <button class="btn" onclick="_taFinalize()">${mi('check')||''} اعتماد الدرجة النهائية</button>
+    </div>
+  </div></div>`;
+  _taRefreshRunningScore();
+}
+function _tgAnswer(qid, choice, isCorrect, points){
+  const s = SESSION._taState; if(!s) return;
+  s.answers[qid] = { choice, is_correct: isCorrect, score: isCorrect ? points : 0 };
+  _taRefreshRunningScore();
+}
+function _tgText(qid, val){
+  const s = SESSION._taState; if(!s) return;
+  s.answers[qid] = { ...(s.answers[qid]||{}), value: val };
+}
+function _tgScore(qid, score, max){
+  const s = SESSION._taState; if(!s) return;
+  s.answers[qid] = { ...(s.answers[qid]||{}), score: Math.max(0, Math.min(max, score)) };
+  _taRefreshRunningScore();
+}
+function _tgNote(qid, note){
+  const s = SESSION._taState; if(!s) return;
+  s.answers[qid] = { ...(s.answers[qid]||{}), note };
+}
+function _tgRating(qid, value, points){
+  const s = SESSION._taState; if(!s) return;
+  s.answers[qid] = { value, score: Math.round(value/5 * points) };
+  // تحديث النجوم بصريًا
+  const stars = document.querySelectorAll(`.tg-star[onclick*="'${qid}'"]`);
+  stars.forEach((el,idx) => el.classList.toggle('on', idx < value));
+  _taRefreshRunningScore();
+}
+function _taRefreshRunningScore(){
+  const s = SESSION._taState; if(!s) return;
+  const score = Object.values(s.answers).reduce((sum, a) => sum + (a.score||0), 0);
+  const el = document.getElementById('taRunningScore');
+  if(el){
+    const pct = s.totalPoints ? Math.round(score/s.totalPoints*100) : 0;
+    el.textContent = 'الدرجة الحالية: ' + ar(score) + '/' + ar(s.totalPoints) + ' (' + ar(pct) + '٪)';
+  }
+}
+async function _taSaveDraft(){
+  const s = SESSION._taState; if(!s) return;
+  const note = ($('#taTeacherNote')?.value||'').trim() || null;
+  const { error } = await sb.from('test_attempts').update({ answers: s.answers, teacher_note: note, status:'in_progress' }).eq('id',s.attemptId);
+  if(error){ alert('تعذّر: '+error.message); return; }
+  closeModal(); toast('✅ حُفظت المحاولة كمسودة');
+}
+async function _taFinalize(){
+  const s = SESSION._taState; if(!s) return;
+  const note = ($('#taTeacherNote')?.value||'').trim() || null;
+  const score = Object.values(s.answers).reduce((sum, a) => sum + (a.score||0), 0);
+  const pct = s.totalPoints ? Math.round(score/s.totalPoints*100) : 0;
+  const patch = {
+    answers: s.answers, teacher_note: note,
+    score, max_score: s.totalPoints, pct,
+    status:'graded',
+    submitted_at: new Date().toISOString(),
+    graded_at: new Date().toISOString(),
+  };
+  const { error } = await sb.from('test_attempts').update(patch).eq('id',s.attemptId);
+  if(error){ alert('تعذّر: '+error.message); return; }
+  // إشعار الطالب بنتيجته
+  try{
+    const { data:att } = await sb.from('test_attempts').select('student_id, bank:test_banks(name,pass_score_pct)').eq('id',s.attemptId).maybeSingle();
+    if(att?.student_id){
+      const { data:stu } = await sb.from('students').select('login_id,parent_id,full_name').eq('id',att.student_id).maybeSingle();
+      const passed = pct >= (att.bank?.pass_score_pct||60);
+      const title = passed ? '✅ نجحت في الاختبار' : '📝 نتيجة اختبارك';
+      const body = 'اختبار «' + (att.bank?.name||'') + '»: ' + ar(pct) + '٪ (' + ar(score) + '/' + ar(s.totalPoints) + ')';
+      if(stu?.login_id) await pushNotif(stu.login_id, title, body, 'system', s.attemptId);
+      if(stu?.parent_id) await pushNotif(stu.parent_id, 'نتيجة اختبار '+stu.full_name, body, 'system', s.attemptId);
+    }
+  }catch(e){}
+  closeModal(); toast('✅ اعتُمدت الدرجة النهائية: ' + ar(pct) + '٪'); navigate('tests');
 }
 async function _tbActivate(bankId){
   const { error } = await sb.from('test_banks').update({ status:'active', approved_by: ME.id, approved_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id',bankId);
