@@ -7315,28 +7315,70 @@ PAGES.admin_quality_analytics = async function(){
   const tajAvg = avgOf('tajweed');
   const revAvg = avgOf('review');
 
+  // نسمّي عيّنة كل مؤشر — رقم بلا حجم عيّنته يخدع النظر (تجويد ١٠٠٪ من ٢ تقييم فقط
+  // ليس مؤشراً على جودة المنصة، هو مؤشر على قلّة البيانات)
+  const memCount = ratings.filter(r => r.memorization).length;
+  const tajCount = ratings.filter(r => r.tajweed).length;
+  const revCount = ratings.filter(r => r.review).length;
+  const MIN_SAMPLE = 5;   // أقل عدد يعطي مؤشراً موثوقاً تقريباً
+  const numCell = (label, value, sample, sampleLabel) => {
+    const reliable = value != null && sample >= MIN_SAMPLE;
+    const val = value == null ? '—' : ar(value) + '٪';
+    const note = value == null
+      ? '<span style="color:var(--muted);font-size:10.5px">لا بيانات</span>'
+      : sample < MIN_SAMPLE
+        ? `<span style="color:#c9a227;font-size:10.5px">من ${ar(sample)} ${sampleLabel} — عيّنة صغيرة</span>`
+        : `<span style="color:var(--muted);font-size:10.5px">من ${ar(sample)} ${sampleLabel}</span>`;
+    return `<div class="sci-num"><b style="${reliable?'':'opacity:.55'}">${val}</b><span>${esc(label)}</span>${note}</div>`;
+  };
   const heroNums = `<div class="sci-hero-nums" style="margin-bottom:14px">
-    <div class="sci-num"><b>${ratingRate!==null?ar(ratingRate)+'٪':'—'}</b><span>تقييم الحصص في وقته</span></div>
-    <div class="sci-num"><b>${attRate!==null?ar(attRate)+'٪':'—'}</b><span>انتظام الحضور</span></div>
-    <div class="sci-num"><b>${memAvg!==null?ar(memAvg)+'٪':'—'}</b><span>متوسط الحفظ</span></div>
-    <div class="sci-num"><b>${tajAvg!==null?ar(tajAvg)+'٪':'—'}</b><span>متوسط التجويد</span></div>
-    <div class="sci-num"><b>${revAvg!==null?ar(revAvg)+'٪':'—'}</b><span>متوسط المراجعة</span></div>
+    ${numCell('تقييم الحصص في وقته', ratingRate, finishedSes.length, finishedSes.length===1?'حصة منتهية':'حصص منتهية')}
+    ${numCell('انتظام الحضور', attRate, totalAtt, 'تقييم')}
+    ${numCell('متوسط الحفظ', memAvg, memCount, 'تقييم')}
+    ${numCell('متوسط التجويد', tajAvg, tajCount, 'تقييم')}
+    ${numCell('متوسط المراجعة', revAvg, revCount, 'تقييم')}
   </div>`;
-  const pathHtml = pathRows.length ? `<div class="card" style="margin-bottom:14px"><div class="ch"><h3>${mi('map')||''} متوسط الإتقان حسب المسار</h3><span class="tagline-sm">آخر ٣٠ يوم</span></div>
-    <div class="tq-list">${pathRows.map(p => `<div class="tq-row" style="cursor:default">
+  const pathHtml = pathRows.length ? `<div class="card" style="margin-bottom:14px"><div class="ch"><h3>${mi('map')||''} متوسط الإتقان حسب المسار</h3><span class="tagline-sm">اضغط أي مسار لعرض طلابه</span></div>
+    <div class="tq-list">${pathRows.map(p => `<div class="tq-row" onclick="_qaPath('${esc(p.pathId)}','${escJs(p.pathName)}')">
       <div class="tq-side" style="background:${p.avg>=80?'#2E7D5B':p.avg>=60?'#c9a227':'#c92e2e'}"></div>
       <div class="tq-info"><b>${esc(p.pathName)}</b><div class="tq-meta">${ar(p.count)} طالب${p.low?' • '+ar(p.low)+' طالب ضعيف':''}</div></div>
       <span class="tq-status" style="background:${p.avg>=80?'rgba(46,125,91,.14)':p.avg>=60?'rgba(201,162,39,.18)':'rgba(231,76,60,.14)'};color:${p.avg>=80?'#1B4D3E':p.avg>=60?'#8a6f18':'#c92e2e'}">${ar(p.avg)}٪</span>
     </div>`).join('')}</div>
   </div>` : '';
-  const interpret = ratingRate!==null && ratingRate < 70
-    ? `<div class="trend-explain trend-load"><b>ملاحظة:</b> ${ar(100-ratingRate)}٪ من الحصص المنتهية لم تُقيَّم بعد — الأولوية تدريب المعلمين على التقييم في وقته حتى تصير بيانات الجودة موثوقة.</div>`
-    : attRate!==null && attRate < 70
-    ? `<div class="trend-explain trend-absence"><b>ملاحظة:</b> انتظام الحضور ${ar(attRate)}٪ فقط — قد يفسّر هذا انخفاض الإتقان في بعض المسارات، تحقّق من فلترة الأسباب في مركز الحالات العلمية.</div>`
-    : `<div class="trend-explain trend-good"><b>ملاحظة:</b> المؤشرات في مدى صحّي — استمر في متابعة الاتجاه أسبوعيًا.</div>`;
+  // تفسير أكثر أمانة: إن كانت العيّنات كلها صغيرة، لا نُفسّر بل نطلب مزيد بيانات
+  const bigSample = finishedSes.length >= MIN_SAMPLE && totalAtt >= MIN_SAMPLE;
+  let interpret;
+  if(!bigSample){
+    interpret = `<div class="trend-explain trend-steady"><b>عيّنة غير كافية للتفسير:</b> عدد التقييمات المُسجّلة في آخر ٣٠ يوماً قليل جدًّا (${ar(ratings.length)} تقييم فقط). الأولوية الأولى الآن هي تفعيل عادة تقييم الحصص لدى المعلمين — بعد أسبوعين من التقييم المنتظم ستصبح المتوسطات هنا موثوقة.</div>`;
+  } else if(ratingRate < 70){
+    interpret = `<div class="trend-explain trend-load"><b>ملاحظة:</b> ${ar(100-ratingRate)}٪ من الحصص المنتهية لم تُقيَّم بعد — الأولوية تدريب المعلمين على التقييم في وقته حتى تصير بيانات الجودة موثوقة.</div>`;
+  } else if(attRate < 70){
+    interpret = `<div class="trend-explain trend-absence"><b>ملاحظة:</b> انتظام الحضور ${ar(attRate)}٪ فقط — قد يفسّر هذا انخفاض الإتقان في بعض المسارات، تحقّق من فلترة الأسباب في مركز الحالات العلمية.</div>`;
+  } else {
+    interpret = `<div class="trend-explain trend-good"><b>ملاحظة:</b> المؤشرات في مدى صحّي — استمر في متابعة الاتجاه أسبوعيًا.</div>`;
+  }
 
   return pageHead('تحليلات جودة التعليم','') + heroNums + pathHtml + interpret;
 };
+// تفاصيل مسار — طلابه مرتّبين بالإتقان الأدنى أولاً (أولوية المتابعة)
+async function _qaPath(pathId, pathName){
+  const { data:studs } = await sb.from('students').select('id,full_name,mastery,group_id').eq('enrollment_status','active').eq('quran_path',pathId).order('mastery',{ascending:true}).limit(100);
+  const list = studs || [];
+  const low = list.filter(s => (s.mastery||0) < 60).length;
+  const mid = list.filter(s => (s.mastery||0) >= 60 && (s.mastery||0) < 80).length;
+  const high = list.filter(s => (s.mastery||0) >= 80).length;
+  const avg = list.length ? Math.round(list.reduce((a,s)=>a+(s.mastery||0),0)/list.length) : 0;
+  $('#modalHost').innerHTML = `<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal ca-detail-modal" style="max-width:640px">
+    <div class="ca-detail-head"><div><h3 style="margin:0 0 6px">${esc(pathName)}</h3><div style="font-size:12px;color:var(--muted)">${ar(list.length)} طالب نشط • متوسط الإتقان ${ar(avg)}٪</div></div></div>
+    <div class="sci-hero-nums" style="margin-bottom:12px;grid-template-columns:repeat(3,1fr)">
+      <div class="sci-num"><b style="color:#c92e2e">${ar(low)}</b><span>ضعيف (أقل من ٦٠٪)</span></div>
+      <div class="sci-num"><b style="color:#c9a227">${ar(mid)}</b><span>متوسط (٦٠–٨٠٪)</span></div>
+      <div class="sci-num"><b style="color:#2E7D5B">${ar(high)}</b><span>جيد (٨٠٪+)</span></div>
+    </div>
+    ${list.length ? `<div class="ca-drow"><b>الطلاب مرتّبين من الأدنى إلى الأعلى (أولوية المتابعة)</b><div style="max-height:300px;overflow-y:auto">${list.map(s=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed var(--line)"><span>${esc(s.full_name)}</span><b style="color:${(s.mastery||0)>=80?'#2E7D5B':(s.mastery||0)>=60?'#c9a227':'#c92e2e'}">${ar(s.mastery||0)}٪</b></div>`).join('')}</div></div>` : '<div style="text-align:center;color:var(--muted);padding:20px">لا طلاب نشطون في هذا المسار.</div>'}
+    <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إغلاق</button></div>
+  </div></div>`;
+}
 
 // ─── نظرة الشريك ──────────────────────────────────────────────────────────
 PAGES.admin_partner_view = async function(){
