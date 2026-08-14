@@ -3570,7 +3570,8 @@ const MENUS = {
   admin:{ skin:'s-gold', title:'لوحة المدير', sections:[
     {label:'الرئيسية', items:[['dash',mi('home'),'لوحة القيادة'],['analytics',mi('chart'),'التحليلات']]},
     {label:'الإدارة', items:[['users',mi('users'),'المستخدمون'],['tracks',mi('cap'),'المسارات والدورات'],['staff',mi('teacher'),'الطاقم'],['content',mi('books'),'المحتوى'],['unassigned',mi('warning'),'طلاب بدون حلقة'],['leads',mi('clipboard'),'تسجيلات معلّقة']]},
-    {label:'قسم القرآن', items:[['qsystems',mi('kaaba'),'أنظمة القرآن'],['qfortresses',mi('shield'),'الحصون والمحطات']]},
+    {label:'الأنظمة التعليمية', items:[['programs',mi('books'),'الأنظمة والبرامج (محرك عام)']]},
+    {label:'قسم القرآن (كلاسيكي)', items:[['qsystems',mi('kaaba'),'أنظمة القرآن'],['qfortresses',mi('shield'),'الحصون والمحطات']]},
     {label:'المالية', items:[['finance',mi('card'),'المدفوعات']]},
     // قسم "المكتب العلمي" يُحقَن في buildShell عندما يكون للمستخدم علَم
     // is_scientific_director أو is_founding_partner (بدل توسيع القائمة لكل
@@ -3741,13 +3742,18 @@ function buildShell(){
     m.sections.splice(1, 0, { label:'المكتب العلمي', items });
     // قسم "الجودة والحالات" — يظهر لمن يحمل علَم المدير العلمي فقط
     if(ME.is_scientific_director){
-      m.sections.splice(2, 0, { label:'الجودة والحالات', items: [
-        ['teacher_quality', mi('star'), 'جودة المعلمين والحلقات'],
-        ['science_cases', mi('warning'), 'الحالات العلمية'],
-        ['quality_analytics', mi('chart'), 'تحليلات جودة التعليم'],
+      // «الأنظمة والبرامج» هو القلب العلمي — يُعرض أعلى القسم لأن كل قرار
+      // منهجي/تعليمي يمر عبره: تصميم، اعتماد، إصدار نسخة جديدة، إسناد للطلاب.
+      m.sections.splice(2, 0, { label:'التصميم العلمي', items: [
+        ['programs', mi('books'), 'الأنظمة والبرامج التعليمية'],
         ['curriculum', mi('kaaba')||mi('books'), 'حوكمة المناهج'],
         ['standards', mi('shield')||mi('check'), 'المعايير'],
         ['tests', mi('clipboard')||mi('check'), 'بنوك الاختبارات'],
+      ]});
+      m.sections.splice(3, 0, { label:'الجودة والحالات', items: [
+        ['teacher_quality', mi('star'), 'جودة المعلمين والحلقات'],
+        ['science_cases', mi('warning'), 'الحالات العلمية'],
+        ['quality_analytics', mi('chart'), 'تحليلات جودة التعليم'],
       ]});
     }
     // قسم "نظرة الشريك" — يظهر لمن يحمل علَم الشريك المؤسس فقط
@@ -7049,10 +7055,29 @@ async function _caDecide(id, decision){
   const note = ($('#caNote')?.value||'').trim() || null;
   const patch = { scientific_reviewer: ME.id, scientific_reviewed_at: new Date().toISOString(), scientific_review_note: note, status: decision, updated_at: new Date().toISOString() };
   const needsExec = ['product','curriculum','path','message','material'];
-  const { data:base } = await sb.from('content_approvals').select('kind,requested_by,title').eq('id',id).maybeSingle();
+  const { data:base } = await sb.from('content_approvals').select('kind,requested_by,title,target_type,target_id').eq('id',id).maybeSingle();
   if(decision === 'scientifically_approved' && base && needsExec.includes(base.kind)) patch.status = 'awaiting_executive';
   const { error } = await sb.from('content_approvals').update(patch).eq('id',id);
   if(error){ toast('تعذّر: '+error.message); return; }
+  // ── مزامنة قرار الاعتماد إلى الهدف الفعلي حسب النوع ──
+  // بدون هذه المزامنة كان النظام في edu_programs يبقى "in_review" حتى بعد
+  // اعتماد المدير العلمي من صفحة الاعتمادات، فيظهر للتنفيذي "قيد المراجعة".
+  try{
+    if(base?.target_type === 'edu_program' && base.target_id){
+      if(decision === 'scientifically_approved' || patch.status === 'awaiting_executive'){
+        await sb.from('edu_programs').update({
+          status: 'scientifically_approved',
+          approved_by: ME.id,
+          approved_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }).eq('id', base.target_id);
+      } else if(decision === 'needs_edit'){
+        await sb.from('edu_programs').update({status:'needs_edit', updated_at:new Date().toISOString()}).eq('id', base.target_id);
+      } else if(decision === 'rejected'){
+        await sb.from('edu_programs').update({status:'archived', archived_at:new Date().toISOString(), updated_at:new Date().toISOString()}).eq('id', base.target_id);
+      }
+    }
+  }catch(_){}
   // إشعار مقدّم الطلب بالقرار العلمي
   try{
     if(base?.requested_by && base.requested_by !== ME.id){
