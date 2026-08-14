@@ -3549,12 +3549,45 @@ const MENUS = {
     // مدير حتى لو مش شريك مؤسس)
   ]},
   executive:{ skin:'s-navy', title:'لوحة المدير التنفيذي', sections:[
-    {label:'غرفة العمليات', items:[['dash',mi('building'),'غرفة العمليات'],['journey',mi('map'),'رحلة الطالب'],['halqat_ops',mi('mosque'),'الحلقات التشغيلي'],['finance_ops',mi('card'),'المالية والاشتراكات']]},
-    {label:'التحليل والقرارات', items:[['analytics',mi('chart'),'التحليلات'],['growth',mi('chart'),'النمو والتسويق'],['okrs',mi('star'),'OKRs الفصل'],['shared_decisions',mi('handshake')||mi('users'),'القرارات المشتركة'],['partnership',mi('handshake')||mi('users'),'قرارات الشراكة'],['deferred',mi('clock')||mi('calendar'),'قرارات مؤجَّلة']]},
-    {label:'الجودة والمتابعة', items:[['science_bridge',mi('book'),'نظرة القسم العلمي'],['complaints',mi('warning'),'الشكاوى'],['health',mi('shield'),'صحة المنصة']]},
-    {label:'الإشراف والفريق', items:[['team',mi('team'),'فريق الإشراف'],['staff',mi('teacher'),'المعلمون والحلقات'],['teacher_files',mi('star'),'ملفات المعلمين'],['students',mi('child'),'الطلاب'],['unassigned',mi('warning'),'طلاب بدون حلقة'],['leads',mi('clipboard'),'تسجيلات معلّقة']]},
-    {label:'قسم القرآن', items:[['qsystems',mi('kaaba'),'أنظمة القرآن']]},
-    {label:'المالية (سجل)', items:[['finance',mi('card'),'كل المدفوعات']]},
+    // ═ الأولوية العليا: ما يحتاج قرارًا الآن أو تدخّلاً فوريًا ═
+    {label:'غرفة العمليات', items:[
+      ['dash',mi('building'),'غرفة العمليات'],
+      ['journey',mi('map'),'رحلة الطالب'],
+      ['halqat_ops',mi('mosque'),'الحلقات التشغيلي'],
+      ['finance_ops',mi('card'),'المالية والاشتراكات'],
+    ]},
+    // ═ الصحة والمخاطر: مراقبة اليوم قبل ما يتحوّل لمشكلة ═
+    {label:'المراقبة والجودة', items:[
+      ['health',mi('shield'),'صحة المنصة'],
+      ['complaints',mi('warning'),'الشكاوى والاعتراضات'],
+      ['science_bridge',mi('book'),'نظرة القسم العلمي'],
+    ]},
+    // ═ القرارات: صفوف تنتظر قرارك (رتّبنا الأعجل أولاً) ═
+    {label:'القرارات والحوكمة', items:[
+      ['shared_decisions',mi('handshake')||mi('users'),'القرارات المشتركة'],
+      ['partnership',mi('handshake')||mi('users'),'قرارات الشراكة'],
+      ['deferred',mi('clock')||mi('calendar'),'قرارات مؤجَّلة'],
+      ['okrs',mi('star'),'OKRs الفصل'],
+    ]},
+    // ═ التحليلات: نظرة استراتيجية (أقل إلحاحًا يوميًا) ═
+    {label:'التحليل الاستراتيجي', items:[
+      ['growth',mi('chart'),'النمو والتسويق'],
+      ['analytics',mi('chart'),'التحليلات العامة'],
+    ]},
+    // ═ الأشخاص: طلاب أولاً (الأعجل)، ثم فريق التعليم ═
+    {label:'الطلاب والفريق', items:[
+      ['unassigned',mi('warning'),'طلاب بدون حلقة'],
+      ['leads',mi('clipboard'),'تسجيلات معلّقة'],
+      ['students',mi('child'),'كل الطلاب'],
+      ['teacher_files',mi('star'),'ملفات المعلمين'],
+      ['staff',mi('teacher'),'المعلمون والحلقات'],
+      ['team',mi('team'),'فريق الإشراف'],
+    ]},
+    // ═ مراجع: بيانات مرجعية نادرة الاستخدام ═
+    {label:'مراجع', items:[
+      ['qsystems',mi('kaaba'),'أنظمة القرآن'],
+      ['finance',mi('card'),'سجل المدفوعات'],
+    ]},
   ]},
   supervisor:{ skin:'s-navy', title:'لوحة المشرف', sections:[
     {label:'الالتحاق', items:[['confirm',mi('money'),'تأكيد المدفوعات'],['subsidy',mi('handshake'),'طلبات التخفيض']]},
@@ -11549,7 +11582,15 @@ PAGES.executive_health = async function(){
   const scoreLabel = score >= 85 ? 'سليم' : score >= 65 ? 'يحتاج انتباه' : 'حرج';
 
   // ═══ عرض ═══
-  const kpi = (l,v,s,c,click) => `<div class="exec-kpi" ${click?`onclick="${click}"`:''} style="${click?'cursor:pointer;':''}${c?`border-inline-start:4px solid ${c}`:''}"><div class="exec-kpi-label">${esc(l)}</div><div class="exec-kpi-value" style="${c?`color:${c}`:''}">${v}</div>${s?`<div class="exec-kpi-sub">${esc(s)}</div>`:''}</div>`;
+  // sub قد يكون نصًا عاديًا (يُصان بـesc) أو كائن {html:'…'} لعرض HTML خام
+  // (للأسهم الملوّنة). المشكلة السابقة: كل sub كان يُصان فحتى الأسهم كانت
+  // تظهر كنص "<span style=…>▲ ٧٨٪</span>" حرفيًا.
+  const kpi = (l,v,s,c,click) => {
+    const subHtml = !s ? '' : (typeof s === 'object' && s.html)
+      ? `<div class="exec-kpi-sub">${s.html}</div>`
+      : `<div class="exec-kpi-sub">${esc(s)}</div>`;
+    return `<div class="exec-kpi" ${click?`onclick="${click}"`:''} style="${click?'cursor:pointer;':''}${c?`border-inline-start:4px solid ${c}`:''}"><div class="exec-kpi-label">${esc(l)}</div><div class="exec-kpi-value" style="${c?`color:${c}`:''}">${v}</div>${subHtml}</div>`;
+  };
   const trendArrow = t => t > 0 ? '<span style="color:#2E7D5B">▲ '+ar(t)+'٪</span>' : t < 0 ? '<span style="color:#c92e2e">▼ '+ar(Math.abs(t))+'٪</span>' : '<span style="color:var(--muted)">= ثابت</span>';
   // درجة الصحة كبطاقة رأس
   const heroHtml = `<div class="card" style="margin-top:14px;padding:22px;border-inline-start:6px solid ${scoreColor};display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px">
@@ -11575,9 +11616,9 @@ PAGES.executive_health = async function(){
     </div>
     <h3 style="color:var(--navy-deep);margin:22px 0 10px;font-size:16px">${mi('chart')||'📊'} حيوية العمليات — اتجاه أسبوعي</h3>
     <div class="exec-kpis">
-      ${kpi('حصص هذا الأسبوع', ar(sesCur), 'مقابل '+ar(sesPrev)+' الأسبوع السابق — '+trendArrow(sesTrend))}
-      ${kpi('دفعات هذا الأسبوع', ar(paysCur), 'مقابل '+ar(paysPrev)+' الأسبوع السابق — '+trendArrow(paysTrend))}
-      ${kpi('تنبيهات هذا الأسبوع', ar(notifsCurC), 'مقابل '+ar(notifsPrevC)+' الأسبوع السابق — '+trendArrow(notifsTrend))}
+      ${kpi('حصص هذا الأسبوع', ar(sesCur), {html:'مقابل '+ar(sesPrev)+' الأسبوع السابق — '+trendArrow(sesTrend)})}
+      ${kpi('دفعات هذا الأسبوع', ar(paysCur), {html:'مقابل '+ar(paysPrev)+' الأسبوع السابق — '+trendArrow(paysTrend)})}
+      ${kpi('تنبيهات هذا الأسبوع', ar(notifsCurC), {html:'مقابل '+ar(notifsPrevC)+' الأسبوع السابق — '+trendArrow(notifsTrend)})}
     </div>
     <h3 style="color:var(--navy-deep);margin:22px 0 10px;font-size:16px">${mi('users')||'👥'} تفاعل المستخدمين</h3>
     <div class="exec-kpis">
