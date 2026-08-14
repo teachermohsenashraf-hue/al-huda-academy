@@ -3750,6 +3750,8 @@ function buildShell(){
     if(ME.is_founding_partner)    items.push(['partnership',mi('handshake')||mi('users'),'قرارات الشراكة']);
     // نضع القسم أعلى القوائم بعد "الرئيسية" مباشرة (لأولوية عرضه للشريك)
     m.sections.splice(1, 0, { label:'المكتب العلمي', items });
+    // شريك مؤسس (فقط شريك بلا SD): إدخال partner_view كأول قرار
+    if(ME.is_founding_partner) items.push(['partner_view', mi('chart'), 'نظرة الشريك']);
     // قسم "الجودة والحالات" — يظهر لمن يحمل علَم المدير العلمي فقط
     if(ME.is_scientific_director){
       // «الأنظمة والبرامج» هو القلب العلمي — يُعرض أعلى القسم لأن كل قرار
@@ -3760,21 +3762,37 @@ function buildShell(){
         ['standards', mi('shield')||mi('check'), 'المعايير'],
         ['tests', mi('clipboard')||mi('check'), 'بنوك الاختبارات'],
       ]});
-      m.sections.splice(3, 0, { label:'الجودة والحالات', items: [
+      m.sections.splice(3, 0, { label:'الجودة والمتابعة', items: [
         ['teacher_quality', mi('star'), 'جودة المعلمين والحلقات'],
         ['science_cases', mi('warning'), 'الحالات العلمية'],
         ['quality_analytics', mi('chart'), 'تحليلات جودة التعليم'],
-      ]});
-    }
-    // قسم "نظرة الشريك" — يظهر لمن يحمل علَم الشريك المؤسس فقط
-    if(ME.is_founding_partner){
-      const insertAt = ME.is_scientific_director ? 3 : 2;
-      m.sections.splice(insertAt, 0, { label:'نظرة الشريك', items: [
-        ['partner_view', mi('chart'), 'صحة المشروع'],
+        ['pulse', mi('pulse')||mi('chart'), 'نبض المنصة'],
       ]});
     }
     // نُعدّل اللقب أيضاً حتى يعرف الشريك المؤسس أن اللوحة تخصّه
     if(m.title === 'لوحة المدير'){ m.title = ME.is_founding_partner && ME.is_scientific_director ? 'المدير العلمي — شريك مؤسس' : (ME.is_scientific_director ? 'المدير العلمي' : 'شريك مؤسس'); }
+  }
+
+  // ═══ إزالة التكرار: أي مفتاح صفحة ظهر مرتين، احتفظ بأول مرة فقط ═══
+  // ضروري بعد الحقن لأن admin base menu فيه programs، والحقن العلمي بيضيفه
+  // مرة تانية. النتيجة كانت زر مكرَّر في القائمة.
+  if(m.sections){
+    const seen = new Set();
+    m.sections.forEach(sec => {
+      if(!sec.items) return;
+      sec.items = sec.items.filter(([k]) => { if(seen.has(k)) return false; seen.add(k); return true; });
+    });
+    // احذف الأقسام الفارغة (لو كل عناصرها اتشالت)
+    m.sections = m.sections.filter(sec => sec.items && sec.items.length);
+    // ═══ إعادة ترتيب أقسام قائمة الأدمن للـSD/الشريك المؤسس بترتيب منطقي ═══
+    // ترتيب مقصود من الأهم للأقل تكرارًا يوميًا. لا يمس قوائم بقية الأدوار.
+    if(ME.role === 'admin' && (ME.is_scientific_director || ME.is_founding_partner)){
+      const ORDER = ['الرئيسية','المكتب العلمي','التصميم العلمي','الجودة والمتابعة','الجودة والحالات','الإدارة','الأنظمة التعليمية','قسم القرآن (كلاسيكي)','قسم القرآن','المالية','الأمان'];
+      m.sections.sort((a,b) => {
+        const ia = ORDER.indexOf(a.label); const ib = ORDER.indexOf(b.label);
+        return (ia<0?99:ia) - (ib<0?99:ib);
+      });
+    }
   }
   // نلفّ النصوص في span.lbl حتى نستطيع إخفاءها في وضع الشريط الضيّق (طي إلى أيقونات فقط)
   // دون فقد الأيقونة نفسها؛ واصفة title تعطي تلميحًا أصليًا في وضع الطي.
@@ -11200,7 +11218,12 @@ function injectBatch1Menus(){
   MENUS.admin.sections[0].items.push(['chat',mi('chat'),'الرسائل']);
   if(MENUS.executive){ MENUS.executive.sections[0].items.push(['chat',mi('chat'),'الرسائل']); }
   // المشرف + المدير: المعلمون + الحلقات + رسالة محب
-  MENUS.admin.sections[0].items.push(['pulse',mi('pulse'),'نبض المنصة']);
+  // pulse يُضاف في «الرئيسية» للأدمن العادي، وينتقل إلى «الجودة والمتابعة» تلقائيًا للـSD
+  // (نُضيفه هنا؛ الحقن العلمي في buildShell يضعه في «الجودة والمتابعة» كذلك،
+  // ثم dedupe يبقي أول ظهور. لتفادي أن يبقى في «الرئيسية» للـSD نتجاوز الإضافة هنا.)
+  if(!(ME && ME.is_scientific_director)){
+    MENUS.admin.sections[0].items.push(['pulse',mi('pulse'),'نبض المنصة']);
+  }
   MENUS.admin.sections[1].items.push(['teachers',mi('star'),'المعلمون والتقييم']);
   MENUS.admin.sections[1].items.push(['privhalqat',mi('mosque'),'الحلقات']);
   MENUS.admin.sections[1].items.push(['welcomebook',mi('heart'),'رسالة محب']);
