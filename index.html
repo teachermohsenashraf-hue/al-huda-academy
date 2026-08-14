@@ -478,6 +478,16 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 .wz-step.on .wz-num{background:var(--emerald,#2E7D5B);color:#fff}
 .wz-step.done .wz-num{background:var(--emerald,#2E7D5B);color:#fff}
 .wz-sep{flex:1;height:2px;background:#e0e0e0;min-width:8px}
+/* محرر البنية المبدئية داخل الـwizard */
+.wz-track{background:#fafafa;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px}
+.wz-track-head{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+.wz-inp{flex:1;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:#fff;font-family:'Cairo',sans-serif;font-size:13.5px;font-weight:600;color:var(--navy-deep,#1a3a5c)}
+.wz-inp:focus{outline:none;border-color:var(--emerald,#2E7D5B)}
+.wz-stations{padding-inline-start:14px;border-inline-start:2px dashed var(--line)}
+.wz-station{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+.wz-num-sm{width:22px;height:22px;border-radius:50%;background:var(--emerald,#2E7D5B);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+.wz-inp-sm{flex:1;padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:#fff;font-family:'Cairo',sans-serif;font-size:12.5px}
+.wz-inp-sm:focus{outline:none;border-color:var(--emerald,#2E7D5B)}
 @media (max-width:640px){
   .prog-grid{grid-template-columns:1fr}
   .prog-foot{flex-direction:column;align-items:stretch}
@@ -11404,6 +11414,16 @@ const EDU_QURAN_KINDS = [
   ['quran_recite','تسميع','🎤'],['quran_listen','ورد سماع','🎧'],['quran_tajweed_eval','تقييم تجويد','🎵'],
 ];
 
+// مصطلحات البنية — تتغيّر حسب نوع النظام كي لا نفرض «مسار/محطة» على كل شيء
+const STRUCT_LABELS = {
+  tracks_stations: {track:'مسار', track_plural:'مسارات', child:'محطة', child_plural:'محطات'},
+  units:           {track:'مستوى', track_plural:'مستويات', child:'وحدة', child_plural:'وحدات'},
+  lessons:         {track:'مجموعة', track_plural:'مجموعات', child:'درس', child_plural:'دروس'},
+  schedule:        {track:'خطة', track_plural:'خطط', child:'أسبوع', child_plural:'أسابيع'},
+  assessments:     {track:'مسار', track_plural:'مسارات', child:'تقييم', child_plural:'تقييمات'},
+  custom:          {track:'مجموعة', track_plural:'مجموعات', child:'عنصر', child_plural:'عناصر'},
+};
+
 // قوالب جاهزة — كل قالب بنية كاملة (مسارات + محطات + أنشطة)
 const EDU_TEMPLATES = [
   {key:'quran_5_fortresses', domain:'quran', name:'حفظ القرآن — خمسة حصون',
@@ -11636,8 +11656,29 @@ function _progRenderWizard(){
         <div style="flex:1"><label>النوع</label><select id="pgPricing"><option value="free" ${d.pricing_model==='free'?'selected':''}>مجاني</option><option value="paid" ${d.pricing_model==='paid'?'selected':''}>مدفوع</option><option value="internal" ${d.pricing_model==='internal'?'selected':''}>داخلي</option></select></div>
       </div>`;
   } else if(step===2){
+    // ── محرر البنية المبدئية داخل الـwizard ──
+    // المصطلحات تتغيّر حسب نوع البنية (مسار/محطة، مستوى/وحدة، مجموعة/درس…)
+    // كي تكون اللغة صادقة مع نوع النظام لا كلمة قرآنية ثابتة على كل شيء.
+    if(!d.tracks) d.tracks = [];
+    const L = STRUCT_LABELS[d.structure_type] || STRUCT_LABELS.tracks_stations;
+    const tracksHtml = d.tracks.length ? d.tracks.map((t,ti) => `
+      <div class="wz-track">
+        <div class="wz-track-head">
+          <input class="wz-inp" value="${esc(t.name||'')}" placeholder="اسم الـ${esc(L.track)}" oninput="_wzTrackName(${ti}, this.value)">
+          <button class="btn-sm" style="background:#E74C3C" onclick="_wzTrackDel(${ti})" title="حذف">×</button>
+        </div>
+        <div class="wz-stations">
+          ${(t.stations||[]).map((s,si)=>`
+            <div class="wz-station">
+              <span class="wz-num-sm">${ar(si+1)}</span>
+              <input class="wz-inp-sm" value="${esc(s.name||'')}" placeholder="اسم الـ${esc(L.child)}" oninput="_wzStnName(${ti},${si},this.value)">
+              <button class="btn-sm ghost" onclick="_wzStnDel(${ti},${si})" title="حذف">×</button>
+            </div>`).join('')}
+          <button class="btn-sm ghost" style="margin-top:6px" onclick="_wzStnAdd(${ti})">+ ${esc(L.child)} جديدة</button>
+        </div>
+      </div>`).join('') : `<div style="text-align:center;padding:16px;color:var(--muted);font-size:13px">لا ${esc(L.track_plural||L.track+'ات')} بعد. اضغط الزر أدناه للبدء.</div>`;
     body = `<div class="field"><label>نوع البنية</label>
-      <select id="pgStruct">
+      <select id="pgStruct" onchange="_wzStructChange(this.value)">
         <option value="tracks_stations" ${d.structure_type==='tracks_stations'?'selected':''}>مسارات + محطات (الأكثر شيوعًا)</option>
         <option value="units" ${d.structure_type==='units'?'selected':''}>وحدات أو مستويات</option>
         <option value="lessons" ${d.structure_type==='lessons'?'selected':''}>دروس مستقلة</option>
@@ -11646,10 +11687,12 @@ function _progRenderWizard(){
         <option value="custom" ${d.structure_type==='custom'?'selected':''}>بنية مخصصة</option>
       </select>
     </div>
-    <div class="card" style="background:#f5f7fa;padding:14px;font-size:13px;line-height:1.8;color:var(--muted)">
-      <b style="color:var(--navy-deep)">ملاحظة:</b> بعد إنشاء النظام يمكنك في صفحة الإدارة إضافة المسارات والمحطات والأنشطة بالتفصيل، وإعادة ترتيبها كما تشاء.
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0 8px">
+      <b style="color:var(--navy-deep);font-size:14px">الهيكل المبدئي (قابل للتعديل)</b>
+      <button class="btn-sm" onclick="_wzTrackAdd()">+ ${esc(L.track)} جديد</button>
     </div>
-    ${d.tracks?.length ? `<div class="card" style="margin-top:12px;padding:14px"><b style="color:var(--navy-deep)">هيكل مبدئي من القالب:</b><ul style="margin:8px 0 0;padding-inline-start:20px;font-size:13px;line-height:1.8">${d.tracks.map(t=>`<li>${esc(t.name)} — ${ar(t.stations?.length||0)} محطة</li>`).join('')}</ul></div>` : ''}`;
+    <div id="wzTracks">${tracksHtml}</div>
+    <p style="margin:12px 0 0;font-size:12px;color:var(--muted);line-height:1.7">💡 هذا هيكل بدائي — يمكنك إضافة الأنشطة داخل كل ${esc(L.child)} بعد حفظ النظام من صفحة الإدارة.</p>`;
   } else if(step===3){
     body = `<div class="field"><label>الحد الأدنى للإتقان (%)</label><input id="pgPass" type="number" value="${d.passing_score_pct||60}" min="0" max="100"></div>
       <div class="field"><label>شرط الإتمام (نص وصفي)</label><textarea id="pgRule" rows="2" placeholder="مثال: إتمام جميع المحطات + اجتياز الاختبار النهائي">${esc(d.completion_rule||'')}</textarea></div>
@@ -11673,7 +11716,7 @@ function _progRenderWizard(){
         <div><b>اعتماد علمي:</b> ${d.requires_scientific_approval!==false?'نعم':'لا'}</div>
         <div><b>تجهيز تشغيلي:</b> ${d.requires_ops_setup!==false?'نعم':'لا'}</div>
       </div>
-      ${d.tracks?.length?`<div style="margin-top:12px"><b>الهيكل الأولي:</b><ul style="margin:6px 0 0;padding-inline-start:20px;font-size:12.5px">${d.tracks.map(t=>`<li>${esc(t.name)} (${ar(t.stations?.length||0)} محطة)</li>`).join('')}</ul></div>`:''}
+      ${d.tracks?.length?(()=>{const L=STRUCT_LABELS[d.structure_type]||STRUCT_LABELS.tracks_stations;return `<div style="margin-top:12px"><b>الهيكل الأولي:</b><ul style="margin:6px 0 0;padding-inline-start:20px;font-size:12.5px">${d.tracks.map(t=>`<li>${esc(t.name)} (${ar(t.stations?.length||0)} ${esc(L.child)})</li>`).join('')}</ul></div>`;})():''}
     </div>
     <p style="margin:14px 0 0;font-size:12.5px;color:var(--muted);text-align:center">سيُحفظ كمسودة. تستطيع إضافة المسارات والمحطات والأنشطة بعد الحفظ.</p>`;
   }
@@ -11695,10 +11738,42 @@ function _progWzSaveDraft(){
   const d = SESSION._progDraft; if(!d) return;
   const step = d._step;
   if(step===1){ d.name=$('#pgName').value.trim(); d.description=$('#pgDesc').value.trim(); d.domain=$('#pgDom').value; d.audience=$('#pgAud').value; d.age_range=$('#pgAge').value.trim(); d.pricing_model=$('#pgPricing').value; }
-  else if(step===2){ d.structure_type=$('#pgStruct').value; }
+  else if(step===2){ d.structure_type=$('#pgStruct').value; /* d.tracks يُحدَّث لحظيًا عبر _wz* */ }
   else if(step===3){ d.passing_score_pct=+$('#pgPass').value||60; d.completion_rule=$('#pgRule').value.trim(); d.requires_scientific_approval=$('#pgSciReq').checked; d.requires_ops_setup=$('#pgOpsReq').checked; }
   try{ localStorage.setItem(PROG_DRAFT_KEY, JSON.stringify(d)); }catch{}
 }
+// ═══ محرر البنية المبدئية (Step 2) ═══
+function _wzPersist(){ try{ localStorage.setItem(PROG_DRAFT_KEY, JSON.stringify(SESSION._progDraft)); }catch{} }
+function _wzStructChange(v){
+  SESSION._progDraft.structure_type = v;
+  _wzPersist();
+  _progRenderWizard(); // إعادة رسم مع مصطلحات جديدة
+}
+function _wzTrackAdd(){
+  const d = SESSION._progDraft; if(!d) return;
+  const L = STRUCT_LABELS[d.structure_type] || STRUCT_LABELS.tracks_stations;
+  if(!d.tracks) d.tracks=[];
+  d.tracks.push({name: L.track+' '+ar(d.tracks.length+1), stations:[]});
+  _wzPersist(); _progRenderWizard();
+}
+function _wzTrackDel(ti){
+  const d = SESSION._progDraft; if(!d?.tracks) return;
+  if(!confirm('حذف هذا العنصر وكل ما بداخله؟')) return;
+  d.tracks.splice(ti,1); _wzPersist(); _progRenderWizard();
+}
+function _wzTrackName(ti,val){ SESSION._progDraft.tracks[ti].name = val; _wzPersist(); }
+function _wzStnAdd(ti){
+  const d = SESSION._progDraft; if(!d?.tracks?.[ti]) return;
+  const L = STRUCT_LABELS[d.structure_type] || STRUCT_LABELS.tracks_stations;
+  if(!d.tracks[ti].stations) d.tracks[ti].stations=[];
+  d.tracks[ti].stations.push({name: L.child+' '+ar(d.tracks[ti].stations.length+1)});
+  _wzPersist(); _progRenderWizard();
+}
+function _wzStnDel(ti,si){
+  const d = SESSION._progDraft; if(!d?.tracks?.[ti]?.stations) return;
+  d.tracks[ti].stations.splice(si,1); _wzPersist(); _progRenderWizard();
+}
+function _wzStnName(ti,si,val){ SESSION._progDraft.tracks[ti].stations[si].name = val; _wzPersist(); }
 function _progWzNext(){
   _progWzSaveDraft();
   const d = SESSION._progDraft;
