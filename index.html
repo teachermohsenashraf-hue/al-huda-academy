@@ -11544,6 +11544,7 @@ PAGES.admin_programs = async function(){
         <div style="display:flex;gap:6px">
           <button class="btn-sm" onclick="_progOpen('${p.id}')">إدارة</button>
           <button class="btn-sm ghost" onclick="_progClone('${p.id}')">نسخ</button>
+          <button class="btn-sm" style="background:#E74C3C" onclick="_progDelete('${p.id}','${escJs(p.name)}','${p.status}')" title="حذف نهائي">×</button>
         </div>
       </div>
     </div>`;
@@ -12102,6 +12103,56 @@ async function _progClone(id){
   if(actInserts.length) await sb.from('edu_program_activities').insert(actInserts);
   toast('✅ نُسخ النظام'); _progOpen(np.id);
 }
+// ── حذف نهائي لنظام (مع تحذيرات ذكية حسب الحالة والاشتراكات) ──
+async function _progDelete(id, name, status){
+  // فحص أولي: هل فيه طلاب مسنَدون؟
+  const {count:enrCount} = await sb.from('edu_program_enrollments').select('id',{count:'exact',head:true}).eq('program_id',id);
+  const {count:childCount} = await sb.from('edu_programs').select('id',{count:'exact',head:true}).eq('parent_program_id',id);
+
+  let warning = '';
+  if(status === 'published'){
+    warning += '⚠️ هذا نظام <b>منشور</b> — الطلاب قد يكونون يستخدمونه الآن.\n\n';
+  }
+  if(enrCount > 0){
+    warning += `⚠️ يوجد <b>${enrCount}</b> اشتراك طالب مرتبط بهذا النظام — سيُحذف الاشتراك كليًا (بسبب cascade).\n\n`;
+  }
+  if(childCount > 0){
+    warning += `⚠️ يوجد <b>${childCount}</b> نسخة مشتقة من هذا النظام — سيصبح parent_program_id فيها = null.\n\n`;
+  }
+
+  // الاقتراح الأكثر أمانًا لغير المسودات: أرشِف بدل الحذف
+  if(status !== 'draft' && status !== 'archived'){
+    const choice = confirm(
+      'حذف النظام "' + name + '"؟\n\n' +
+      warning.replace(/<[^>]+>/g,'') +
+      '───────────────────────\n' +
+      'الأفضل الأرشفة (الاحتفاظ بالسجل + إخفاء).\n' +
+      'اضغط «موافق» للأرشفة، أو «إلغاء» ثم استخدم الأمر مرة أخرى مع الضغط المطوَّل للحذف النهائي.'
+    );
+    if(choice){
+      await sb.from('edu_programs').update({status:'archived', archived_at:new Date().toISOString(), updated_at:new Date().toISOString()}).eq('id',id);
+      toast('📦 أُرشف النظام (البيانات محفوظة)'); navigate('programs'); return;
+    }
+    // المستخدم اختار الإلغاء — نطلب تأكيدًا صريحًا للحذف النهائي
+    const confirmHard = prompt('للحذف النهائي، اكتب اسم النظام كاملاً:\n"'+name+'"');
+    if(confirmHard !== name){ toast('أُلغي — الاسم غير مطابق'); return; }
+  } else {
+    // مسودة أو مؤرشف — تأكيد عادي
+    if(!confirm('حذف النظام "' + name + '" نهائيًا؟\n\n' + warning.replace(/<[^>]+>/g,'') + 'هذا الإجراء غير قابل للتراجع.')) return;
+  }
+
+  const {error} = await sb.from('edu_programs').delete().eq('id',id);
+  if(error){
+    if(error.code === '42501' || error.message?.includes('permission')){
+      toast('لا تملك صلاحية الحذف — فقط الأدمن والمدير العلمي يستطيعان.');
+    } else {
+      toast('تعذر الحذف: '+error.message);
+    }
+    return;
+  }
+  toast('🗑️ حُذف النظام نهائيًا'); navigate('programs');
+}
+
 // ── إسناد طالب لنظام منشور ──
 async function _progEnrollStudent(programId){
   const [{data:studs},{data:tracks},{data:groups}] = await Promise.all([
