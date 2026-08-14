@@ -11341,7 +11341,9 @@ PAGES.executive_dash = async function(){
       icon: mi('star')||'', color: '#c9a227',
       title: 'حصة انتهت بلا تقييم',
       subtitle: (g?.name || 'حلقة') + (t?' — '+t.full_name : ''),
-      action: `<button class="btn ghost" onclick="openGroup(${s.group_id})">افتح الحلقة</button>`,
+      // openGroup(id) ينقل لصفحة record وهي شاشة معلم فقط — للتنفيذي/الأدمن
+      // المسار الصحيح هو adminViewHalqa الذي يعرض ملف الحلقة بتفاصيلها.
+      action: `<button class="btn ghost" onclick="adminViewHalqa(${s.group_id})">افتح الحلقة</button>`,
     });
   });
   // ٦) معلمون فوق الطاقة
@@ -11551,7 +11553,7 @@ PAGES.executive_journey = async function(){
     if(activeStage==='paid' || activeStage==='chose'){
       action = `<button class="btn" onclick="_execSuggest(${s.id})">اقترح توزيعًا</button>`;
     } else if(activeStage==='assigned'){
-      action = `<button class="btn ghost" onclick="openGroup(${s.group_id})">افتح الحلقة</button>`;
+      action = `<button class="btn ghost" onclick="adminViewHalqa(${s.group_id})">افتح الحلقة</button>`;
     } else if(s.login_id){
       action = `<button class="btn ghost" onclick="startChatWith('${s.login_id}','${escJs(s.full_name)}')">${mi('chat')||''} تواصل</button>`;
     }
