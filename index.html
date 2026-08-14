@@ -381,6 +381,58 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 .grpchip span{background:rgba(0,0,0,0.08);color:inherit;font-size:11.5px;padding:1px 8px;border-radius:10px;font-weight:700}
 .grpchip.on span{background:rgba(255,255,255,0.22)}
 .grpfilters #tgSearch{flex:1;min-width:180px;padding:9px 14px;border:1px solid var(--line);border-radius:20px;background:#fff;font-size:13px;font-family:'Cairo',sans-serif}
+/* ═══ غرفة العمليات التنفيذية ═══ */
+.exec-hero{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;padding:20px 22px;flex-wrap:wrap}
+.exec-hero-info{flex:1;min-width:240px}
+.exec-hero-title{font-family:'Amiri',serif;font-size:24px;color:var(--navy-deep,#1a3a5c);font-weight:700}
+.exec-hero-sub{color:var(--muted);font-size:13px;margin-top:4px}
+.exec-hero-state{margin-top:12px}
+.exec-state-pill{display:inline-block;padding:5px 14px;border-radius:20px;font-size:13px;font-weight:700}
+.exec-hero-priorities{margin-top:14px;font-size:13.5px;line-height:1.9}
+.exec-hero-priorities ol{margin:6px 0 0;padding-inline-start:22px;color:var(--text)}
+.exec-hero-priorities b{color:var(--navy-deep,#1a3a5c)}
+.exec-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:14px}
+.exec-kpi{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 16px;transition:.2s}
+.exec-kpi:hover{border-color:var(--emerald,#2E7D5B);transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.04)}
+.exec-kpi-label{font-size:12px;color:var(--muted);font-weight:600}
+.exec-kpi-value{font-family:'Tajawal',sans-serif;font-size:22px;font-weight:800;color:var(--navy-deep,#1a3a5c);margin-top:4px;line-height:1.2}
+.exec-kpi-sub{font-size:11.5px;color:var(--muted);margin-top:4px}
+.exec-queue{display:flex;flex-direction:column;gap:8px}
+.exec-row{display:flex;align-items:center;gap:14px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#fff;transition:.2s}
+.exec-row:hover{border-color:var(--emerald,#2E7D5B);background:#fafcfb}
+.exec-row-ic{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.exec-row-body{flex:1;min-width:0}
+.exec-row-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.exec-row-top b{color:var(--navy-deep,#1a3a5c);font-size:14px}
+.exec-priority{font-size:11px;padding:2px 9px;border-radius:10px;font-weight:700}
+.exec-priority-urgent{background:#fce4e4;color:#c92e2e}
+.exec-priority-today{background:#fff3d0;color:#8a6c00}
+.exec-priority-week{background:#e6f4ec;color:#2E7D5B}
+.exec-row-sub{font-size:12.5px;color:var(--muted);margin-top:3px}
+.exec-row-act{flex-shrink:0}
+.exec-week{margin-top:14px}
+.exec-week-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:10px}
+.exec-week-cell{padding:12px 14px;background:#fafafa;border-radius:10px;border:1px solid var(--line)}
+.exec-week-cell b{display:block;color:var(--navy-deep,#1a3a5c);font-size:13px;margin-bottom:4px}
+.exec-week-cell span{color:var(--muted);font-size:12px;line-height:1.7}
+.exec-jlist{display:flex;flex-direction:column;gap:8px}
+.exec-jrow{display:flex;align-items:center;gap:14px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#fff;transition:.2s}
+.exec-jrow:hover{border-color:var(--emerald,#2E7D5B);background:#fafcfb}
+.exec-jrow-body{flex:1;min-width:0}
+.exec-jrow-name{font-weight:700;color:var(--navy-deep,#1a3a5c);font-size:14px}
+.exec-jrow-meta{font-size:12px;color:var(--muted);margin-top:2px}
+.exec-jrow-reason{font-size:12.5px;color:var(--text);margin-top:4px;padding-top:6px;border-top:1px dashed var(--line)}
+.exec-jrow-act{flex-shrink:0}
+.exec-sug-list{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.exec-sug-row{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:12px 14px;border:1px solid var(--line);border-radius:10px}
+.exec-sug-row b{color:var(--navy-deep,#1a3a5c)}
+@media (max-width:640px){
+  .exec-hero{padding:16px}
+  .exec-hero-title{font-size:20px}
+  .exec-row,.exec-jrow{flex-direction:column;align-items:stretch}
+  .exec-row-act,.exec-jrow-act{align-self:stretch}
+  .exec-row-act .btn,.exec-jrow-act .btn{width:100%}
+}
 .grplist{display:flex;flex-direction:column;gap:10px}
 .grpcard{background:#fff;border:1px solid var(--line);border-radius:14px;display:flex;align-items:center;gap:14px;padding:0;overflow:hidden;cursor:pointer;transition:.2s}
 .grpcard:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(0,0,0,0.05);border-color:rgba(46,125,91,0.28)}
@@ -3450,10 +3502,11 @@ const MENUS = {
     // مدير حتى لو مش شريك مؤسس)
   ]},
   executive:{ skin:'s-navy', title:'لوحة المدير التنفيذي', sections:[
-    {label:'القيادة', items:[['dash',mi('building'),'نظرة تنفيذية'],['analytics',mi('chart'),'التحليلات']]},
-    {label:'الإشراف', items:[['team',mi('team'),'فريق الإشراف'],['staff',mi('teacher'),'المعلمون والحلقات'],['teachers',mi('star'),'المعلمون والتقييم'],['students',mi('child'),'الطلاب'],['unassigned',mi('warning'),'طلاب بدون حلقة'],['leads',mi('clipboard'),'تسجيلات معلّقة']]},
+    {label:'غرفة العمليات', items:[['dash',mi('building'),'غرفة العمليات'],['journey',mi('map'),'رحلة الطالب'],['finance_ops',mi('card'),'المالية والاشتراكات']]},
+    {label:'التحليل والقرارات', items:[['analytics',mi('chart'),'التحليلات'],['partnership',mi('handshake')||mi('users'),'قرارات الشراكة']]},
+    {label:'الإشراف والفريق', items:[['team',mi('team'),'فريق الإشراف'],['staff',mi('teacher'),'المعلمون والحلقات'],['teachers',mi('star'),'المعلمون والتقييم'],['students',mi('child'),'الطلاب'],['unassigned',mi('warning'),'طلاب بدون حلقة'],['leads',mi('clipboard'),'تسجيلات معلّقة']]},
     {label:'قسم القرآن', items:[['qsystems',mi('kaaba'),'أنظمة القرآن']]},
-    {label:'المالية', items:[['finance',mi('card'),'المدفوعات']]},
+    {label:'المالية (سجل)', items:[['finance',mi('card'),'كل المدفوعات']]},
   ]},
   supervisor:{ skin:'s-navy', title:'لوحة المشرف', sections:[
     {label:'الالتحاق', items:[['confirm',mi('money'),'تأكيد المدفوعات'],['subsidy',mi('handshake'),'طلبات التخفيض']]},
@@ -11152,38 +11205,539 @@ PAGES.executive_staff = function(){ return PAGES.admin_staff(); };
 PAGES.executive_students = function(){ return PAGES.admin_users(); };
 PAGES.executive_finance = function(){ return PAGES.admin_finance(); };
 PAGES.executive_chat = function(){ return PAGES.supervisor_chat ? PAGES.supervisor_chat() : chatPage(); };
-// لوحة تنفيذية خاصة
-PAGES.executive_dash = async function(){ setTop('النظرة التنفيذية 🏛️','مؤشّرات القيادة العليا');
-  const [{count:students},{count:teachers},{count:active},{data:pays}]=await Promise.all([
-    sb.from('students').select('*',{count:'exact',head:true}),
-    sb.from('profiles').select('*',{count:'exact',head:true}).eq('role','teacher'),
-    sb.from('students').select('*',{count:'exact',head:true}).eq('enrollment_status','active'),
-    sb.from('payments').select('amount,status,currency_code'),
+// ═══ غرفة العمليات التنفيذية ═══════════════════════════════════════════════
+// إعادة بناء كاملة: كانت الصفحة أرقام عامة + قائمة "تنبيهات" وصفية بلا إجراء.
+// الآن الأولوية لقائمة العمل: طلاب بعد الدفع بلا تفعيل، طلاب اختاروا معلمًا بلا حلقة،
+// دفعات معلقة، اشتراكات قاربت الانتهاء، حلقات فوق طاقتها، حصص انتهت بلا تقييم.
+// كل عنصر بمشكلته وسببه ومسؤوله وإجراء واحد مباشر.
+PAGES.executive_dash = async function(){
+  const nm = (ME.full_name||'').split(' ')[0] || 'مديرنا';
+  setTop('غرفة العمليات', 'أهم ما يحتاج قرارك أو تدخّلك اليوم');
+  const today = qTodayStr();
+  const iso7 = new Date(Date.now()+7*86400000).toISOString().slice(0,10);
+  const iso30ago = new Date(Date.now()-30*86400000).toISOString();
+  // موجة واحدة من الاستعلامات الخفيفة
+  const [studsR, paysR, sesR, groupsR, teachersR] = await Promise.all([
+    sb.from('students').select('id,full_name,group_id,chosen_teacher_id,enrollment_status,sub_end,created_at,quran_path,login_id').limit(2000),
+    sb.from('payments').select('id,amount,status,currency_code,student_id,created_at,paid_at').limit(2000),
+    sb.from('sessions').select('id,group_id,session_date,session_time,duration_min,status').neq('status','cancelled').gte('session_date',new Date(Date.now()-30*86400000).toISOString().slice(0,10)).limit(2000),
+    sb.from('groups').select('id,name,teacher_id,is_private,capacity,meet_time').limit(500),
+    sb.from('profiles').select('id,full_name,role,is_available,max_students').eq('role','teacher').limit(200),
   ]);
-  // إجمالي التحصيل مقسّم لكل عملة على حدة — جمعها في رقم واحد كان مضلّلاً (يهمل الريال والدولار)
-  const paidByCcy={}; (pays||[]).filter(p=>p.status==='paid').forEach(p=>{ const cc=p.currency_code||'EGP'; paidByCcy[cc]=(paidByCcy[cc]||0)+(+p.amount||0); });
-  const ccySymbol={EGP:'ج.م',SAR:'ر.س',USD:'$'};
-  const paidStatCards=Object.keys(paidByCcy).length
-    ? Object.entries(paidByCcy).map(([cc,amt])=>statCard(mi('money'),'gold',ar(amt)+' '+(ccySymbol[cc]||cc),'المحصّل ('+cc+')')).join('')
-    : statCard(mi('money'),'gold','٠','المحصّل');
-  const pending=(pays||[]).filter(p=>p.status==='pending').length;
-  // فريق الإشراف
-  const { data:team }=await sb.from('profiles').select('*').in('role',['executive','supervisor']);
-  return pageHead('النظرة التنفيذية','المؤشّرات الكبرى لأداء الأكاديمية')+
-  `<div class="stats">
-    ${statCard(mi('child'),'e',ar(students||0),'إجمالي الطلاب')}
-    ${statCard(mi('check'),'g',ar(active||0),'طلاب نشطون')}
-    ${statCard(mi('teacher'),'n',ar(teachers||0),'المعلمون')}
-    ${paidStatCards}
-  </div>
-  <div class="grid2" style="margin-top:18px">
-    <div class="card"><div class="ch"><h3>${mi('shield')} فريق الإشراف</h3></div><div class="up-list">${(team||[]).length?team.map(t=>`<div class="up"><div class="ui">${t.initials||t.full_name.slice(0,2)}</div><div class="utxt"><b>${esc(t.full_name)}</b><span>${roleAr(t.role)}${t.title?' • '+t.title:''}${t.department?' • '+t.department:''}</span></div></div>`).join(''):'<p style="color:var(--muted)">لا فريق إشراف بعد.</p>'}</div></div>
-    <div class="card"><div class="ch"><h3>${mi('bolt')} تنبيهات تنفيذية</h3></div><div class="up-list">
-      ${pending>0?`<div class="up"><div class="ui">💰</div><div class="utxt"><b>${ar(pending)} دفعة بانتظار التأكيد</b><span>تحتاج مراجعة المشرف</span></div></div>`:''}
-      <div class="up"><div class="ui">📊</div><div class="utxt"><b>نسبة التفعيل ${pct(students?Math.round((active||0)*100/students):0)}</b><span>من إجمالي الطلاب</span></div></div>
-    </div></div>
+  const studs = studsR.data || [];
+  const pays  = paysR.data || [];
+  const sessions = sesR.data || [];
+  const groups = groupsR.data || [];
+  const teachers = teachersR.data || [];
+  // تقييمات الحصص المنتهية (لتحديد ما لم يُقيَّم)
+  const sesIds = sessions.map(s=>s.id);
+  let ratedSet = new Set();
+  if(sesIds.length){
+    const { data:rr } = await sb.from('session_ratings').select('session_id').in('session_id',sesIds);
+    (rr||[]).forEach(r => ratedSet.add(r.session_id));
+  }
+  // ─── حسابات المؤشرات ───
+  const activeStuds = studs.filter(s => s.enrollment_status === 'active');
+  const paidNotAssigned = activeStuds.filter(s => !s.group_id);
+  const chosenTeacherNotAssigned = paidNotAssigned.filter(s => s.chosen_teacher_id);
+  const pendingPays = pays.filter(p => p.status === 'pending');
+  const expiringSoon = activeStuds.filter(s => {
+    if(!s.sub_end) return false;
+    const days = Math.ceil((new Date(s.sub_end) - Date.now()) / 86400000);
+    return days > 0 && days <= 7;
+  });
+  const expired = activeStuds.filter(s => {
+    if(!s.sub_end) return false;
+    return new Date(s.sub_end) < new Date();
+  });
+  // حصص انتهت بلا تقييم
+  const finishedUnrated = sessions.filter(s => {
+    if(!s.session_date || ratedSet.has(s.id)) return false;
+    const end = new Date(s.session_date+'T'+(s.session_time||'00:00'));
+    if(s.duration_min) end.setMinutes(end.getMinutes()+s.duration_min);
+    return end < new Date();
+  });
+  // معلمون فوق الطاقة (max_students محدد وعنده أكثر منه)
+  const studsPerTeacher = {};
+  activeStuds.forEach(s => {
+    if(!s.group_id) return;
+    const g = groups.find(x => x.id === s.group_id);
+    if(g?.teacher_id) studsPerTeacher[g.teacher_id] = (studsPerTeacher[g.teacher_id] || 0) + 1;
+  });
+  const overload = teachers.filter(t => t.max_students && studsPerTeacher[t.id] > t.max_students);
+  const availableCapacity = teachers.reduce((sum, t) => {
+    if(t.is_available === false) return sum;
+    const cur = studsPerTeacher[t.id] || 0;
+    const max = t.max_students || 15;
+    return sum + Math.max(0, max - cur);
+  }, 0);
+
+  // ─── حالة التشغيل ───
+  const opsIssues = pendingPays.length + finishedUnrated.length + expired.length + overload.length;
+  let opsState, opsColor;
+  if(opsIssues >= 15){ opsState = 'يوجد تعطّل'; opsColor = '#c92e2e'; }
+  else if(opsIssues >= 5 || paidNotAssigned.length >= 3){ opsState = 'يحتاج متابعة'; opsColor = '#c9a227'; }
+  else{ opsState = 'مستقر'; opsColor = '#2E7D5B'; }
+  const todayLabel = new Date().toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+  // ─── قائمة العمل التنفيذية ───
+  const queue = [];
+  // ١) طلاب دفعوا وتم تفعيلهم بلا حلقة
+  paidNotAssigned.slice(0,20).forEach(s => {
+    const hasTeacher = !!s.chosen_teacher_id;
+    queue.push({
+      urgency: hasTeacher ? 95 : 85, cat: 'students',
+      priority: 'عاجل',
+      icon: mi('users')||'', color: '#c92e2e',
+      title: hasTeacher ? 'اختار معلمًا ولم يُثبَّت في حلقة' : 'مفعَّل بلا معلم ولا حلقة',
+      subtitle: s.full_name + (s.quran_path ? ' • '+pathName(s.quran_path) : ''),
+      action: `<button class="btn" onclick="_execAssign(${s.id},'${escJs(s.full_name)}')">توزيع</button>`,
+    });
+  });
+  // ٢) دفعات معلقة
+  pendingPays.slice(0,10).forEach(p => {
+    const s = studs.find(x => x.id === p.student_id);
+    queue.push({
+      urgency: 90, cat: 'finance',
+      priority: 'اليوم',
+      icon: mi('card')||'', color: '#c9a227',
+      title: 'دفعة بانتظار المراجعة',
+      subtitle: (s?.full_name || 'دفعة غير مرتبطة') + ' — ' + ar(+p.amount||0) + ' ' + (p.currency_code||'EGP'),
+      action: `<button class="btn ghost" onclick="navigate('confirm')">راجع</button>`,
+    });
+  });
+  // ٣) اشتراكات منتهية
+  expired.slice(0,5).forEach(s => {
+    queue.push({
+      urgency: 80, cat: 'finance',
+      priority: 'عاجل',
+      icon: mi('refresh')||'', color: '#c92e2e',
+      title: 'اشتراك منتهٍ لطالب نشط',
+      subtitle: s.full_name + ' — انتهى ' + s.sub_end,
+      action: s.login_id ? `<button class="btn ghost" onclick="startChatWith('${s.login_id}','${escJs(s.full_name)}')">${mi('chat')||''} تواصل</button>` : '',
+    });
+  });
+  // ٤) اشتراكات قاربت الانتهاء
+  expiringSoon.slice(0,8).forEach(s => {
+    const days = Math.ceil((new Date(s.sub_end) - Date.now()) / 86400000);
+    queue.push({
+      urgency: 60, cat: 'finance',
+      priority: 'هذا الأسبوع',
+      icon: mi('bell')||'', color: '#c9a227',
+      title: 'اشتراك ينتهي خلال ' + ar(days) + ' يوم',
+      subtitle: s.full_name,
+      action: s.login_id ? `<button class="btn ghost" onclick="startChatWith('${s.login_id}','${escJs(s.full_name)}')">${mi('chat')||''} ذكّر بالتجديد</button>` : '',
+    });
+  });
+  // ٥) حصص انتهت بلا تقييم
+  finishedUnrated.slice(0,6).forEach(s => {
+    const g = groups.find(x => x.id === s.group_id);
+    const t = teachers.find(x => x.id === g?.teacher_id);
+    queue.push({
+      urgency: 55, cat: 'halqat',
+      priority: 'هذا الأسبوع',
+      icon: mi('star')||'', color: '#c9a227',
+      title: 'حصة انتهت بلا تقييم',
+      subtitle: (g?.name || 'حلقة') + (t?' — '+t.full_name : ''),
+      action: `<button class="btn ghost" onclick="openGroup(${s.group_id})">افتح الحلقة</button>`,
+    });
+  });
+  // ٦) معلمون فوق الطاقة
+  overload.slice(0,4).forEach(t => {
+    queue.push({
+      urgency: 70, cat: 'team',
+      priority: 'اليوم',
+      icon: mi('warning')||'', color: '#c92e2e',
+      title: 'معلم فوق الطاقة الاستيعابية',
+      subtitle: t.full_name + ' — ' + ar(studsPerTeacher[t.id]) + '/' + ar(t.max_students) + ' طالب',
+      action: `<button class="btn ghost" onclick="startChatWith('${t.id}','${escJs(t.full_name)}')">${mi('chat')||''} تواصل</button>`,
+    });
+  });
+  queue.sort((a,b)=>b.urgency-a.urgency);
+  const top3 = queue.slice(0,3);
+
+  // ─── الرأس ───
+  const heroHtml = `<div class="card exec-hero" style="border-inline-start:4px solid ${opsColor}">
+    <div class="exec-hero-info">
+      <div class="exec-hero-title">أهلاً ${esc(nm)}</div>
+      <div class="exec-hero-sub">${esc(todayLabel)}</div>
+      <div class="exec-hero-state"><span class="exec-state-pill" style="background:${opsColor}22;color:${opsColor}">حالة التشغيل: ${esc(opsState)}</span></div>
+      ${top3.length ? `<div class="exec-hero-priorities"><b>أهم ٣ أولويات اليوم:</b><ol>${top3.map(q=>`<li>${esc(q.title)} — ${esc(q.subtitle)}</li>`).join('')}</ol></div>` : '<div class="exec-hero-priorities" style="color:var(--muted)">لا أولويات عاجلة — التشغيل مستقر.</div>'}
+    </div>
+    <button class="btn" onclick="document.getElementById('execQueue')?.scrollIntoView({behavior:'smooth'})">فتح قائمة العمل ←</button>
   </div>`;
+
+  // ─── مؤشرات مختصرة (٦ فقط) ───
+  const paidByCcy = {}; pays.filter(p=>p.status==='paid'||p.status==='confirmed').forEach(p => { const cc = p.currency_code || 'EGP'; paidByCcy[cc] = (paidByCcy[cc]||0) + (+p.amount||0); });
+  const paidByCcy30 = {}; pays.filter(p=>(p.status==='paid'||p.status==='confirmed') && p.paid_at && p.paid_at >= iso30ago).forEach(p => { const cc = p.currency_code || 'EGP'; paidByCcy30[cc] = (paidByCcy30[cc]||0) + (+p.amount||0); });
+  const ccyLabel = (obj) => Object.keys(obj).length ? Object.entries(obj).map(([c,v]) => ar(Math.round(v))+' '+c).join(' · ') : '—';
+  const newStuds30 = activeStuds.filter(s => s.created_at && s.created_at >= iso30ago).length;
+  const kpi = (label, value, sub, click) => `<div class="exec-kpi" ${click?`onclick="${click}"`:''} style="${click?'cursor:pointer':''}">
+    <div class="exec-kpi-label">${esc(label)}</div>
+    <div class="exec-kpi-value">${value}</div>
+    ${sub?`<div class="exec-kpi-sub">${esc(sub)}</div>`:''}
+  </div>`;
+  const kpisHtml = `<div class="exec-kpis">
+    ${kpi('الطلاب النشطون', ar(activeStuds.length), '+'+ar(newStuds30)+' خلال ٣٠ يوم', "navigate('students')")}
+    ${kpi('بانتظار التوزيع', ar(paidNotAssigned.length), paidNotAssigned.length?'يحتاج قرار':'—', "navigate('journey')")}
+    ${kpi('محصَّل آخر ٣٠ يوم', ccyLabel(paidByCcy30), 'إجمالي محفوظ: '+ccyLabel(paidByCcy), "navigate('finance_ops')")}
+    ${kpi('دفعات معلقة', ar(pendingPays.length), pendingPays.length?'يحتاج تأكيد':'—', "navigate('confirm')")}
+    ${kpi('اشتراكات قريبة الانتهاء', ar(expiringSoon.length), '≤ ٧ أيام', "navigate('finance_ops')")}
+    ${kpi('طاقة الاستيعاب المتاحة', ar(availableCapacity), 'مقاعد معلمين شاغرة', "navigate('teachers')")}
+  </div>`;
+
+  // ─── قائمة العمل ───
+  const filter = SESSION._execQFilter || 'all';
+  const catFilter = q => filter === 'all' ? true : q.cat === filter;
+  const filtered = queue.filter(catFilter);
+  const chipCount = c => c === 'all' ? queue.length : queue.filter(q=>q.cat===c).length;
+  const filterChips = `<div class="grpfilters" style="margin-bottom:14px">
+    <button class="grpchip ${filter==='all'?'on':''}" onclick="_execFilter('all')">الكل <span>${ar(chipCount('all'))}</span></button>
+    <button class="grpchip ${filter==='students'?'on':''}" onclick="_execFilter('students')">طلاب <span>${ar(chipCount('students'))}</span></button>
+    <button class="grpchip ${filter==='finance'?'on':''}" onclick="_execFilter('finance')">تحصيل <span>${ar(chipCount('finance'))}</span></button>
+    <button class="grpchip ${filter==='halqat'?'on':''}" onclick="_execFilter('halqat')">حلقات <span>${ar(chipCount('halqat'))}</span></button>
+    <button class="grpchip ${filter==='team'?'on':''}" onclick="_execFilter('team')">فريق <span>${ar(chipCount('team'))}</span></button>
+  </div>`;
+  const queueHtml = filtered.length ? `<div class="exec-queue">${filtered.slice(0,25).map(q => `
+    <div class="exec-row">
+      <div class="exec-row-ic" style="background:${q.color};color:#fff">${q.icon}</div>
+      <div class="exec-row-body">
+        <div class="exec-row-top"><b>${esc(q.title)}</b><span class="exec-priority exec-priority-${q.priority==='عاجل'?'urgent':q.priority==='اليوم'?'today':'week'}">${esc(q.priority)}</span></div>
+        <div class="exec-row-sub">${esc(q.subtitle)}</div>
+      </div>
+      <div class="exec-row-act">${q.action}</div>
+    </div>`).join('')}${filtered.length>25?`<div style="text-align:center;padding:10px;color:var(--muted);font-size:12px">${ar(filtered.length-25)} عنصرًا آخر — استخدم الفلاتر للتصفية</div>`:''}</div>` : `<div class="card" style="text-align:center;padding:30px;color:var(--muted)"><div style="font-size:32px;margin-bottom:8px">${mi('check')||'✅'}</div><b>لا شيء عاجل في هذه الفئة</b></div>`;
+
+  // ─── النظرة الأسبوعية ───
+  const weekIso = new Date(Date.now()-7*86400000).toISOString().slice(0,10);
+  const weekSes = sessions.filter(s => s.session_date >= weekIso);
+  const scheduledThisWeek = sessions.filter(s => s.session_date >= today && s.session_date <= iso7).length;
+  const executedThisWeek = weekSes.filter(s => {
+    if(!s.session_date) return false;
+    const end = new Date(s.session_date+'T'+(s.session_time||'00:00'));
+    if(s.duration_min) end.setMinutes(end.getMinutes()+s.duration_min);
+    return end < new Date();
+  }).length;
+  const incompleteThisWeek = weekSes.filter(s => {
+    if(!s.session_date || ratedSet.has(s.id)) return false;
+    const end = new Date(s.session_date+'T'+(s.session_time||'00:00'));
+    if(s.duration_min) end.setMinutes(end.getMinutes()+s.duration_min);
+    return end < new Date();
+  }).length;
+  const iso7ago = new Date(Date.now()-7*86400000).toISOString();
+  const newThisWeek = activeStuds.filter(s => s.created_at && s.created_at >= iso7ago).length;
+  const assignedThisWeek = activeStuds.filter(s => s.created_at && s.created_at >= iso7ago && s.group_id).length;
+  const weekPaysConfirmed = pays.filter(p => (p.status==='paid'||p.status==='confirmed') && p.paid_at && p.paid_at >= iso7ago).length;
+  const weekPaysPending = pays.filter(p => p.status==='pending' && p.created_at >= iso7ago).length;
+  const weekHtml = `<div class="card exec-week">
+    <div class="ch"><h3>${mi('calendar')||''} النظرة الأسبوعية</h3><span class="tagline-sm">آخر ٧ أيام + الأسبوع القادم</span></div>
+    <div class="exec-week-grid">
+      <div class="exec-week-cell"><b>الحصص</b><span>${ar(scheduledThisWeek)} مجدولة · ${ar(executedThisWeek)} نُفّذت · ${ar(incompleteThisWeek)} بلا تقييم</span></div>
+      <div class="exec-week-cell"><b>الطلاب الجدد</b><span>${ar(newThisWeek)} جديد · ${ar(assignedThisWeek)} وُزّع</span></div>
+      <div class="exec-week-cell"><b>الدفعات</b><span>${ar(weekPaysConfirmed)} مؤكدة · ${ar(weekPaysPending)} معلقة</span></div>
+      <div class="exec-week-cell"><b>تجديدات قادمة</b><span>${ar(expiringSoon.length)} في الأسبوع القادم</span></div>
+    </div>
+  </div>`;
+
+  return pageHead('غرفة العمليات','') + heroHtml + kpisHtml +
+    `<div class="card" style="margin-top:14px;padding:0;overflow:hidden" id="execQueue">
+      <div style="padding:14px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+        <b style="color:var(--navy-deep);font-size:15px">قائمة العمل التنفيذية${queue.length?' — '+ar(queue.length)+' عنصر':''}</b>
+      </div>
+      <div style="padding:14px 18px">${filterChips}${queueHtml}</div>
+    </div>` + weekHtml;
 };
+function _execFilter(f){ SESSION._execQFilter = f; navigate('dash'); }
+async function _execAssign(studentId, studentName){
+  // اختصار توزيع سريع — يفتح صفحة رحلة الطالب مباشرة على الطالب
+  SESSION._execJourneyFocus = studentId;
+  navigate('journey');
+}
+
+// ═══ رحلة الطالب — من الدفع للتوزيع لأول حصة ═══════════════════════════════
+// تعرض الطلاب النشطين المقسّمين حسب مرحلة الرحلة، مع سبب التأخر لكل حالة
+// وإجراء واحد مباشر (توزيع/تخصيص/تواصل). المدير التنفيذي يرى أين تعطّل السير
+// ويتصرف بدون فتح ست شاشات.
+PAGES.executive_journey = async function(){
+  setTop('رحلة الطالب','من الدفع إلى التوزيع إلى أول حصة');
+  const [studsR, groupsR, teachersR, sesR, paysR] = await Promise.all([
+    sb.from('students').select('id,full_name,group_id,chosen_teacher_id,enrollment_status,quran_path,age,created_at,activated_at,parent_id,login_id,sub_start,sub_end').eq('enrollment_status','active').order('created_at',{ascending:false}).limit(500),
+    sb.from('groups').select('id,name,teacher_id,is_private,capacity,meet_time').limit(500),
+    sb.from('profiles').select('id,full_name,is_available,max_students,age_range,weekly_slots').eq('role','teacher').limit(200),
+    sb.from('sessions').select('id,group_id,session_date,status').neq('status','cancelled').limit(2000),
+    sb.from('payments').select('student_id,status,paid_at,created_at').limit(2000),
+  ]);
+  const studs = studsR.data || [];
+  const groups = groupsR.data || [];
+  const teachers = teachersR.data || [];
+  const sessions = sesR.data || [];
+  const pays = paysR.data || [];
+  // خرائط سريعة
+  const groupById = {}; groups.forEach(g => groupById[g.id] = g);
+  const teacherById = {}; teachers.forEach(t => teacherById[t.id] = t);
+  const studsInGroup = {}; studs.forEach(s => { if(s.group_id) studsInGroup[s.group_id] = (studsInGroup[s.group_id]||0)+1; });
+  const studsPerTeacher = {}; studs.forEach(s => { const g = groupById[s.group_id]; if(g?.teacher_id) studsPerTeacher[g.teacher_id] = (studsPerTeacher[g.teacher_id]||0)+1; });
+  // آخر حصة لكل مجموعة
+  const lastSesByGroup = {}; sessions.forEach(s => { const cur = lastSesByGroup[s.group_id]; if(!cur || s.session_date > cur) lastSesByGroup[s.group_id] = s.session_date; });
+  // أول دفعة مؤكدة لكل طالب
+  const firstPayByStud = {}; pays.filter(p => p.status==='paid'||p.status==='confirmed').forEach(p => {
+    const d = p.paid_at || p.created_at; if(!d) return;
+    const cur = firstPayByStud[p.student_id]; if(!cur || d < cur) firstPayByStud[p.student_id] = d;
+  });
+
+  // ─── تصنيف كل طالب لمرحلة ───
+  const now = Date.now();
+  const daysSince = d => d ? Math.floor((now - new Date(d).getTime()) / 86400000) : null;
+  const stages = { paid: [], chose: [], assigned: [], first: [], flowing: [] };
+  studs.forEach(s => {
+    const inGroup = !!s.group_id;
+    const g = inGroup ? groupById[s.group_id] : null;
+    const t = g?.teacher_id ? teacherById[g.teacher_id] : null;
+    const lastSes = inGroup ? lastSesByGroup[s.group_id] : null;
+    const daysActivated = daysSince(s.activated_at || firstPayByStud[s.id] || s.created_at);
+    const item = { s, g, t, lastSes, daysActivated };
+    if(!inGroup && !s.chosen_teacher_id) stages.paid.push(item);
+    else if(!inGroup && s.chosen_teacher_id) stages.chose.push(item);
+    else if(inGroup && !lastSes) stages.assigned.push(item);
+    else if(inGroup && lastSes && daysSince(lastSes) <= 7) stages.first.push(item);
+    else stages.flowing.push(item);
+  });
+
+  // ─── متوسط زمن التوزيع (من الدفع لأول حلقة) ───
+  // (تقريبي — activated_at تقريبًا هو وقت التوزيع، وفارقه مع firstPay يعطي الفترة)
+  let assignSum = 0, assignN = 0;
+  studs.filter(s => s.group_id && s.activated_at).forEach(s => {
+    const paid = firstPayByStud[s.id]; if(!paid) return;
+    const days = Math.floor((new Date(s.activated_at) - new Date(paid)) / 86400000);
+    if(days >= 0 && days < 60){ assignSum += days; assignN++; }
+  });
+  const avgAssign = assignN ? Math.round(assignSum / assignN) : null;
+
+  // ─── الرأس + المؤشرات ───
+  const kpiCard = (label, val, sub) => `<div class="exec-kpi"><div class="exec-kpi-label">${esc(label)}</div><div class="exec-kpi-value">${val}</div>${sub?`<div class="exec-kpi-sub">${esc(sub)}</div>`:''}</div>`;
+  const kpisHtml = `<div class="exec-kpis">
+    ${kpiCard('بانتظار التوزيع', ar(stages.paid.length + stages.chose.length), 'مفعّلون بلا حلقة')}
+    ${kpiCard('اختاروا معلمًا', ar(stages.chose.length), 'يحتاج تثبيت في حلقة')}
+    ${kpiCard('في حلقة بلا حصة بعد', ar(stages.assigned.length), 'يحتاج جدولة أول حصة')}
+    ${kpiCard('متوسط زمن التوزيع', avgAssign===null?'—':ar(avgAssign)+' يوم', 'من الدفع لأول حلقة')}
+  </div>`;
+
+  // ─── تبويب المراحل ───
+  const stageDefs = [
+    {key:'paid',     label:'دفع وتفعيل بلا اختيار', color:'#c92e2e'},
+    {key:'chose',    label:'اختار معلمًا بلا تثبيت', color:'#c9a227'},
+    {key:'assigned', label:'في حلقة بلا حصة بعد',   color:'#c9a227'},
+    {key:'first',    label:'حضر أول حصة (٧ أيام)',  color:'#2E7D5B'},
+    {key:'flowing',  label:'منتظم في الحلقة',        color:'#2E7D5B'},
+  ];
+  const activeStage = SESSION._execJourneyStage || 'paid';
+  const chips = stageDefs.map(d => `<button class="grpchip ${activeStage===d.key?'on':''}" onclick="_execJourneyStage('${d.key}')">${esc(d.label)} <span>${ar(stages[d.key].length)}</span></button>`).join('');
+
+  // ─── قائمة المرحلة الحالية ───
+  const list = stages[activeStage];
+  const rowsHtml = list.length ? list.slice(0,60).map(({s,g,t,lastSes,daysActivated}) => {
+    const path = s.quran_path ? pathName(s.quran_path) : '—';
+    const reason = activeStage==='paid'  ? (daysActivated!==null?`منذ ${ar(daysActivated)} يوم بلا اختيار معلم`:'مفعّل حديثًا')
+                : activeStage==='chose'  ? (s.chosen_teacher_id && teacherById[s.chosen_teacher_id] ? `اختار: ${teacherById[s.chosen_teacher_id].full_name}` : 'اختار معلمًا (غير مطابق)')
+                : activeStage==='assigned' ? `في حلقة "${g?.name||'—'}" — لم تُعقد حصة بعد`
+                : activeStage==='first'  ? `آخر حصة: ${lastSes||'—'}`
+                : lastSes ? `آخر حصة: ${lastSes}` : 'حلقة نشطة';
+    const meta = `${esc(path)} • ${s.age?ar(s.age)+' سنة':'—'}${g?' • '+esc(g.name):''}${t?' • '+esc(t.full_name):''}`;
+    let action = '';
+    if(activeStage==='paid' || activeStage==='chose'){
+      action = `<button class="btn" onclick="_execSuggest(${s.id})">اقترح توزيعًا</button>`;
+    } else if(activeStage==='assigned'){
+      action = `<button class="btn ghost" onclick="openGroup(${s.group_id})">افتح الحلقة</button>`;
+    } else if(s.login_id){
+      action = `<button class="btn ghost" onclick="startChatWith('${s.login_id}','${escJs(s.full_name)}')">${mi('chat')||''} تواصل</button>`;
+    }
+    return `<div class="exec-jrow">
+      <div class="exec-jrow-body">
+        <div class="exec-jrow-name">${esc(s.full_name)}</div>
+        <div class="exec-jrow-meta">${meta}</div>
+        <div class="exec-jrow-reason">${esc(reason)}</div>
+      </div>
+      <div class="exec-jrow-act">${action}</div>
+    </div>`;
+  }).join('') + (list.length>60?`<div style="text-align:center;color:var(--muted);padding:10px;font-size:12px">${ar(list.length-60)} طالب آخر</div>`:'')
+  : `<div style="text-align:center;padding:30px;color:var(--muted)">${mi('check')||'✅'} لا أحد في هذه المرحلة الآن</div>`;
+
+  return pageHead('رحلة الطالب','') + kpisHtml +
+    `<div class="card" style="margin-top:14px;padding:0;overflow:hidden">
+      <div style="padding:14px 18px;border-bottom:1px solid var(--line)"><b style="color:var(--navy-deep);font-size:15px">مراحل الرحلة</b></div>
+      <div style="padding:14px 18px">
+        <div class="grpfilters" style="margin-bottom:14px">${chips}</div>
+        <div class="exec-jlist">${rowsHtml}</div>
+      </div>
+    </div>`;
+};
+function _execJourneyStage(k){ SESSION._execJourneyStage = k; navigate('journey'); }
+async function _execSuggest(studentId){
+  // اقتراح ذكي: يفتح نافذة تعرض أفضل ٣ معلمين مطابقين للمسار/السن/الطاقة
+  const { data:st } = await sb.from('students').select('*').eq('id',studentId).maybeSingle();
+  if(!st){ toast('تعذر جلب الطالب'); return; }
+  const [{data:tchs},{data:grps}] = await Promise.all([
+    sb.from('profiles').select('id,full_name,is_available,max_students,age_range,weekly_slots,paths').eq('role','teacher').limit(200),
+    sb.from('groups').select('id,name,teacher_id,capacity,meet_time').limit(500),
+  ]);
+  // احسب حمل كل معلم من الطلاب النشطين
+  const {data:actives}=await sb.from('students').select('id,group_id').eq('enrollment_status','active');
+  const load = {}; const grpMap={}; (grps||[]).forEach(g=>grpMap[g.id]=g);
+  (actives||[]).forEach(s=>{ const g=grpMap[s.group_id]; if(g?.teacher_id) load[g.teacher_id]=(load[g.teacher_id]||0)+1; });
+  // رتّب المعلمين
+  const scored = (tchs||[]).filter(t=>t.is_available!==false).map(t => {
+    const cur = load[t.id] || 0; const max = t.max_students || 15;
+    const avail = max - cur;
+    let score = avail * 10;
+    // مطابقة المسار
+    if(Array.isArray(t.paths) && st.quran_path && t.paths.includes(st.quran_path)) score += 30;
+    // مطابقة العمر
+    if(t.age_range && st.age){
+      const [lo,hi] = String(t.age_range).split('-').map(Number);
+      if(!isNaN(lo)&&!isNaN(hi)&&st.age>=lo&&st.age<=hi) score += 15;
+    }
+    return { t, cur, max, avail, score };
+  }).filter(x => x.avail > 0).sort((a,b)=>b.score-a.score).slice(0,5);
+  if(!scored.length){ toast('لا يوجد معلم متاح بطاقة شاغرة الآن'); return; }
+  const html = `<div class="ch"><h3>${mi('users')||''} اقتراح توزيع — ${esc(st.full_name)}</h3></div>
+    <p class="tagline-sm" style="margin:0 0 12px">أفضل ${ar(scored.length)} معلمين حسب المسار والعمر والطاقة</p>
+    <div class="exec-sug-list">${scored.map(x=>`
+      <div class="exec-sug-row">
+        <div>
+          <b>${esc(x.t.full_name)}</b>
+          <div style="font-size:12px;color:var(--muted)">${ar(x.cur)}/${ar(x.max)} طالب${x.t.age_range?' • فئة '+esc(x.t.age_range):''}${x.t.paths?.length?' • '+ar(x.t.paths.length)+' مسار':''}</div>
+        </div>
+        <button class="btn" onclick="_execAssignPick(${studentId},'${x.t.id}','${escJs(x.t.full_name)}')">اختر</button>
+      </div>`).join('')}</div>
+    <div class="cactions"><button class="btn ghost" onclick="closeModal()">إلغاء</button></div>`;
+  openModal(html);
+}
+async function _execAssignPick(studentId, teacherId, teacherName){
+  // نضع chosen_teacher_id — قرار التثبيت في حلقة بعينها يبقى على المشرف
+  const {error}=await sb.from('students').update({chosen_teacher_id:teacherId}).eq('id',studentId);
+  if(error){ toast('تعذر الحفظ: '+error.message); return; }
+  await pushNotif(teacherId,'مدير الأكاديمية اقترح توزيعك على طالب','فضلاً تواصل مع المشرف لتثبيت الحلقة','assign',studentId).catch(()=>{});
+  closeModal(); toast('تم — بانتظار المشرف لتثبيت الحلقة'); navigate('journey');
+}
+
+// ═══ مركز المالية والاشتراكات ═══════════════════════════════════════════════
+// يجمع بطاقات مؤشرات حقيقية بفصل عملات، دفعات معلقة، اشتراكات قاربت الانتهاء،
+// ومنتهية بلا تجديد — كل ذلك في صفحة واحدة قابلة للفعل.
+PAGES.executive_finance_ops = async function(){
+  setTop('المالية والاشتراكات','فصل عملات + تجديدات + دفعات معلقة');
+  const iso30ago = new Date(Date.now()-30*86400000).toISOString();
+  const iso7ago = new Date(Date.now()-7*86400000).toISOString();
+  const [paysR, studsR] = await Promise.all([
+    sb.from('payments').select('id,amount,status,currency_code,student_id,created_at,paid_at,method,note').order('created_at',{ascending:false}).limit(3000),
+    sb.from('students').select('id,full_name,sub_end,enrollment_status,login_id').limit(2000),
+  ]);
+  const pays = paysR.data || [];
+  const studs = studsR.data || [];
+  const studById = {}; studs.forEach(s => studById[s.id] = s);
+  const active = studs.filter(s => s.enrollment_status === 'active');
+
+  // ─── حسابات ───
+  const paid = pays.filter(p => p.status==='paid' || p.status==='confirmed');
+  const paid30 = paid.filter(p => (p.paid_at||p.created_at) >= iso30ago);
+  const paid7  = paid.filter(p => (p.paid_at||p.created_at) >= iso7ago);
+  const pending = pays.filter(p => p.status === 'pending');
+  const byCcy = arr => { const o={}; arr.forEach(p=>{ const c=p.currency_code||'EGP'; o[c]=(o[c]||0)+(+p.amount||0); }); return o; };
+  const totalByCcy = byCcy(paid);
+  const p30 = byCcy(paid30);
+  const p7 = byCcy(paid7);
+  const pendByCcy = byCcy(pending);
+  const ccyLabel = obj => Object.keys(obj).length ? Object.entries(obj).map(([c,v])=>ar(Math.round(v))+' '+c).join(' · ') : '—';
+
+  // اشتراكات
+  const expired = active.filter(s => s.sub_end && new Date(s.sub_end) < new Date());
+  const expiring7 = active.filter(s => {
+    if(!s.sub_end) return false;
+    const d = Math.ceil((new Date(s.sub_end) - Date.now()) / 86400000);
+    return d >= 0 && d <= 7;
+  });
+  const expiring30 = active.filter(s => {
+    if(!s.sub_end) return false;
+    const d = Math.ceil((new Date(s.sub_end) - Date.now()) / 86400000);
+    return d > 7 && d <= 30;
+  });
+
+  // معدل التجديد التقريبي (طلاب دفعة ثانية / طلاب دفعوا مرة)
+  const paysByStud = {}; paid.forEach(p => { if(p.student_id) paysByStud[p.student_id] = (paysByStud[p.student_id]||0)+1; });
+  const paidStuds = Object.keys(paysByStud).length;
+  const renewed = Object.values(paysByStud).filter(n => n > 1).length;
+  const renewalPct = paidStuds ? Math.round(renewed * 100 / paidStuds) : 0;
+
+  // ─── بطاقات المؤشرات ───
+  const kpi = (l,v,sub) => `<div class="exec-kpi"><div class="exec-kpi-label">${esc(l)}</div><div class="exec-kpi-value">${v}</div>${sub?`<div class="exec-kpi-sub">${esc(sub)}</div>`:''}</div>`;
+  const kpisHtml = `<div class="exec-kpis">
+    ${kpi('محصَّل ٧ أيام', ccyLabel(p7), '')}
+    ${kpi('محصَّل ٣٠ يوم', ccyLabel(p30), '')}
+    ${kpi('الإجمالي المحفوظ', ccyLabel(totalByCcy), '')}
+    ${kpi('معلق بانتظار التأكيد', ccyLabel(pendByCcy), ar(pending.length)+' دفعة')}
+    ${kpi('اشتراكات منتهية', ar(expired.length), 'طالب نشط بلا اشتراك ساري')}
+    ${kpi('تنتهي هذا الأسبوع', ar(expiring7.length), 'يحتاج تذكير')}
+    ${kpi('تنتهي هذا الشهر', ar(expiring30.length), 'ضمن ٣٠ يوم')}
+    ${kpi('معدل التجديد', ar(renewalPct)+'٪', ar(renewed)+' من '+ar(paidStuds)+' دفعوا مرة')}
+  </div>`;
+
+  // ─── تبويب ───
+  const tab = SESSION._execFinTab || 'pending';
+  const tabBtn = (k,l,n) => `<button class="grpchip ${tab===k?'on':''}" onclick="_execFinTab('${k}')">${esc(l)} <span>${ar(n)}</span></button>`;
+  const chips = `<div class="grpfilters" style="margin-bottom:14px">
+    ${tabBtn('pending','دفعات معلقة',pending.length)}
+    ${tabBtn('expired','اشتراكات منتهية',expired.length)}
+    ${tabBtn('expiring7','تنتهي خلال ٧ أيام',expiring7.length)}
+    ${tabBtn('recent','آخر ٣٠ يوم',paid30.length)}
+  </div>`;
+  let rows = '';
+  if(tab === 'pending'){
+    rows = pending.length ? pending.slice(0,60).map(p => {
+      const s = studById[p.student_id];
+      return `<div class="exec-jrow">
+        <div class="exec-jrow-body">
+          <div class="exec-jrow-name">${esc(s?.full_name||'دفعة غير مرتبطة')}</div>
+          <div class="exec-jrow-meta">${ar(+p.amount||0)} ${p.currency_code||'EGP'}${p.method?' • '+esc(p.method):''}${p.note?' • '+esc(p.note):''}</div>
+          <div class="exec-jrow-reason">أنشئت في ${p.created_at?.slice(0,10)||'—'}</div>
+        </div>
+        <div class="exec-jrow-act"><button class="btn ghost" onclick="navigate('confirm')">افتح شاشة التأكيد</button></div>
+      </div>`;
+    }).join('') : `<div style="text-align:center;padding:30px;color:var(--muted)">${mi('check')||'✅'} لا دفعات معلقة</div>`;
+  } else if(tab === 'expired' || tab === 'expiring7'){
+    const arr = tab==='expired' ? expired : expiring7;
+    rows = arr.length ? arr.slice(0,80).map(s => {
+      const days = Math.ceil((new Date(s.sub_end) - Date.now()) / 86400000);
+      const label = days < 0 ? `انتهى منذ ${ar(-days)} يوم` : `يتبقى ${ar(days)} يوم`;
+      return `<div class="exec-jrow">
+        <div class="exec-jrow-body">
+          <div class="exec-jrow-name">${esc(s.full_name)}</div>
+          <div class="exec-jrow-meta">تاريخ الانتهاء: ${s.sub_end}</div>
+          <div class="exec-jrow-reason">${esc(label)}</div>
+        </div>
+        <div class="exec-jrow-act">${s.login_id?`<button class="btn ghost" onclick="startChatWith('${s.login_id}','${escJs(s.full_name)}')">${mi('chat')||''} ذكّر بالتجديد</button>`:''}</div>
+      </div>`;
+    }).join('') : `<div style="text-align:center;padding:30px;color:var(--muted)">${mi('check')||'✅'} لا اشتراكات في هذه الفئة</div>`;
+  } else {
+    rows = paid30.length ? paid30.slice(0,80).map(p => {
+      const s = studById[p.student_id];
+      return `<div class="exec-jrow">
+        <div class="exec-jrow-body">
+          <div class="exec-jrow-name">${esc(s?.full_name||'—')}</div>
+          <div class="exec-jrow-meta">${ar(+p.amount||0)} ${p.currency_code||'EGP'}${p.method?' • '+esc(p.method):''}</div>
+          <div class="exec-jrow-reason">${(p.paid_at||p.created_at||'').slice(0,10)}</div>
+        </div>
+        <div class="exec-jrow-act"><span class="pill green">مؤكدة</span></div>
+      </div>`;
+    }).join('') : `<div style="text-align:center;padding:30px;color:var(--muted)">لا دفعات مؤكدة في آخر ٣٠ يوم</div>`;
+  }
+
+  return pageHead('المالية والاشتراكات','') + kpisHtml +
+    `<div class="card" style="margin-top:14px;padding:0;overflow:hidden">
+      <div style="padding:14px 18px;border-bottom:1px solid var(--line)"><b style="color:var(--navy-deep);font-size:15px">تفاصيل قابلة للفعل</b></div>
+      <div style="padding:14px 18px">${chips}<div class="exec-jlist">${rows}</div></div>
+    </div>`;
+};
+function _execFinTab(k){ SESSION._execFinTab = k; navigate('finance_ops'); }
+
 // فريق الإشراف (إدارة المشرفين)
 PAGES.executive_teamOld = async function(){ return ''; };
 PAGES.admin_requests = async function(){
