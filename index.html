@@ -455,6 +455,34 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 .exec-fresh-row:last-child{border-bottom:none}
 .exec-fresh-row span:first-child{color:var(--text);font-weight:600}
 .exec-fresh-row .mono{color:var(--muted);font-family:'Tajawal',sans-serif;font-size:12.5px}
+/* الأنظمة والبرامج التعليمية */
+.prog-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;margin-top:14px}
+.prog-card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;transition:.2s;display:flex;flex-direction:column}
+.prog-card:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.06)}
+.prog-head{display:flex;gap:12px;padding:16px 16px 12px;flex:1}
+.prog-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;flex-shrink:0}
+.prog-body{flex:1;min-width:0}
+.prog-body b{color:var(--navy-deep,#1a3a5c);font-size:14.5px;display:block}
+.prog-meta{font-size:11.5px;color:var(--muted);margin-top:3px}
+.prog-desc{font-size:12.5px;color:var(--text);margin:8px 0 0;line-height:1.6}
+.prog-foot{padding:10px 16px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;background:#fafafa;gap:10px}
+.prog-station{display:flex;align-items:center;gap:10px;padding:10px 12px;background:#f8f9fa;border-radius:8px;margin-bottom:6px}
+.prog-station:last-child{margin-bottom:0}
+.prog-stn-num{width:26px;height:26px;border-radius:50%;background:var(--emerald,#2E7D5B);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex-shrink:0}
+/* Wizard */
+.wz-bar{display:flex;align-items:center;gap:6px;padding:6px 0;overflow-x:auto}
+.wz-step{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);white-space:nowrap;opacity:.65;flex-shrink:0}
+.wz-step.on{color:var(--emerald,#2E7D5B);opacity:1;font-weight:700}
+.wz-step.done{color:var(--emerald,#2E7D5B);opacity:.9}
+.wz-num{width:24px;height:24px;border-radius:50%;background:#e0e0e0;color:var(--muted);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px}
+.wz-step.on .wz-num{background:var(--emerald,#2E7D5B);color:#fff}
+.wz-step.done .wz-num{background:var(--emerald,#2E7D5B);color:#fff}
+.wz-sep{flex:1;height:2px;background:#e0e0e0;min-width:8px}
+@media (max-width:640px){
+  .prog-grid{grid-template-columns:1fr}
+  .prog-foot{flex-direction:column;align-items:stretch}
+  .wz-step span:last-child{display:none}
+}
 /* OKR كارد وشريط تقدم */
 .exec-okr-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
 .exec-okr-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;transition:.2s}
@@ -3586,9 +3614,13 @@ const MENUS = {
       ['staff',mi('teacher'),'المعلمون والحلقات'],
       ['team',mi('team'),'فريق الإشراف'],
     ]},
+    // ═ الأنظمة التعليمية (محرك عام يشمل القرآن + كل المجالات) ═
+    {label:'الأنظمة التعليمية', items:[
+      ['programs',mi('books'),'الأنظمة والبرامج'],
+      ['qsystems',mi('kaaba'),'أنظمة القرآن (كلاسيكي)'],
+    ]},
     // ═ مراجع: بيانات مرجعية نادرة الاستخدام ═
     {label:'مراجع', items:[
-      ['qsystems',mi('kaaba'),'أنظمة القرآن'],
       ['finance',mi('card'),'سجل المدفوعات'],
     ]},
   ]},
@@ -11305,6 +11337,636 @@ PAGES.executive_partnership = function(){ return PAGES.admin_partnership(); };
 // تأكيد المدفوعات — نفس شاشة المشرف (التنفيذي والأدمن يعتمدون الإيصالات كذلك)
 PAGES.executive_confirm = function(){ return PAGES.supervisor_confirm(); };
 PAGES.admin_confirm     = function(){ return PAGES.supervisor_confirm(); };
+// ═══════════════════════════════════════════════════════════════════════════
+// الأنظمة والبرامج التعليمية — محرك عام (ليس قرآنًا فقط)
+// migration 025 يضيف edu_programs / edu_program_tracks / edu_program_stations
+// / edu_program_activities. الاعتماد العلمي يمر عبر content_approvals.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const EDU_DOMAINS = [
+  ['quran','قرآن وحفظ','#2E7D5B','🕋'],
+  ['tajweed','تجويد','#c9a227','🎵'],
+  ['tarbiya','تربية وسلوك','#1a3a5c','🌱'],
+  ['shariah','علوم شرعية','#8A6C00','📖'],
+  ['arabic','لغة عربية','#7B2D8E','ﻉ'],
+  ['teacher_training','تأهيل معلمين','#0F5C8A','👨‍🏫'],
+  ['general','برنامج عام','#555','◆'],
+  ['custom','مجال مخصص','#666','✳️'],
+];
+const EDU_AUDIENCES = [
+  ['students_male','طلاب'],['students_female','طالبات'],['students_all','طلاب وطالبات'],
+  ['teachers','معلمون'],['supervisors','مشرفون'],['parents','أولياء أمور'],['mixed','مختلط بضوابط'],
+];
+const EDU_STATUS = {
+  draft:['مسودة','#666','قابل للتعديل'],
+  in_review:['قيد المراجعة العلمية','#c9a227','عند المدير العلمي'],
+  needs_edit:['يحتاج تعديلات','#c92e2e','أُعيد للمنشئ'],
+  scientifically_approved:['معتمد علميًا','#2E7D5B','بانتظار التجهيز التشغيلي'],
+  awaiting_ops:['قيد التجهيز التشغيلي','#c9a227','عند المدير التنفيذي'],
+  ready:['جاهز للنشر','#2E7D5B','يمكن نشره الآن'],
+  published:['منشور','#2E7D5B','مفتوح للطلاب'],
+  paused:['موقوف','#c9a227','معلَّق مؤقتًا'],
+  archived:['مؤرشف','#999','خارج الخدمة'],
+};
+const EDU_ACT_KINDS = [
+  ['lesson','درس نصي','📝'],['video','فيديو','▶'],['pdf','ملف PDF','📄'],
+  ['audio','تسجيل صوتي','🎧'],['link','رابط خارجي','🔗'],['assignment','واجب','✏️'],
+  ['test','اختبار','📋'],['oral_eval','تقييم شفهي','🎤'],['live_session','جلسة مباشرة','📹'],
+  ['reading','قراءة','📚'],['reflection','تأمل/تطبيق','💭'],['custom','مخصص','◆'],
+];
+const EDU_QURAN_KINDS = [
+  ['quran_memorize','حفظ من–إلى','🕋'],['quran_review','مراجعة','🔁'],
+  ['quran_recite','تسميع','🎤'],['quran_listen','ورد سماع','🎧'],['quran_tajweed_eval','تقييم تجويد','🎵'],
+];
+
+// قوالب جاهزة — كل قالب بنية كاملة (مسارات + محطات + أنشطة)
+const EDU_TEMPLATES = [
+  {key:'quran_5_fortresses', domain:'quran', name:'حفظ القرآن — خمسة حصون',
+    desc:'خمسة حصون يومية للحفظ والمراجعة والتسميع — الأكثر شمولاً وضبطًا',
+    audience:'students_all', color:'#2E7D5B', icon:'🕋',
+    tracks:[{name:'المسار المتدرج', stations:[
+      {name:'الحصن الأول — الورد الجديد', activities:[
+        {kind:'quran_memorize', title:'حفظ مقطع جديد', points:5},
+        {kind:'quran_recite', title:'تسميع الورد', points:3},
+      ]},
+      {name:'الحصن الثاني — المراجعة القريبة', activities:[
+        {kind:'quran_review', title:'مراجعة آخر ٥ صفحات', points:3},
+      ]},
+      {name:'الحصن الثالث — المراجعة البعيدة', activities:[
+        {kind:'quran_review', title:'مراجعة جزء قديم', points:4},
+      ]},
+      {name:'الحصن الرابع — التلاوة', activities:[
+        {kind:'reading', title:'تلاوة صفحة بالتجويد', points:2},
+      ]},
+      {name:'الحصن الخامس — السماع', activities:[
+        {kind:'quran_listen', title:'استماع لمقرئ متقن', points:1},
+      ]},
+    ]}]},
+  {key:'quran_flex_3', domain:'quran', name:'حفظ القرآن — مرن (٣ محطات)',
+    desc:'ثلاث محطات أساسية — أخف وأكثر مرونة للطلاب المشغولين',
+    audience:'students_all', color:'#4CAF7B', icon:'🕋',
+    tracks:[{name:'المسار المرن', stations:[
+      {name:'الحفظ', activities:[{kind:'quran_memorize', title:'حفظ جديد', points:5}]},
+      {name:'المراجعة', activities:[{kind:'quran_review', title:'مراجعة', points:4}]},
+      {name:'التسميع', activities:[{kind:'quran_recite', title:'تسميع أسبوعي', points:3}]},
+    ]}]},
+  {key:'tajweed_beginner', domain:'tajweed', name:'تجويد للمبتدئين',
+    desc:'أساسيات مخارج الحروف والصفات والأحكام — ٤ وحدات متدرجة',
+    audience:'students_all', color:'#c9a227', icon:'🎵',
+    tracks:[{name:'المسار التمهيدي', stations:[
+      {name:'وحدة ١ — مخارج الحروف', activities:[
+        {kind:'lesson', title:'شرح مخارج الحروف'},
+        {kind:'video', title:'فيديو تطبيقي'},
+        {kind:'oral_eval', title:'تقييم شفهي'},
+      ]},
+      {name:'وحدة ٢ — صفات الحروف', activities:[
+        {kind:'lesson', title:'صفات الحروف اللازمة'},
+        {kind:'test', title:'اختبار قصير'},
+      ]},
+      {name:'وحدة ٣ — أحكام النون والميم', activities:[
+        {kind:'lesson', title:'أحكام النون الساكنة والتنوين'},
+        {kind:'oral_eval', title:'تطبيق شفهي'},
+      ]},
+      {name:'وحدة ٤ — المدود', activities:[
+        {kind:'lesson', title:'أنواع المدود'},
+        {kind:'quran_tajweed_eval', title:'تقييم نهائي'},
+      ]},
+    ]}]},
+  {key:'quran_review_only', domain:'quran', name:'برنامج مراجعة القرآن',
+    desc:'للطلاب الذين أنهوا الحفظ — تثبيت وتقوية عبر جدول مراجعة يومي',
+    audience:'students_all', color:'#8A6C00', icon:'🔁',
+    tracks:[{name:'المسار المكثف', stations:[
+      {name:'مراجعة يومية', activities:[{kind:'quran_review', title:'ربع يومي', points:5}]},
+      {name:'تسميع أسبوعي', activities:[{kind:'quran_recite', title:'تسميع ٥ أرباع', points:8}]},
+      {name:'اختبار شهري', activities:[{kind:'oral_eval', title:'اختبار كامل لجزء', points:15}]},
+    ]}]},
+  {key:'tarbiya_weekly', domain:'tarbiya', name:'برنامج تربية أسبوعي',
+    desc:'دروس أخلاق وسلوك ومتابعة تطبيق — يبني شخصية طالب العلم',
+    audience:'students_all', color:'#1a3a5c', icon:'🌱',
+    tracks:[{name:'المسار الأسبوعي', stations:[
+      {name:'الأسبوع ١ — الصدق', activities:[
+        {kind:'lesson', title:'درس عن الصدق'},
+        {kind:'reflection', title:'تأمل أسبوعي مكتوب'},
+      ]},
+      {name:'الأسبوع ٢ — بر الوالدين', activities:[
+        {kind:'video', title:'قصة مؤثرة'},
+        {kind:'assignment', title:'مهمة عملية مع الوالدين'},
+      ]},
+      {name:'الأسبوع ٣ — الإتقان', activities:[
+        {kind:'lesson', title:'الإحسان والإتقان'},
+        {kind:'reflection', title:'تطبيق أسبوعي'},
+      ]},
+      {name:'الأسبوع ٤ — الرفق', activities:[
+        {kind:'lesson', title:'الرفق واللين'},
+        {kind:'oral_eval', title:'حوار مع المعلم'},
+      ]},
+    ]}]},
+  {key:'shariah_course', domain:'shariah', name:'دورة علمية شرعية',
+    desc:'قالب دورة قصيرة (٦-٨ أسابيع) بمحاضرات وتقييمات',
+    audience:'students_all', color:'#8A6C00', icon:'📖',
+    tracks:[{name:'المسار الوحيد', stations:[
+      {name:'المقدمة والتعريف', activities:[{kind:'live_session', title:'اللقاء التمهيدي'}]},
+      {name:'الأساسيات', activities:[
+        {kind:'lesson', title:'قراءة الفصل الأول'},
+        {kind:'pdf', title:'مذكرة PDF'},
+        {kind:'assignment', title:'واجب فهم'},
+      ]},
+      {name:'التطبيق', activities:[
+        {kind:'live_session', title:'جلسة نقاش'},
+        {kind:'test', title:'اختبار متوسط'},
+      ]},
+      {name:'الاختبار النهائي', activities:[{kind:'test', title:'اختبار شامل'}]},
+    ]}]},
+  {key:'teacher_training', domain:'teacher_training', name:'برنامج تأهيل معلم',
+    desc:'مسارات لتأهيل المعلمين قبل استلام الحلقات',
+    audience:'teachers', color:'#0F5C8A', icon:'👨‍🏫',
+    tracks:[{name:'المسار الأساسي', stations:[
+      {name:'الجانب العلمي', activities:[
+        {kind:'lesson', title:'أساسيات التعليم'},
+        {kind:'video', title:'ورش تفاعلية'},
+      ]},
+      {name:'الجانب التربوي', activities:[
+        {kind:'lesson', title:'إدارة الحلقة'},
+        {kind:'assignment', title:'خطة حلقة تجريبية'},
+      ]},
+      {name:'التقييم', activities:[
+        {kind:'oral_eval', title:'مقابلة تقييمية'},
+        {kind:'test', title:'اختبار شامل'},
+      ]},
+    ]}]},
+  {key:'blank', domain:'general', name:'قالب فارغ — ابدأ من الصفر',
+    desc:'أنشئ نظامًا بلا هيكل جاهز — للأنظمة الفريدة',
+    audience:'students_all', color:'#666', icon:'✳️',
+    tracks:[]},
+];
+
+// ═══ صفحة الأنظمة والبرامج التعليمية ═══
+PAGES.admin_programs = async function(){
+  if(!ME || (ME.role!=='admin' && ME.role!=='executive' && !ME.is_scientific_director))
+    return `<div class="card" style="text-align:center;padding:40px;color:var(--muted)">${mi('lock')||'🔒'} صلاحية الوصول للمدير العلمي والتنفيذي والأدمن</div>`;
+  setTop('الأنظمة والبرامج التعليمية','صمّم، راجع، انشر، وتابع أي نظام تعليمي');
+  const {data:progs, error} = await sb.from('edu_programs').select('*').order('updated_at',{ascending:false}).limit(200);
+  if(error) return pageHead('الأنظمة والبرامج التعليمية','')+loadErrorCard(error);
+  const list = progs || [];
+  const filter = SESSION._progFilter || 'all';
+  const filtered = filter==='all' ? list : list.filter(p => p.status === filter);
+  const domById = {}; EDU_DOMAINS.forEach(d => domById[d[0]] = d);
+  const kpi = (l,v,c) => `<div class="exec-kpi" ${c?`style="border-inline-start:4px solid ${c}"`:''}><div class="exec-kpi-label">${esc(l)}</div><div class="exec-kpi-value">${v}</div></div>`;
+  const kpisHtml = `<div class="exec-kpis" style="margin-top:14px">
+    ${kpi('إجمالي الأنظمة', ar(list.length))}
+    ${kpi('منشورة', ar(list.filter(p=>p.status==='published').length), '#2E7D5B')}
+    ${kpi('قيد المراجعة', ar(list.filter(p=>['in_review','needs_edit','awaiting_ops'].includes(p.status)).length), '#c9a227')}
+    ${kpi('مسودات', ar(list.filter(p=>p.status==='draft').length))}
+  </div>`;
+  const chipBtn = (k,l) => `<button class="grpchip ${filter===k?'on':''}" onclick="_progFilter('${k}')">${esc(l)}</button>`;
+  const chips = `<div class="grpfilters" style="margin:14px 0">
+    ${chipBtn('all','الكل')}
+    ${chipBtn('draft','مسودات')}
+    ${chipBtn('in_review','قيد المراجعة')}
+    ${chipBtn('scientifically_approved','معتمد علميًا')}
+    ${chipBtn('published','منشور')}
+    ${chipBtn('archived','مؤرشف')}
+  </div>`;
+  const cards = filtered.length ? filtered.map(p => {
+    const dom = domById[p.domain] || domById.general;
+    const st = EDU_STATUS[p.status] || ['—','#666',''];
+    return `<div class="prog-card" style="border-top:3px solid ${p.cover_color||dom[2]}">
+      <div class="prog-head">
+        <div class="prog-icon" style="background:${p.cover_color||dom[2]}22;color:${p.cover_color||dom[2]}">${p.icon||dom[3]}</div>
+        <div class="prog-body">
+          <b>${esc(p.name)}</b>
+          <div class="prog-meta">${esc(dom[1])} • ${esc(p.audience||'—')} • v${esc(p.version||'1.0')}</div>
+          ${p.description?`<p class="prog-desc">${esc(p.description).slice(0,120)}${p.description.length>120?'…':''}</p>`:''}
+        </div>
+      </div>
+      <div class="prog-foot">
+        <span class="chip" style="background:${st[1]}22;color:${st[1]}">${esc(st[0])}</span>
+        <div style="display:flex;gap:6px">
+          <button class="btn-sm" onclick="_progOpen('${p.id}')">إدارة</button>
+          <button class="btn-sm ghost" onclick="_progClone('${p.id}')">نسخ</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('') : `<div class="card" style="text-align:center;padding:40px;color:var(--muted);margin-top:14px">
+    <div style="font-size:36px;margin-bottom:10px">${mi('books')||'📚'}</div>
+    <h3 style="color:var(--navy-deep);margin:0 0 8px">لا أنظمة في هذه الفئة</h3>
+    <p style="font-size:13px">ابدأ بإنشاء نظام جديد أو استخدم قالبًا جاهزًا</p>
+  </div>`;
+  return pageHead('الأنظمة والبرامج التعليمية','') +
+    `<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px;flex-wrap:wrap">
+      <button class="btn ghost" onclick="_progTemplates()">${mi('books')||''} استعراض القوالب</button>
+      <button class="btn" onclick="_progNew()">+ إنشاء نظام جديد</button>
+    </div>` + kpisHtml + chips + `<div class="prog-grid">${cards}</div>`;
+};
+PAGES.executive_programs = PAGES.admin_programs;
+
+function _progFilter(f){ SESSION._progFilter = f; navigate('programs'); }
+
+// ═══ Wizard: إنشاء نظام جديد (٤ خطوات) ═══
+const PROG_DRAFT_KEY = 'edu_prog_draft_v1';
+function _progNew(fromTemplate){
+  const draft = fromTemplate ? {...fromTemplate, name:'', _step:1}
+              : (function(){ try{ const s=localStorage.getItem(PROG_DRAFT_KEY); if(s){ const d=JSON.parse(s); d._step=d._step||1; return d; } }catch{}
+                  return {name:'',description:'',domain:'quran',audience:'students_all',age_range:'',pricing_model:'free',structure_type:'tracks_stations',passing_score_pct:60,_step:1}; })();
+  SESSION._progDraft = draft;
+  _progRenderWizard();
+}
+function _progRenderWizard(){
+  const d = SESSION._progDraft; if(!d) return;
+  const step = d._step;
+  const stepNames = ['الهوية','البنية','التقييم','المراجعة'];
+  const stepsBar = stepNames.map((n,i)=>`<div class="wz-step ${step===i+1?'on':''} ${step>i+1?'done':''}"><span class="wz-num">${step>i+1?'✓':ar(i+1)}</span><span>${esc(n)}</span></div>`).join('<div class="wz-sep"></div>');
+  let body = '';
+  if(step===1){
+    body = `<div class="field"><label>اسم النظام</label><input id="pgName" value="${esc(d.name||'')}" placeholder="مثال: تجويد للمبتدئين"></div>
+      <div class="field"><label>وصف مختصر</label><textarea id="pgDesc" rows="3" placeholder="ما الذي يقدمه هذا النظام؟">${esc(d.description||'')}</textarea></div>
+      <div class="field"><label>المجال</label><select id="pgDom">${EDU_DOMAINS.map(x=>`<option value="${x[0]}" ${d.domain===x[0]?'selected':''}>${x[3]} ${x[1]}</option>`).join('')}</select></div>
+      <div class="field"><label>الفئة المستهدفة</label><select id="pgAud">${EDU_AUDIENCES.map(x=>`<option value="${x[0]}" ${d.audience===x[0]?'selected':''}>${x[1]}</option>`).join('')}</select></div>
+      <div class="field" style="display:flex;gap:10px">
+        <div style="flex:1"><label>الفئة العمرية (اختياري)</label><input id="pgAge" value="${esc(d.age_range||'')}" placeholder="6-12"></div>
+        <div style="flex:1"><label>النوع</label><select id="pgPricing"><option value="free" ${d.pricing_model==='free'?'selected':''}>مجاني</option><option value="paid" ${d.pricing_model==='paid'?'selected':''}>مدفوع</option><option value="internal" ${d.pricing_model==='internal'?'selected':''}>داخلي</option></select></div>
+      </div>`;
+  } else if(step===2){
+    body = `<div class="field"><label>نوع البنية</label>
+      <select id="pgStruct">
+        <option value="tracks_stations" ${d.structure_type==='tracks_stations'?'selected':''}>مسارات + محطات (الأكثر شيوعًا)</option>
+        <option value="units" ${d.structure_type==='units'?'selected':''}>وحدات أو مستويات</option>
+        <option value="lessons" ${d.structure_type==='lessons'?'selected':''}>دروس مستقلة</option>
+        <option value="schedule" ${d.structure_type==='schedule'?'selected':''}>خطة زمنية</option>
+        <option value="assessments" ${d.structure_type==='assessments'?'selected':''}>تقييمات فقط</option>
+        <option value="custom" ${d.structure_type==='custom'?'selected':''}>بنية مخصصة</option>
+      </select>
+    </div>
+    <div class="card" style="background:#f5f7fa;padding:14px;font-size:13px;line-height:1.8;color:var(--muted)">
+      <b style="color:var(--navy-deep)">ملاحظة:</b> بعد إنشاء النظام يمكنك في صفحة الإدارة إضافة المسارات والمحطات والأنشطة بالتفصيل، وإعادة ترتيبها كما تشاء.
+    </div>
+    ${d.tracks?.length ? `<div class="card" style="margin-top:12px;padding:14px"><b style="color:var(--navy-deep)">هيكل مبدئي من القالب:</b><ul style="margin:8px 0 0;padding-inline-start:20px;font-size:13px;line-height:1.8">${d.tracks.map(t=>`<li>${esc(t.name)} — ${ar(t.stations?.length||0)} محطة</li>`).join('')}</ul></div>` : ''}`;
+  } else if(step===3){
+    body = `<div class="field"><label>الحد الأدنى للإتقان (%)</label><input id="pgPass" type="number" value="${d.passing_score_pct||60}" min="0" max="100"></div>
+      <div class="field"><label>شرط الإتمام (نص وصفي)</label><textarea id="pgRule" rows="2" placeholder="مثال: إتمام جميع المحطات + اجتياز الاختبار النهائي">${esc(d.completion_rule||'')}</textarea></div>
+      <div class="field" style="display:flex;gap:12px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="pgSciReq" ${d.requires_scientific_approval!==false?'checked':''}> يحتاج اعتمادًا علميًا قبل النشر</label>
+      </div>
+      <div class="field" style="display:flex;gap:12px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="pgOpsReq" ${d.requires_ops_setup!==false?'checked':''}> يحتاج تجهيزًا تشغيليًا (رسوم/حلقات/جدول)</label>
+      </div>`;
+  } else if(step===4){
+    const dom = EDU_DOMAINS.find(x=>x[0]===d.domain) || EDU_DOMAINS[6];
+    body = `<div class="card" style="padding:16px;background:#f5f7fa;border-inline-start:4px solid ${dom[2]}">
+      <div style="font-size:24px;margin-bottom:6px">${dom[3]}</div>
+      <h3 style="color:var(--navy-deep);margin:0 0 6px">${esc(d.name||'—')}</h3>
+      <p style="color:var(--muted);font-size:13px;margin:0 0 10px">${esc(d.description||'لا وصف')}</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">
+        <div><b>المجال:</b> ${esc(dom[1])}</div>
+        <div><b>الفئة:</b> ${esc((EDU_AUDIENCES.find(x=>x[0]===d.audience)||[])[1]||'—')}</div>
+        <div><b>البنية:</b> ${esc(d.structure_type||'—')}</div>
+        <div><b>الإتقان:</b> ${ar(d.passing_score_pct||60)}٪</div>
+        <div><b>اعتماد علمي:</b> ${d.requires_scientific_approval!==false?'نعم':'لا'}</div>
+        <div><b>تجهيز تشغيلي:</b> ${d.requires_ops_setup!==false?'نعم':'لا'}</div>
+      </div>
+      ${d.tracks?.length?`<div style="margin-top:12px"><b>الهيكل الأولي:</b><ul style="margin:6px 0 0;padding-inline-start:20px;font-size:12.5px">${d.tracks.map(t=>`<li>${esc(t.name)} (${ar(t.stations?.length||0)} محطة)</li>`).join('')}</ul></div>`:''}
+    </div>
+    <p style="margin:14px 0 0;font-size:12.5px;color:var(--muted);text-align:center">سيُحفظ كمسودة. تستطيع إضافة المسارات والمحطات والأنشطة بعد الحفظ.</p>`;
+  }
+  const nav = `<div class="modal-actions" style="justify-content:space-between">
+    <div>${step>1?`<button class="btn ghost" onclick="_progWzBack()">← السابق</button>`:''}<span style="font-size:12px;color:var(--muted);margin-inline-start:10px">مسودة تُحفظ تلقائيًا</span></div>
+    <div>${step<4?`<button class="btn" onclick="_progWzNext()">التالي ←</button>`:`<button class="btn" onclick="_progWzSave()">حفظ النظام</button>`}</div>
+  </div>`;
+  $('#modalHost').innerHTML = `<div class="modal-bg show" onclick="if(event.target===this)_progWzClose()"><div class="modal" style="max-width:600px;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h3 style="color:var(--navy-deep);margin:0">إنشاء نظام جديد</h3>
+      <button class="btn-sm ghost" onclick="_progWzClose()">×</button>
+    </div>
+    <div class="wz-bar">${stepsBar}</div>
+    <div style="margin-top:18px">${body}</div>
+    ${nav}
+  </div></div>`;
+}
+function _progWzSaveDraft(){
+  const d = SESSION._progDraft; if(!d) return;
+  const step = d._step;
+  if(step===1){ d.name=$('#pgName').value.trim(); d.description=$('#pgDesc').value.trim(); d.domain=$('#pgDom').value; d.audience=$('#pgAud').value; d.age_range=$('#pgAge').value.trim(); d.pricing_model=$('#pgPricing').value; }
+  else if(step===2){ d.structure_type=$('#pgStruct').value; }
+  else if(step===3){ d.passing_score_pct=+$('#pgPass').value||60; d.completion_rule=$('#pgRule').value.trim(); d.requires_scientific_approval=$('#pgSciReq').checked; d.requires_ops_setup=$('#pgOpsReq').checked; }
+  try{ localStorage.setItem(PROG_DRAFT_KEY, JSON.stringify(d)); }catch{}
+}
+function _progWzNext(){
+  _progWzSaveDraft();
+  const d = SESSION._progDraft;
+  if(d._step===1 && !d.name){ toast('أدخل اسم النظام'); return; }
+  d._step = Math.min(4, d._step+1); _progRenderWizard();
+}
+function _progWzBack(){ _progWzSaveDraft(); SESSION._progDraft._step = Math.max(1, SESSION._progDraft._step-1); _progRenderWizard(); }
+function _progWzClose(){ _progWzSaveDraft(); closeModal(); }
+async function _progWzSave(){
+  _progWzSaveDraft();
+  const d = SESSION._progDraft;
+  const rec = {
+    name:d.name, description:d.description||null, domain:d.domain, audience:d.audience,
+    age_range:d.age_range||null, pricing_model:d.pricing_model, structure_type:d.structure_type,
+    passing_score_pct:d.passing_score_pct||60, completion_rule:d.completion_rule||null,
+    requires_scientific_approval: d.requires_scientific_approval!==false,
+    requires_ops_setup: d.requires_ops_setup!==false,
+    template_key: d.template_key||null,
+    status:'draft', version:'1.0', created_by:ME.id,
+    icon: d.icon||null, cover_color: d.color||d.cover_color||null,
+  };
+  const {data:prog, error} = await sb.from('edu_programs').insert(rec).select().single();
+  if(error){ toast('تعذر الحفظ: '+error.message); return; }
+  // لو من قالب: انسخ المسارات/المحطات/الأنشطة
+  if(d.tracks?.length){
+    for(const [ti,t] of d.tracks.entries()){
+      const {data:tr} = await sb.from('edu_program_tracks').insert({program_id:prog.id, name:t.name, order_index:ti}).select().single();
+      if(tr && t.stations){
+        for(const [si,st] of t.stations.entries()){
+          const {data:stn} = await sb.from('edu_program_stations').insert({program_id:prog.id, track_id:tr.id, name:st.name, order_index:si}).select().single();
+          if(stn && st.activities){
+            const acts = st.activities.map((a,ai)=>({station_id:stn.id, kind:a.kind, title:a.title, points:a.points||1, order_index:ai}));
+            await sb.from('edu_program_activities').insert(acts);
+          }
+        }
+      }
+    }
+  }
+  try{ localStorage.removeItem(PROG_DRAFT_KEY); }catch{}
+  SESSION._progDraft = null;
+  closeModal(); toast('✅ أُنشئ النظام كمسودة'); _progOpen(prog.id);
+}
+
+// ═══ معرض القوالب ═══
+function _progTemplates(){
+  const cards = EDU_TEMPLATES.map(t => {
+    const dom = EDU_DOMAINS.find(x=>x[0]===t.domain) || EDU_DOMAINS[6];
+    const stCount = (t.tracks||[]).reduce((a,tr)=>a+(tr.stations?.length||0),0);
+    const actCount = (t.tracks||[]).reduce((a,tr)=>a+(tr.stations||[]).reduce((b,s)=>b+(s.activities?.length||0),0),0);
+    return `<div class="prog-card" style="border-top:3px solid ${t.color}">
+      <div class="prog-head">
+        <div class="prog-icon" style="background:${t.color}22;color:${t.color}">${t.icon}</div>
+        <div class="prog-body">
+          <b>${esc(t.name)}</b>
+          <div class="prog-meta">${esc(dom[1])} • ${ar((t.tracks||[]).length)} مسار • ${ar(stCount)} محطة • ${ar(actCount)} نشاط</div>
+          <p class="prog-desc">${esc(t.desc)}</p>
+        </div>
+      </div>
+      <div class="prog-foot">
+        <span class="chip" style="background:${t.color}22;color:${t.color}">قالب جاهز</span>
+        <button class="btn-sm" onclick="_progUseTemplate('${t.key}')">استخدم هذا القالب</button>
+      </div>
+    </div>`;
+  }).join('');
+  $('#modalHost').innerHTML = `<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:840px;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <h3 style="color:var(--navy-deep);margin:0">معرض القوالب الجاهزة</h3>
+      <button class="btn-sm ghost" onclick="closeModal()">×</button>
+    </div>
+    <p style="color:var(--muted);font-size:13px;margin:0 0 16px">اختر قالبًا للبدء منه — سيُنسخ كنظام جديد قابل للتعديل بالكامل. الأصل لا يتغير.</p>
+    <div class="prog-grid">${cards}</div>
+  </div></div>`;
+}
+function _progUseTemplate(key){
+  const t = EDU_TEMPLATES.find(x=>x.key===key); if(!t) return;
+  const draft = {name:t.name+' — نسختي', description:t.desc, domain:t.domain, audience:t.audience, structure_type:'tracks_stations',
+    passing_score_pct:60, requires_scientific_approval:true, requires_ops_setup: t.domain!=='general',
+    template_key:t.key, icon:t.icon, cover_color:t.color, tracks:t.tracks, _step:1};
+  closeModal(); _progNew(draft);
+}
+
+// ═══ تفاصيل النظام + إدارة الهيكل ═══
+async function _progOpen(id){
+  SESSION._progOpenId = id; SESSION._progTab = SESSION._progTab || 'overview';
+  navigate('programs_detail');
+}
+PAGES.admin_programs_detail = async function(){
+  const id = SESSION._progOpenId; if(!id){ navigate('programs'); return ''; }
+  const [pR, trR, stR, acR] = await Promise.all([
+    sb.from('edu_programs').select('*').eq('id',id).maybeSingle(),
+    sb.from('edu_program_tracks').select('*').eq('program_id',id).order('order_index'),
+    sb.from('edu_program_stations').select('*').eq('program_id',id).order('order_index'),
+    sb.from('edu_program_activities').select('*, edu_program_stations!inner(program_id)').eq('edu_program_stations.program_id',id).order('order_index'),
+  ]);
+  const p = pR.data; if(!p) return pageHead('نظام غير موجود','')+`<div class="card" style="text-align:center;padding:30px"><button class="btn ghost" onclick="navigate('programs')">← عودة للقائمة</button></div>`;
+  const trs = trR.data || [], sts = stR.data || [], acs = acR.data || [];
+  const dom = EDU_DOMAINS.find(x=>x[0]===p.domain) || EDU_DOMAINS[6];
+  const st = EDU_STATUS[p.status] || ['—','#666',''];
+  setTop(p.name, esc(dom[1])+' • '+esc(st[0]));
+  const tab = SESSION._progTab || 'overview';
+  const tabBtn = (k,l) => `<button class="grpchip ${tab===k?'on':''}" onclick="_progTab('${k}')">${esc(l)}</button>`;
+  const tabsBar = `<div class="grpfilters" style="margin:14px 0">
+    ${tabBtn('overview','نظرة عامة')}
+    ${tabBtn('structure','المسارات والمحطات')}
+    ${tabBtn('activities','الأنشطة')}
+    ${tabBtn('approval','الاعتماد والنشر')}
+    ${tabBtn('ops','التشغيل')}
+  </div>`;
+  let body = '';
+  if(tab==='overview'){
+    body = `<div class="exec-kpis">
+      <div class="exec-kpi"><div class="exec-kpi-label">الحالة</div><div class="exec-kpi-value" style="color:${st[1]}">${esc(st[0])}</div><div class="exec-kpi-sub">${esc(st[2])}</div></div>
+      <div class="exec-kpi"><div class="exec-kpi-label">المسارات</div><div class="exec-kpi-value">${ar(trs.length)}</div></div>
+      <div class="exec-kpi"><div class="exec-kpi-label">المحطات</div><div class="exec-kpi-value">${ar(sts.length)}</div></div>
+      <div class="exec-kpi"><div class="exec-kpi-label">الأنشطة</div><div class="exec-kpi-value">${ar(acs.length)}</div></div>
+    </div>
+    <div class="card" style="margin-top:14px;padding:18px">
+      <b style="color:var(--navy-deep)">الوصف</b>
+      <p style="margin:8px 0 0;font-size:14px;line-height:1.8">${esc(p.description||'لا وصف')}</p>
+      ${p.completion_rule?`<div style="margin-top:12px"><b>شرط الإتمام:</b> <span style="color:var(--muted)">${esc(p.completion_rule)}</span></div>`:''}
+    </div>`;
+  } else if(tab==='structure'){
+    body = `<div style="display:flex;justify-content:flex-end;margin-bottom:12px"><button class="btn" onclick="_progAddTrack('${p.id}')">+ إضافة مسار</button></div>`;
+    if(!trs.length) body += `<div class="card" style="text-align:center;padding:30px;color:var(--muted)">لا مسارات بعد. أضف مسارًا للبدء.</div>`;
+    body += trs.map(tr => {
+      const trSts = sts.filter(x=>x.track_id===tr.id);
+      return `<div class="card" style="margin-bottom:12px;padding:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <b style="color:var(--navy-deep)">${esc(tr.name)}</b>
+          <div style="display:flex;gap:6px">
+            <button class="btn-sm" onclick="_progAddStation('${p.id}','${tr.id}')">+ محطة</button>
+            <button class="btn-sm" style="background:#E74C3C" onclick="_progDelTrack('${tr.id}','${escJs(tr.name)}')">حذف المسار</button>
+          </div>
+        </div>
+        ${trSts.length?trSts.map((s,i)=>`<div class="prog-station"><span class="prog-stn-num">${ar(i+1)}</span><span style="flex:1">${esc(s.name)}</span><span style="font-size:11px;color:var(--muted)">${ar(acs.filter(a=>a.station_id===s.id).length)} نشاط</span><button class="btn-sm ghost" onclick="_progOpenStation('${s.id}')">إدارة</button><button class="btn-sm" style="background:#E74C3C" onclick="_progDelStation('${s.id}','${escJs(s.name)}')">×</button></div>`).join(''):'<div style="color:var(--muted);text-align:center;padding:12px;font-size:13px">لا محطات في هذا المسار</div>'}
+      </div>`;
+    }).join('');
+  } else if(tab==='activities'){
+    body = sts.length ? sts.map(s => {
+      const stAcs = acs.filter(a=>a.station_id===s.id);
+      return `<div class="card" style="margin-bottom:12px;padding:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><b style="color:var(--navy-deep)">${esc(s.name)}</b><button class="btn-sm" onclick="_progOpenStation('${s.id}')">+ نشاط</button></div>
+        ${stAcs.length?stAcs.map(a=>{const k=[...EDU_ACT_KINDS,...EDU_QURAN_KINDS].find(x=>x[0]===a.kind)||['?','?','◆'];return `<div class="prog-station"><span class="prog-stn-num" style="background:#f0f0f0">${k[2]}</span><span style="flex:1">${esc(a.title)}<div style="font-size:11px;color:var(--muted)">${esc(k[1])}${a.points?' • '+ar(a.points)+' نقطة':''}</div></span><button class="btn-sm" style="background:#E74C3C" onclick="_progDelAct('${a.id}','${escJs(a.title)}')">×</button></div>`;}).join(''):'<div style="color:var(--muted);text-align:center;padding:12px;font-size:13px">لا أنشطة في هذه المحطة</div>'}
+      </div>`;
+    }).join('') : '<div class="card" style="text-align:center;padding:30px;color:var(--muted)">أضف محطات أولاً من تبويب «المسارات والمحطات»</div>';
+  } else if(tab==='approval'){
+    const canApprove = ME.is_scientific_director || ME.role==='admin';
+    body = `<div class="card" style="padding:18px;border-inline-start:4px solid ${st[1]}">
+      <b style="color:var(--navy-deep)">الحالة الحالية: <span style="color:${st[1]}">${esc(st[0])}</span></b>
+      <p style="margin:6px 0 14px;font-size:13px;color:var(--muted)">${esc(st[2])}</p>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        ${p.status==='draft'?`<button class="btn" onclick="_progSubmitReview('${p.id}')">إرسال للمراجعة العلمية</button>`:''}
+        ${p.status==='in_review' && canApprove?`<button class="btn" onclick="_progApprove('${p.id}')">اعتماد علمي</button><button class="btn" style="background:#c9a227" onclick="_progNeedsEdit('${p.id}')">يحتاج تعديلات</button>`:''}
+        ${p.status==='scientifically_approved'?`<button class="btn" onclick="_progReadyOps('${p.id}')">تجهيز تشغيلي جاهز</button>`:''}
+        ${p.status==='ready'?`<button class="btn" onclick="_progPublish('${p.id}')">نشر النظام</button>`:''}
+        ${p.status==='published'?`<button class="btn" style="background:#c9a227" onclick="_progPause('${p.id}')">إيقاف مؤقت</button>`:''}
+        ${['published','paused','archived'].includes(p.status)?'':`<button class="btn ghost" onclick="_progArchive('${p.id}')">أرشفة</button>`}
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px;padding:14px;background:#f5f7fa;font-size:13px;line-height:1.8;color:var(--muted)">
+      <b style="color:var(--navy-deep)">مسار الحالات:</b><br>
+      مسودة → قيد المراجعة → معتمد علميًا → قيد التجهيز التشغيلي → جاهز → منشور
+      <br>الاعتماد العلمي يمر بـ<b>content_approvals</b> ويُنبَّه المدير العلمي تلقائيًا.
+    </div>`;
+  } else if(tab==='ops'){
+    body = `<div class="card" style="padding:18px">
+      <b style="color:var(--navy-deep)">الإعدادات التشغيلية</b>
+      <p style="margin:6px 0 12px;font-size:13px;color:var(--muted)">للمدير التنفيذي بعد الاعتماد العلمي</p>
+      ${p.status==='scientifically_approved' || p.status==='awaiting_ops' || p.status==='ready' || p.status==='published' ? `
+        <div class="field"><label>الرسوم الشهرية (اختياري)</label><input id="opFee" type="number" value="${p.ops_config?.fee||''}" placeholder="0"></div>
+        <div class="field"><label>العملة</label><select id="opCcy"><option value="EGP" ${(p.ops_config?.ccy||'EGP')==='EGP'?'selected':''}>EGP</option><option value="SAR" ${p.ops_config?.ccy==='SAR'?'selected':''}>SAR</option><option value="USD" ${p.ops_config?.ccy==='USD'?'selected':''}>USD</option></select></div>
+        <div class="field"><label>نموذج الحلقة</label><select id="opGroup"><option value="private" ${p.ops_config?.group_type==='private'?'selected':''}>خاصة</option><option value="public" ${(p.ops_config?.group_type||'public')==='public'?'selected':''}>عامة</option><option value="individual" ${p.ops_config?.group_type==='individual'?'selected':''}>فردية</option></select></div>
+        <div class="field"><label>السعة المقترحة</label><input id="opCap" type="number" value="${p.ops_config?.capacity||''}" placeholder="15"></div>
+        <div class="field"><label>عدد الحصص الأسبوعية</label><input id="opWeekly" type="number" value="${p.ops_config?.weekly_sessions||''}" placeholder="3"></div>
+        <div class="modal-actions"><button class="btn" onclick="_progSaveOps('${p.id}')">حفظ الإعدادات التشغيلية</button></div>
+      ` : `<div style="color:var(--muted);text-align:center;padding:20px">⚠️ يجب اعتماد النظام علميًا أولاً قبل الإعدادات التشغيلية.</div>`}
+    </div>`;
+  }
+  return `<div style="margin-bottom:10px"><button class="btn-sm ghost" onclick="navigate('programs')">← عودة للقائمة</button></div>` +
+    pageHead(p.name, esc(dom[1])) + tabsBar + body;
+};
+PAGES.executive_programs_detail = PAGES.admin_programs_detail;
+function _progTab(t){ SESSION._progTab = t; navigate('programs_detail'); }
+
+// إضافات هيكلية
+async function _progAddTrack(pid){
+  const name = prompt('اسم المسار:'); if(!name) return;
+  const {data:mx} = await sb.from('edu_program_tracks').select('order_index').eq('program_id',pid).order('order_index',{ascending:false}).limit(1);
+  const idx = (mx?.[0]?.order_index||0) + 1;
+  const {error} = await sb.from('edu_program_tracks').insert({program_id:pid, name, order_index:idx});
+  if(error){ toast('تعذر الإضافة: '+error.message); return; }
+  navigate('programs_detail');
+}
+async function _progAddStation(pid, trackId){
+  const name = prompt('اسم المحطة:'); if(!name) return;
+  const {data:mx} = await sb.from('edu_program_stations').select('order_index').eq('program_id',pid).order('order_index',{ascending:false}).limit(1);
+  const idx = (mx?.[0]?.order_index||0) + 1;
+  const {error} = await sb.from('edu_program_stations').insert({program_id:pid, track_id:trackId, name, order_index:idx});
+  if(error){ toast('تعذر الإضافة: '+error.message); return; }
+  navigate('programs_detail');
+}
+async function _progDelTrack(id, name){
+  if(!confirm('حذف المسار "'+name+'" وكل محطاته وأنشطته؟')) return;
+  const {error} = await sb.from('edu_program_tracks').delete().eq('id',id);
+  if(error){ toast('تعذر الحذف: '+error.message); return; }
+  toast('🗑️ حُذف'); navigate('programs_detail');
+}
+async function _progDelStation(id, name){
+  if(!confirm('حذف المحطة "'+name+'" وكل أنشطتها؟')) return;
+  const {error} = await sb.from('edu_program_stations').delete().eq('id',id);
+  if(error){ toast('تعذر الحذف: '+error.message); return; }
+  toast('🗑️ حُذف'); navigate('programs_detail');
+}
+async function _progDelAct(id, name){
+  if(!confirm('حذف النشاط "'+name+'"؟')) return;
+  const {error} = await sb.from('edu_program_activities').delete().eq('id',id);
+  if(error){ toast('تعذر الحذف: '+error.message); return; }
+  toast('🗑️ حُذف'); navigate('programs_detail');
+}
+async function _progOpenStation(stId){
+  const {data:st} = await sb.from('edu_program_stations').select('*').eq('id',stId).maybeSingle();
+  if(!st) return;
+  // نستخدم domain من البرنامج لعرض أنشطة القرآن أو لا
+  const {data:p} = await sb.from('edu_programs').select('domain').eq('id',st.program_id).maybeSingle();
+  const kinds = p?.domain==='quran' ? [...EDU_ACT_KINDS, ...EDU_QURAN_KINDS] : EDU_ACT_KINDS;
+  $('#modalHost').innerHTML = `<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:520px">
+    <h3 style="color:var(--navy-deep);margin:0 0 12px">إضافة نشاط — ${esc(st.name)}</h3>
+    <div class="field"><label>نوع النشاط</label><select id="actKind">${kinds.map(k=>`<option value="${k[0]}">${k[2]} ${k[1]}</option>`).join('')}</select></div>
+    <div class="field"><label>العنوان</label><input id="actTitle" placeholder="اسم النشاط"></div>
+    <div class="field"><label>وصف (اختياري)</label><textarea id="actDesc" rows="2"></textarea></div>
+    <div class="field"><label>النقاط</label><input id="actPts" type="number" value="1" min="0"></div>
+    <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إلغاء</button><button class="btn" onclick="_progSaveAct('${stId}')">حفظ</button></div>
+  </div></div>`;
+}
+async function _progSaveAct(stId){
+  const rec = {station_id:stId, kind:$('#actKind').value, title:$('#actTitle').value.trim(), description:$('#actDesc').value.trim()||null, points:+$('#actPts').value||1};
+  if(!rec.title){ toast('أكمل العنوان'); return; }
+  const {data:mx} = await sb.from('edu_program_activities').select('order_index').eq('station_id',stId).order('order_index',{ascending:false}).limit(1);
+  rec.order_index = (mx?.[0]?.order_index||0)+1;
+  const {error} = await sb.from('edu_program_activities').insert(rec);
+  if(error){ toast('تعذر الحفظ: '+error.message); return; }
+  closeModal(); navigate('programs_detail');
+}
+
+// دورة الحياة (الحالات)
+async function _progSubmitReview(id){
+  const {error} = await sb.from('edu_programs').update({status:'in_review', updated_at:new Date().toISOString()}).eq('id',id);
+  if(error){ toast('تعذر الإرسال: '+error.message); return; }
+  // أنشئ طلب اعتماد
+  const {data:p} = await sb.from('edu_programs').select('name,domain').eq('id',id).maybeSingle();
+  await sb.from('content_approvals').insert({kind:'program', target_type:'edu_program', target_id:id, title:'اعتماد نظام: '+(p?.name||''), summary:'مراجعة النظام المصمَّم', status:'in_review', requested_by:ME.id}).then(x=>x,()=>{});
+  toast('✅ أُرسل للمراجعة العلمية'); navigate('programs_detail');
+}
+async function _progApprove(id){
+  const {error} = await sb.from('edu_programs').update({status:'scientifically_approved', approved_by:ME.id, approved_at:new Date().toISOString(), updated_at:new Date().toISOString()}).eq('id',id);
+  if(error){ toast('تعذر: '+error.message); return; }
+  toast('✅ اعتُمد علميًا'); navigate('programs_detail');
+}
+async function _progNeedsEdit(id){
+  const {error} = await sb.from('edu_programs').update({status:'needs_edit', updated_at:new Date().toISOString()}).eq('id',id);
+  if(error){ toast('تعذر: '+error.message); return; }
+  toast('أُعيد للمنشئ'); navigate('programs_detail');
+}
+async function _progReadyOps(id){
+  const {error} = await sb.from('edu_programs').update({status:'ready', updated_at:new Date().toISOString()}).eq('id',id);
+  if(error){ toast('تعذر: '+error.message); return; }
+  toast('✅ جاهز للنشر'); navigate('programs_detail');
+}
+async function _progPublish(id){
+  const {error} = await sb.from('edu_programs').update({status:'published', published_at:new Date().toISOString(), updated_at:new Date().toISOString()}).eq('id',id);
+  if(error){ toast('تعذر: '+error.message); return; }
+  toast('✅ نُشر النظام'); navigate('programs_detail');
+}
+async function _progPause(id){ await sb.from('edu_programs').update({status:'paused',updated_at:new Date().toISOString()}).eq('id',id); toast('⏸️ أُوقف'); navigate('programs_detail'); }
+async function _progArchive(id){
+  if(!confirm('أرشفة النظام؟')) return;
+  await sb.from('edu_programs').update({status:'archived',archived_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('id',id);
+  toast('📦 أُرشف'); navigate('programs_detail');
+}
+async function _progClone(id){
+  const {data:p} = await sb.from('edu_programs').select('*').eq('id',id).maybeSingle();
+  if(!p) return;
+  const rec = {...p, id:undefined, name:p.name+' — نسخة', status:'draft', version:'1.0', parent_program_id:p.id, approved_by:null, approved_at:null, published_at:null, archived_at:null, created_by:ME.id, created_at:undefined, updated_at:undefined};
+  delete rec.id; delete rec.created_at; delete rec.updated_at;
+  const {data:np, error} = await sb.from('edu_programs').insert(rec).select().single();
+  if(error){ toast('تعذر النسخ: '+error.message); return; }
+  // ننسخ الهيكل
+  const {data:trs} = await sb.from('edu_program_tracks').select('*').eq('program_id',id);
+  const trMap = {};
+  for(const t of (trs||[])){
+    const {data:nt} = await sb.from('edu_program_tracks').insert({program_id:np.id, name:t.name, description:t.description, order_index:t.order_index}).select().single();
+    if(nt) trMap[t.id] = nt.id;
+  }
+  const {data:sts} = await sb.from('edu_program_stations').select('*').eq('program_id',id);
+  const stMap = {};
+  for(const s of (sts||[])){
+    const {data:ns} = await sb.from('edu_program_stations').insert({program_id:np.id, track_id:trMap[s.track_id], name:s.name, description:s.description, order_index:s.order_index, mastery_threshold_pct:s.mastery_threshold_pct}).select().single();
+    if(ns) stMap[s.id] = ns.id;
+  }
+  const {data:acs} = await sb.from('edu_program_activities').select('*, edu_program_stations!inner(program_id)').eq('edu_program_stations.program_id',id);
+  const actInserts = (acs||[]).map(a => ({station_id:stMap[a.station_id], kind:a.kind, title:a.title, description:a.description, points:a.points, order_index:a.order_index})).filter(a=>a.station_id);
+  if(actInserts.length) await sb.from('edu_program_activities').insert(actInserts);
+  toast('✅ نُسخ النظام'); _progOpen(np.id);
+}
+async function _progSaveOps(id){
+  const ops = {
+    fee: +$('#opFee').value || null,
+    ccy: $('#opCcy').value,
+    group_type: $('#opGroup').value,
+    capacity: +$('#opCap').value || null,
+    weekly_sessions: +$('#opWeekly').value || null,
+  };
+  const {error} = await sb.from('edu_programs').update({ops_config:ops, updated_at:new Date().toISOString()}).eq('id',id);
+  if(error){ toast('تعذر الحفظ: '+error.message); return; }
+  toast('✅ حُفظت الإعدادات التشغيلية'); navigate('programs_detail');
+}
+
 // صفحات القسم العلمي: التنفيذي يقرأ ويصوّت — القرار النهائي للمدير العلمي
 PAGES.executive_approvals     = function(){ return PAGES.admin_approvals(); };
 PAGES.executive_tests         = function(){ return PAGES.admin_tests(); };
@@ -12961,9 +13623,12 @@ function qSystemsHero(){
       <h1>🕋 إدارة الأنظمة التعليمية</h1>
       <p>اختر نظاماً (رسوخ أو المرن) لتشوف مساراته الستة، وكل مسار له محطاته المتتالية وحصونه الخاصة.</p>
       <div class="qhcta">
-        <button onclick="qNewSystem()">${mi('plus')} نظام جديد</button>
-        <button class="ghost" onclick="qSeedFortresses()">${mi('books')} معرفة الحصون الافتراضية</button>
+        <button onclick="navigate('programs')">${mi('plus')} نظام جديد (محرك عام)</button>
+        <button class="ghost" onclick="_progTemplates()">${mi('books')} معرض القوالب الجاهزة</button>
       </div>
+      <p style="margin:12px 0 0;font-size:12px;color:rgba(255,255,255,0.75);line-height:1.7">
+        💡 تم نقل «نظام جديد» و«معرض القوالب» إلى محرك أنظمة عام يدعم أي مجال (قرآن، تجويد، تربية، لغة، دورة شرعية، تأهيل معلمين…). الأنظمة القرآنية القائمة تظهر أسفل للإطلاع والتعديل السريع.
+      </p>
     </div>`;
 }
 function qOpenSystemGroup(planType){ try{ QSTATE.listFilter=planType; navigate('qsystems'); }catch(e){ alert('خطأ: '+e.message); console.error(e); } }
