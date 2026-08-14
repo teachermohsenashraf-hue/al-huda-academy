@@ -11270,12 +11270,18 @@ PAGES.executive_dash = async function(){
     if(g?.teacher_id) studsPerTeacher[g.teacher_id] = (studsPerTeacher[g.teacher_id] || 0) + 1;
   });
   const overload = teachers.filter(t => t.max_students && studsPerTeacher[t.id] > t.max_students);
-  const availableCapacity = teachers.reduce((sum, t) => {
-    if(t.is_available === false) return sum;
-    const cur = studsPerTeacher[t.id] || 0;
-    const max = t.max_students || 15;
-    return sum + Math.max(0, max - cur);
-  }, 0);
+  // طاقة الاستيعاب المتاحة — نحسب مقاعد حقيقية فقط من المعلمين اللي حدّدوا
+  // max_students صراحة. من دون سقف = لا نخترع رقمًا (كان قبل كده fallback 15
+  // بيولّد أرقامًا وهمية زي «٦٠ مقعد شاغر» بينما مفيش سقف مسجَّل أصلاً).
+  const teachersWithCap    = teachers.filter(t => t.is_available !== false && typeof t.max_students === 'number' && t.max_students > 0);
+  const teachersWithoutCap = teachers.filter(t => t.is_available !== false && (!t.max_students || t.max_students <= 0));
+  const realCapacitySeats  = teachersWithCap.reduce((sum,t) => sum + Math.max(0, t.max_students - (studsPerTeacher[t.id]||0)), 0);
+  const capacityKpiValue   = teachersWithCap.length
+    ? ar(realCapacitySeats) + (teachersWithoutCap.length ? ' + ' + ar(teachersWithoutCap.length) : '')
+    : (teachersWithoutCap.length ? ar(teachersWithoutCap.length) + ' معلم' : '—');
+  const capacityKpiSub     = teachersWithCap.length
+    ? 'مقعد شاغر' + (teachersWithoutCap.length ? ' • '+ar(teachersWithoutCap.length)+' بلا سقف' : '')
+    : 'لم يحدَّد سقف لأي معلم بعد';
 
   // ─── حالة التشغيل ───
   const opsIssues = pendingPays.length + finishedUnrated.length + expired.length + overload.length;
@@ -11390,7 +11396,7 @@ PAGES.executive_dash = async function(){
     ${kpi('محصَّل آخر ٣٠ يوم', ccyLabel(paidByCcy30), 'إجمالي محفوظ: '+ccyLabel(paidByCcy), "navigate('finance_ops')")}
     ${kpi('دفعات معلقة', ar(pendingPays.length), pendingPays.length?'يحتاج تأكيد':'—', "navigate('confirm')")}
     ${kpi('اشتراكات قريبة الانتهاء', ar(expiringSoon.length), '≤ ٧ أيام', "navigate('finance_ops')")}
-    ${kpi('طاقة الاستيعاب المتاحة', ar(availableCapacity), 'مقاعد معلمين شاغرة', "navigate('teachers')")}
+    ${kpi('طاقة الاستيعاب المتاحة', capacityKpiValue, capacityKpiSub, "navigate('teachers')")}
   </div>`;
 
   // ─── قائمة العمل ───
@@ -11585,6 +11591,22 @@ async function _execSuggest(studentId){
   // اقتراح ذكي: يفتح نافذة تعرض أفضل ٣ معلمين مطابقين للمسار/السن/الطاقة
   const { data:st } = await sb.from('students').select('*').eq('id',studentId).maybeSingle();
   if(!st){ toast('تعذر جلب الطالب'); return; }
+  // لو جنس الطالب غير مسجَّل في القاعدة (شائع في التسجيلات القديمة قبل حقل الجنس)
+  // نفتح مودال صغير يطلب من المدير تحديد الجنس هنا — نحفظه في القاعدة، ثم نعيد
+  // فتح شاشة الاقتراح تلقائيًا. أفضل من رفض الطلب وتركه في مأزق.
+  if(!st.gender){
+    $('#modalHost').innerHTML = `<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:420px;text-align:center">
+      <div style="font-size:32px;margin-bottom:8px">${mi('users')||'👤'}</div>
+      <h3 style="color:var(--navy-deep);margin:0 0 6px">${esc(st.full_name)}</h3>
+      <p style="color:var(--muted);font-size:13.5px;margin:0 0 16px;line-height:1.7">جنس الطالب غير مسجَّل في السجلات. اختر الآن ليُحفظ ونضمن مطابقة صحيحة مع معلم من نفس الجنس (لن نقترح مخالفًا للأعراف).</p>
+      <div style="display:flex;gap:10px;justify-content:center">
+        <button class="btn" onclick="_execSetGender(${st.id},'male')">ذكر</button>
+        <button class="btn" style="background:linear-gradient(135deg,#c9a227,#e8c14d)" onclick="_execSetGender(${st.id},'female')">أنثى</button>
+      </div>
+      <div class="modal-actions" style="margin-top:14px;justify-content:center"><button class="btn ghost" onclick="closeModal()">لاحقًا</button></div>
+    </div></div>`;
+    return;
+  }
   const [{data:tchs},{data:grps}] = await Promise.all([
     sb.from('profiles').select('id,full_name,is_available,max_students,age_range,weekly_slots,paths,gender').eq('role','teacher').limit(200),
     // ملاحظة: groups لا يحوي عمود capacity في السكيما الحالية — استخدم max_students
@@ -11635,6 +11657,15 @@ async function _execSuggest(studentId){
       </div>`).join('')}</div>
     <div class="modal-actions" style="margin-top:14px"><button class="btn ghost" onclick="closeModal()">إلغاء</button></div>
   </div></div>`;
+}
+async function _execSetGender(studentId, gender){
+  // حفظ الجنس في القاعدة ثم إعادة فتح مودال الاقتراح تلقائيًا
+  const {error}=await sb.from('students').update({gender}).eq('id',studentId);
+  if(error){ toast('تعذر الحفظ: '+error.message); return; }
+  toast('✅ سُجّل جنس الطالب — الآن نبحث عن معلم مناسب');
+  closeModal();
+  // ريتشة صغيرة عشان يشوف رسالة التوست قبل ما المودال يتفتح تاني
+  setTimeout(()=>_execSuggest(studentId), 350);
 }
 async function _execAssignPick(studentId, teacherId, teacherName){
   // نضع chosen_teacher_id — قرار التثبيت في حلقة بعينها يبقى على المشرف
