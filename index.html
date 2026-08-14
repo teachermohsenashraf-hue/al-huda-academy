@@ -11921,7 +11921,24 @@ PAGES.admin_programs_detail = async function(){
       const stAcs = acs.filter(a=>a.station_id===s.id);
       return `<div class="card" style="margin-bottom:12px;padding:14px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><b style="color:var(--navy-deep)">${esc(s.name)}</b><button class="btn-sm" onclick="_progOpenStation('${s.id}')">+ نشاط</button></div>
-        ${stAcs.length?stAcs.map(a=>{const k=[...EDU_ACT_KINDS,...EDU_QURAN_KINDS].find(x=>x[0]===a.kind)||['?','?','◆'];return `<div class="prog-station"><span class="prog-stn-num" style="background:#f0f0f0">${k[2]}</span><span style="flex:1">${esc(a.title)}<div style="font-size:11px;color:var(--muted)">${esc(k[1])}${a.points?' • '+ar(a.points)+' نقطة':''}</div></span><button class="btn-sm" style="background:#E74C3C" onclick="_progDelAct('${a.id}','${escJs(a.title)}')">×</button></div>`;}).join(''):'<div style="color:var(--muted);text-align:center;padding:12px;font-size:13px">لا أنشطة في هذه المحطة</div>'}
+        ${stAcs.length?stAcs.map(a=>{
+          const k=[...EDU_ACT_KINDS,...EDU_QURAN_KINDS].find(x=>x[0]===a.kind)||['?','?','◆'];
+          // عرض المحتوى المرفق: رابط أو مقطع نص أو مرجع قرآني
+          let contentPreview = '';
+          if(a.content_url) contentPreview = `<a href="${esc(a.content_url)}" target="_blank" rel="noopener" style="color:var(--emerald,#2E7D5B);font-size:11px;text-decoration:underline">🔗 المحتوى</a>`;
+          else if(a.quran_ref){const q=a.quran_ref;contentPreview=`<span style="font-size:11px;color:#8A6C00">📖 ${ar(q.surah_from||0)}:${ar(q.ayah_from||0)}${q.surah_to&&(q.surah_to!==q.surah_from||q.ayah_to!==q.ayah_from)?' — '+ar(q.surah_to)+':'+ar(q.ayah_to):''}</span>`;}
+          else if(a.content_text) contentPreview = `<span style="font-size:11px;color:var(--muted)">${esc(a.content_text.slice(0,60))}${a.content_text.length>60?'…':''}</span>`;
+          return `<div class="prog-station">
+            <span class="prog-stn-num" style="background:#f0f0f0">${k[2]}</span>
+            <span style="flex:1;min-width:0">
+              <b style="font-size:13px">${esc(a.title)}</b>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px">${esc(k[1])}${a.points?' • '+ar(a.points)+' نقطة':''}${a.is_required===false?' • اختياري':''}</div>
+              ${contentPreview?`<div style="margin-top:3px">${contentPreview}</div>`:''}
+            </span>
+            <button class="btn-sm ghost" onclick="_progOpenStation('${s.id}','${a.id}')" title="تعديل">${mi('pencil')||'✏️'}</button>
+            <button class="btn-sm" style="background:#E74C3C" onclick="_progDelAct('${a.id}','${escJs(a.title)}')">×</button>
+          </div>`;
+        }).join(''):'<div style="color:var(--muted);text-align:center;padding:12px;font-size:13px">لا أنشطة في هذه المحطة</div>'}
       </div>`;
     }).join('') : '<div class="card" style="text-align:center;padding:30px;color:var(--muted)">أضف محطات أولاً من تبويب «المسارات والمحطات»</div>';
   } else if(tab==='approval'){
@@ -12118,29 +12135,161 @@ async function _progDelAct(id, name){
   if(error){ toast('تعذر الحذف: '+error.message); return; }
   toast('🗑️ حُذف'); navigate('programs_detail');
 }
-async function _progOpenStation(stId){
+// ═══ نموذج النشاط الكامل — إضافة أو تعديل بحقول محتوى مناسبة لكل نوع ═══
+// الأنواع اللي بتحتاج URL محتوى (فيديو/PDF/صوت/رابط)
+const _ACT_URL_KINDS = new Set(['video','pdf','audio','link']);
+// الأنواع النصية (درس/تأمل)
+const _ACT_TEXT_KINDS = new Set(['lesson','reflection','custom']);
+// الأنواع القرآنية (تحتاج مرجع سورة/آية)
+const _ACT_QURAN_KINDS = new Set(['quran_memorize','quran_review','quran_recite','quran_listen','quran_tajweed_eval']);
+
+async function _progOpenStation(stId, editActId){
   const {data:st} = await sb.from('edu_program_stations').select('*').eq('id',stId).maybeSingle();
   if(!st) return;
-  // نستخدم domain من البرنامج لعرض أنشطة القرآن أو لا
   const {data:p} = await sb.from('edu_programs').select('domain').eq('id',st.program_id).maybeSingle();
   const kinds = p?.domain==='quran' ? [...EDU_ACT_KINDS, ...EDU_QURAN_KINDS] : EDU_ACT_KINDS;
-  $('#modalHost').innerHTML = `<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:520px">
-    <h3 style="color:var(--navy-deep);margin:0 0 12px">إضافة نشاط — ${esc(st.name)}</h3>
-    <div class="field"><label>نوع النشاط</label><select id="actKind">${kinds.map(k=>`<option value="${k[0]}">${k[2]} ${k[1]}</option>`).join('')}</select></div>
-    <div class="field"><label>العنوان</label><input id="actTitle" placeholder="اسم النشاط"></div>
-    <div class="field"><label>وصف (اختياري)</label><textarea id="actDesc" rows="2"></textarea></div>
-    <div class="field"><label>النقاط</label><input id="actPts" type="number" value="1" min="0"></div>
-    <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إلغاء</button><button class="btn" onclick="_progSaveAct('${stId}')">حفظ</button></div>
+  // لو تعديل، حمّل النشاط الحالي
+  let a = {kind:'lesson', title:'', description:'', content_url:'', content_text:'', points:1, is_required:true, quran_ref:null};
+  if(editActId){
+    const {data:existing} = await sb.from('edu_program_activities').select('*').eq('id',editActId).maybeSingle();
+    if(existing) a = existing;
+  }
+  const isEdit = !!editActId;
+  $('#modalHost').innerHTML = `<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:600px;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <h3 style="color:var(--navy-deep);margin:0">${isEdit?'تعديل نشاط':'إضافة نشاط'} — ${esc(st.name)}</h3>
+      <button class="btn-sm ghost" onclick="closeModal()">×</button>
+    </div>
+    <div class="field"><label>نوع النشاط</label>
+      <select id="actKind" onchange="_actRenderContent(this.value)">${kinds.map(k=>`<option value="${k[0]}" ${a.kind===k[0]?'selected':''}>${k[2]} ${k[1]}</option>`).join('')}</select>
+    </div>
+    <div class="field"><label>العنوان</label><input id="actTitle" value="${esc(a.title||'')}" placeholder="اسم النشاط"></div>
+    <div class="field"><label>وصف (اختياري)</label><textarea id="actDesc" rows="2" placeholder="شرح مختصر للطالب">${esc(a.description||'')}</textarea></div>
+    <div id="actContentSlot"></div>
+    <div class="field" style="display:flex;gap:12px">
+      <div style="flex:1"><label>النقاط</label><input id="actPts" type="number" value="${a.points||1}" min="0"></div>
+      <label style="flex:1;display:flex;align-items:center;gap:8px;cursor:pointer;padding-top:24px"><input type="checkbox" id="actReq" ${a.is_required!==false?'checked':''}> نشاط إلزامي</label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeModal()">إلغاء</button>
+      <button class="btn" onclick="_progSaveAct('${stId}'${isEdit?",'"+editActId+"'":''})">${isEdit?'حفظ التعديلات':'إضافة النشاط'}</button>
+    </div>
   </div></div>`;
+  // حالة أوّلية للحقول الديناميكية
+  SESSION._actDraft = {content_url:a.content_url||'', content_text:a.content_text||'', quran_ref:a.quran_ref||null};
+  _actRenderContent(a.kind || 'lesson');
 }
-async function _progSaveAct(stId){
-  const rec = {station_id:stId, kind:$('#actKind').value, title:$('#actTitle').value.trim(), description:$('#actDesc').value.trim()||null, points:+$('#actPts').value||1};
+
+// حقول المحتوى الديناميكية حسب نوع النشاط — تُحقن في #actContentSlot
+function _actRenderContent(kind){
+  const s = SESSION._actDraft || {};
+  const slot = document.getElementById('actContentSlot'); if(!slot) return;
+  if(_ACT_URL_KINDS.has(kind)){
+    const label = kind==='video'?'رابط الفيديو (YouTube/Vimeo/رابط مباشر)'
+              : kind==='pdf'?'رابط PDF (Google Drive/Dropbox/مباشر) أو ارفع ملفًا'
+              : kind==='audio'?'رابط الصوت (SoundCloud/رابط مباشر) أو ارفع ملفًا'
+              : 'الرابط الخارجي';
+    const canUpload = kind==='pdf' || kind==='audio';
+    slot.innerHTML = `<div class="field"><label>${label}</label>
+      <input id="actUrl" value="${esc(s.content_url||'')}" placeholder="https://…" style="width:100%">
+      ${canUpload?`<div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input type="file" id="actFile" accept="${kind==='pdf'?'.pdf,application/pdf':'audio/*'}" style="flex:1;font-size:12px">
+        <button type="button" class="btn-sm ghost" onclick="_actUpload('${kind}')">رفع الملف</button>
+        <span id="actUpStatus" style="font-size:11px;color:var(--muted)"></span>
+      </div>`:''}
+      <p style="margin:6px 0 0;font-size:11px;color:var(--muted)">💡 لصق رابط جاهز أسرع؛ الرفع يخزّن الملف على السحابة ويضع الرابط تلقائيًا.</p>
+    </div>`;
+  } else if(_ACT_TEXT_KINDS.has(kind)){
+    slot.innerHTML = `<div class="field"><label>محتوى الدرس (نص)</label>
+      <textarea id="actText" rows="6" placeholder="اكتب نص الدرس هنا. يدعم أسطرًا متعددة." style="width:100%;font-family:inherit;line-height:1.8">${esc(s.content_text||'')}</textarea>
+    </div>`;
+  } else if(_ACT_QURAN_KINDS.has(kind)){
+    const q = s.quran_ref || {};
+    slot.innerHTML = `<div class="field"><label>مرجع قرآني</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <input id="qrSurahFrom" type="number" min="1" max="114" value="${q.surah_from||''}" placeholder="من سورة (رقم)">
+        <input id="qrAyahFrom" type="number" min="1" value="${q.ayah_from||''}" placeholder="من آية">
+        <input id="qrSurahTo" type="number" min="1" max="114" value="${q.surah_to||''}" placeholder="إلى سورة (رقم)">
+        <input id="qrAyahTo" type="number" min="1" value="${q.ayah_to||''}" placeholder="إلى آية">
+      </div>
+      <p style="margin:6px 0 0;font-size:11px;color:var(--muted)">💡 اترك «إلى» فارغة لو المرجع آية واحدة. مثال: من ٢:١ إلى ٢:٥ = البقرة ١-٥.</p>
+    </div>
+    <div class="field"><label>ملاحظة إضافية (اختياري)</label>
+      <input id="actText" value="${esc(s.content_text||'')}" placeholder="تعليق تربوي أو توجيه للتسميع">
+    </div>`;
+  } else {
+    // assignment / test / oral_eval / live_session / reading — رابط اختياري
+    slot.innerHTML = `<div class="field"><label>رابط مرفق (اختياري — نموذج/مستند/جلسة)</label>
+      <input id="actUrl" value="${esc(s.content_url||'')}" placeholder="https://…">
+    </div>
+    <div class="field"><label>تعليمات إضافية (اختياري)</label>
+      <textarea id="actText" rows="3" placeholder="ما يجب على الطالب فعله" style="width:100%">${esc(s.content_text||'')}</textarea>
+    </div>`;
+  }
+}
+
+// رفع ملف إلى Supabase Storage (bucket: program_content)
+async function _actUpload(kind){
+  const fi = document.getElementById('actFile');
+  const stat = document.getElementById('actUpStatus');
+  if(!fi?.files?.length){ toast('اختر ملفًا أولاً'); return; }
+  const f = fi.files[0];
+  if(f.size > 50*1024*1024){ toast('الحد الأقصى 50MB'); return; }
+  stat.textContent = 'جاري الرفع…';
+  const ext = f.name.split('.').pop().toLowerCase();
+  const fname = 'act/'+ME.id.slice(0,8)+'/'+Date.now()+'.'+ext;
+  const {error} = await sb.storage.from('program_content').upload(fname, f, {contentType:f.type||'application/octet-stream', upsert:false});
+  if(error){ stat.textContent = ''; toast('تعذر الرفع: '+error.message); return; }
+  const {data:pub} = sb.storage.from('program_content').getPublicUrl(fname);
+  document.getElementById('actUrl').value = pub.publicUrl;
+  stat.innerHTML = '<span style="color:var(--emerald,#2E7D5B)">✅ تم الرفع</span>';
+  toast('✅ رُفع الملف — الرابط أُدرج في الحقل');
+}
+
+async function _progSaveAct(stId, editId){
+  const kind = $('#actKind').value;
+  const rec = {
+    station_id: stId,
+    kind,
+    title: $('#actTitle').value.trim(),
+    description: $('#actDesc').value.trim() || null,
+    points: +$('#actPts').value || 1,
+    is_required: $('#actReq')?.checked !== false,
+  };
   if(!rec.title){ toast('أكمل العنوان'); return; }
-  const {data:mx} = await sb.from('edu_program_activities').select('order_index').eq('station_id',stId).order('order_index',{ascending:false}).limit(1);
-  rec.order_index = (mx?.[0]?.order_index||0)+1;
-  const {error} = await sb.from('edu_program_activities').insert(rec);
+  // اجمع الحقول الديناميكية
+  if(_ACT_URL_KINDS.has(kind)){
+    rec.content_url = $('#actUrl')?.value.trim() || null;
+    rec.content_text = null;
+    rec.quran_ref = null;
+  } else if(_ACT_TEXT_KINDS.has(kind)){
+    rec.content_text = $('#actText')?.value.trim() || null;
+    rec.content_url = null;
+    rec.quran_ref = null;
+  } else if(_ACT_QURAN_KINDS.has(kind)){
+    const sf = +$('#qrSurahFrom')?.value || null;
+    const af = +$('#qrAyahFrom')?.value || null;
+    const stq = +$('#qrSurahTo')?.value || null;
+    const at = +$('#qrAyahTo')?.value || null;
+    if(!sf || !af){ toast('حدد على الأقل «من سورة» و«من آية»'); return; }
+    rec.quran_ref = {surah_from:sf, ayah_from:af, surah_to:stq||sf, ayah_to:at||af};
+    rec.content_text = $('#actText')?.value.trim() || null;
+    rec.content_url = null;
+  } else {
+    rec.content_url = $('#actUrl')?.value.trim() || null;
+    rec.content_text = $('#actText')?.value.trim() || null;
+    rec.quran_ref = null;
+  }
+  let error;
+  if(editId){
+    ({error} = await sb.from('edu_program_activities').update(rec).eq('id', editId));
+  } else {
+    const {data:mx} = await sb.from('edu_program_activities').select('order_index').eq('station_id',stId).order('order_index',{ascending:false}).limit(1);
+    rec.order_index = (mx?.[0]?.order_index||0)+1;
+    ({error} = await sb.from('edu_program_activities').insert(rec));
+  }
   if(error){ toast('تعذر الحفظ: '+error.message); return; }
-  closeModal(); navigate('programs_detail');
+  closeModal(); toast(editId?'✅ حُدّث النشاط':'✅ أُضيف النشاط'); navigate('programs_detail');
 }
 
 // دورة الحياة (الحالات)
