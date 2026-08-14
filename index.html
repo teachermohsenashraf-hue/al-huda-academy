@@ -11368,8 +11368,8 @@ PAGES.executive_dash = async function(){
   </div>`;
 
   // ─── مؤشرات مختصرة (٦ فقط) ───
-  const paidByCcy = {}; pays.filter(p=>p.status==='paid'||p.status==='confirmed').forEach(p => { const cc = p.currency_code || 'EGP'; paidByCcy[cc] = (paidByCcy[cc]||0) + (+p.amount||0); });
-  const paidByCcy30 = {}; pays.filter(p=>(p.status==='paid'||p.status==='confirmed') && p.paid_at && p.paid_at >= iso30ago).forEach(p => { const cc = p.currency_code || 'EGP'; paidByCcy30[cc] = (paidByCcy30[cc]||0) + (+p.amount||0); });
+  const paidByCcy = {}; pays.filter(p=>p.status==='paid').forEach(p => { const cc = p.currency_code || 'EGP'; paidByCcy[cc] = (paidByCcy[cc]||0) + (+p.amount||0); });
+  const paidByCcy30 = {}; pays.filter(p=>(p.status==='paid') && p.paid_at && p.paid_at >= iso30ago).forEach(p => { const cc = p.currency_code || 'EGP'; paidByCcy30[cc] = (paidByCcy30[cc]||0) + (+p.amount||0); });
   const ccyLabel = (obj) => Object.keys(obj).length ? Object.entries(obj).map(([c,v]) => ar(Math.round(v))+' '+c).join(' · ') : '—';
   const newStuds30 = activeStuds.filter(s => s.created_at && s.created_at >= iso30ago).length;
   const kpi = (label, value, sub, click) => `<div class="exec-kpi" ${click?`onclick="${click}"`:''} style="${click?'cursor:pointer':''}">
@@ -11427,7 +11427,7 @@ PAGES.executive_dash = async function(){
   const iso7ago = new Date(Date.now()-7*86400000).toISOString();
   const newThisWeek = activeStuds.filter(s => s.created_at && s.created_at >= iso7ago).length;
   const assignedThisWeek = activeStuds.filter(s => s.created_at && s.created_at >= iso7ago && s.group_id).length;
-  const weekPaysConfirmed = pays.filter(p => (p.status==='paid'||p.status==='confirmed') && p.paid_at && p.paid_at >= iso7ago).length;
+  const weekPaysConfirmed = pays.filter(p => (p.status==='paid') && p.paid_at && p.paid_at >= iso7ago).length;
   const weekPaysPending = pays.filter(p => p.status==='pending' && p.created_at >= iso7ago).length;
   const weekHtml = `<div class="card exec-week">
     <div class="ch"><h3>${mi('calendar')||''} النظرة الأسبوعية</h3><span class="tagline-sm">آخر ٧ أيام + الأسبوع القادم</span></div>
@@ -11461,8 +11461,8 @@ async function _execAssign(studentId, studentName){
 PAGES.executive_journey = async function(){
   setTop('رحلة الطالب','من الدفع إلى التوزيع إلى أول حصة');
   const [studsR, groupsR, teachersR, sesR, paysR] = await Promise.all([
-    sb.from('students').select('id,full_name,group_id,chosen_teacher_id,enrollment_status,quran_path,age,created_at,activated_at,parent_id,login_id,sub_start,sub_end').eq('enrollment_status','active').order('created_at',{ascending:false}).limit(500),
-    sb.from('groups').select('id,name,teacher_id,is_private,capacity,meet_time').limit(500),
+    sb.from('students').select('id,full_name,group_id,chosen_teacher_id,enrollment_status,quran_path,age,created_at,parent_id,login_id,sub_start,sub_end').eq('enrollment_status','active').order('created_at',{ascending:false}).limit(500),
+    sb.from('groups').select('id,name,teacher_id,is_private,meet_time').limit(500),
     sb.from('profiles').select('id,full_name,is_available,max_students,age_range,weekly_slots').eq('role','teacher').limit(200),
     sb.from('sessions').select('id,group_id,session_date,status').neq('status','cancelled').limit(2000),
     sb.from('payments').select('student_id,status,paid_at,created_at').limit(2000),
@@ -11480,7 +11480,7 @@ PAGES.executive_journey = async function(){
   // آخر حصة لكل مجموعة
   const lastSesByGroup = {}; sessions.forEach(s => { const cur = lastSesByGroup[s.group_id]; if(!cur || s.session_date > cur) lastSesByGroup[s.group_id] = s.session_date; });
   // أول دفعة مؤكدة لكل طالب
-  const firstPayByStud = {}; pays.filter(p => p.status==='paid'||p.status==='confirmed').forEach(p => {
+  const firstPayByStud = {}; pays.filter(p => p.status==='paid').forEach(p => {
     const d = p.paid_at || p.created_at; if(!d) return;
     const cur = firstPayByStud[p.student_id]; if(!cur || d < cur) firstPayByStud[p.student_id] = d;
   });
@@ -11494,7 +11494,7 @@ PAGES.executive_journey = async function(){
     const g = inGroup ? groupById[s.group_id] : null;
     const t = g?.teacher_id ? teacherById[g.teacher_id] : null;
     const lastSes = inGroup ? lastSesByGroup[s.group_id] : null;
-    const daysActivated = daysSince(s.activated_at || firstPayByStud[s.id] || s.created_at);
+    const daysActivated = daysSince(firstPayByStud[s.id] || s.sub_start || s.created_at);
     const item = { s, g, t, lastSes, daysActivated };
     if(!inGroup && !s.chosen_teacher_id) stages.paid.push(item);
     else if(!inGroup && s.chosen_teacher_id) stages.chose.push(item);
@@ -11505,10 +11505,12 @@ PAGES.executive_journey = async function(){
 
   // ─── متوسط زمن التوزيع (من الدفع لأول حلقة) ───
   // (تقريبي — activated_at تقريبًا هو وقت التوزيع، وفارقه مع firstPay يعطي الفترة)
+  // متوسط تقريبي: من أول دفعة مؤكدة إلى إنشاء الطالب (proxy لتاريخ التفعيل)
   let assignSum = 0, assignN = 0;
-  studs.filter(s => s.group_id && s.activated_at).forEach(s => {
+  studs.filter(s => s.group_id).forEach(s => {
     const paid = firstPayByStud[s.id]; if(!paid) return;
-    const days = Math.floor((new Date(s.activated_at) - new Date(paid)) / 86400000);
+    const anchor = s.sub_start || s.created_at; if(!anchor) return;
+    const days = Math.floor((new Date(anchor) - new Date(paid)) / 86400000);
     if(days >= 0 && days < 60){ assignSum += days; assignN++; }
   });
   const avgAssign = assignN ? Math.round(assignSum / assignN) : null;
@@ -11628,7 +11630,7 @@ PAGES.executive_finance_ops = async function(){
   const iso30ago = new Date(Date.now()-30*86400000).toISOString();
   const iso7ago = new Date(Date.now()-7*86400000).toISOString();
   const [paysR, studsR] = await Promise.all([
-    sb.from('payments').select('id,amount,status,currency_code,student_id,created_at,paid_at,method,note').order('created_at',{ascending:false}).limit(3000),
+    sb.from('payments').select('id,amount,status,currency_code,student_id,created_at,paid_at,payment_method,note').order('created_at',{ascending:false}).limit(3000),
     sb.from('students').select('id,full_name,sub_end,enrollment_status,login_id').limit(2000),
   ]);
   const pays = paysR.data || [];
@@ -11637,7 +11639,7 @@ PAGES.executive_finance_ops = async function(){
   const active = studs.filter(s => s.enrollment_status === 'active');
 
   // ─── حسابات ───
-  const paid = pays.filter(p => p.status==='paid' || p.status==='confirmed');
+  const paid = pays.filter(p => p.status==='paid');
   const paid30 = paid.filter(p => (p.paid_at||p.created_at) >= iso30ago);
   const paid7  = paid.filter(p => (p.paid_at||p.created_at) >= iso7ago);
   const pending = pays.filter(p => p.status === 'pending');
@@ -11696,7 +11698,7 @@ PAGES.executive_finance_ops = async function(){
       return `<div class="exec-jrow">
         <div class="exec-jrow-body">
           <div class="exec-jrow-name">${esc(s?.full_name||'دفعة غير مرتبطة')}</div>
-          <div class="exec-jrow-meta">${ar(+p.amount||0)} ${p.currency_code||'EGP'}${p.method?' • '+esc(p.method):''}${p.note?' • '+esc(p.note):''}</div>
+          <div class="exec-jrow-meta">${ar(+p.amount||0)} ${p.currency_code||'EGP'}${p.payment_method?' • '+esc(p.payment_method):''}${p.note?' • '+esc(p.note):''}</div>
           <div class="exec-jrow-reason">أنشئت في ${p.created_at?.slice(0,10)||'—'}</div>
         </div>
         <div class="exec-jrow-act"><button class="btn ghost" onclick="navigate('confirm')">افتح شاشة التأكيد</button></div>
@@ -11722,7 +11724,7 @@ PAGES.executive_finance_ops = async function(){
       return `<div class="exec-jrow">
         <div class="exec-jrow-body">
           <div class="exec-jrow-name">${esc(s?.full_name||'—')}</div>
-          <div class="exec-jrow-meta">${ar(+p.amount||0)} ${p.currency_code||'EGP'}${p.method?' • '+esc(p.method):''}</div>
+          <div class="exec-jrow-meta">${ar(+p.amount||0)} ${p.currency_code||'EGP'}${p.payment_method?' • '+esc(p.payment_method):''}</div>
           <div class="exec-jrow-reason">${(p.paid_at||p.created_at||'').slice(0,10)}</div>
         </div>
         <div class="exec-jrow-act"><span class="pill green">مؤكدة</span></div>
