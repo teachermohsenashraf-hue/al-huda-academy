@@ -426,6 +426,30 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 .exec-sug-list{display:flex;flex-direction:column;gap:8px;margin-top:10px}
 .exec-sug-row{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:12px 14px;border:1px solid var(--line);border-radius:10px}
 .exec-sug-row b{color:var(--navy-deep,#1a3a5c)}
+/* قمع التحويل (النمو) */
+.exec-funnel{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.exec-funnel-step{display:grid;grid-template-columns:130px 1fr auto;gap:12px;align-items:center;font-size:13px}
+.exec-funnel-label{color:var(--text);font-weight:600}
+.exec-funnel-bar{height:22px;background:linear-gradient(90deg,var(--emerald,#2E7D5B),var(--emerald-light,#4CAF7B));border-radius:6px;min-width:24px;transition:.3s}
+.exec-funnel-val{color:var(--navy-deep);font-weight:700;font-family:'Tajawal',sans-serif}
+/* مخطط النمو الشهري */
+.exec-mchart{display:flex;align-items:flex-end;gap:12px;height:180px;padding:16px 8px 8px;border-bottom:1px solid var(--line);margin-top:10px}
+.exec-mbar{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;position:relative;min-width:0}
+.exec-mbar-fill{width:100%;max-width:60px;background:linear-gradient(180deg,var(--emerald,#2E7D5B),var(--emerald-deep,#1B4D3E));border-radius:8px 8px 0 0;min-height:6px;transition:.3s}
+.exec-mbar-lbl{font-size:10.5px;color:var(--muted);white-space:nowrap}
+.exec-mbar-val{position:absolute;top:-18px;font-size:11px;font-weight:700;color:var(--navy-deep);font-family:'Tajawal',sans-serif}
+/* OKR كارد وشريط تقدم */
+.exec-okr-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.exec-okr-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;transition:.2s}
+.exec-okr-card:hover{box-shadow:0 4px 12px rgba(0,0,0,.05);transform:translateY(-1px)}
+.exec-okr-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:12px}
+.exec-okr-bar{height:8px;background:#f0f0f0;border-radius:4px;overflow:hidden}
+.exec-okr-fill{height:100%;border-radius:4px;transition:.4s}
+@media (max-width:640px){
+  .exec-funnel-step{grid-template-columns:100px 1fr auto;gap:8px;font-size:12px}
+  .exec-mchart{height:140px;gap:6px}
+  .exec-okr-grid{grid-template-columns:1fr}
+}
 @media (max-width:640px){
   .exec-hero{padding:16px}
   .exec-hero-title{font-size:20px}
@@ -3502,9 +3526,10 @@ const MENUS = {
     // مدير حتى لو مش شريك مؤسس)
   ]},
   executive:{ skin:'s-navy', title:'لوحة المدير التنفيذي', sections:[
-    {label:'غرفة العمليات', items:[['dash',mi('building'),'غرفة العمليات'],['journey',mi('map'),'رحلة الطالب'],['finance_ops',mi('card'),'المالية والاشتراكات']]},
-    {label:'التحليل والقرارات', items:[['analytics',mi('chart'),'التحليلات'],['partnership',mi('handshake')||mi('users'),'قرارات الشراكة']]},
-    {label:'الإشراف والفريق', items:[['team',mi('team'),'فريق الإشراف'],['staff',mi('teacher'),'المعلمون والحلقات'],['teachers',mi('star'),'المعلمون والتقييم'],['students',mi('child'),'الطلاب'],['unassigned',mi('warning'),'طلاب بدون حلقة'],['leads',mi('clipboard'),'تسجيلات معلّقة']]},
+    {label:'غرفة العمليات', items:[['dash',mi('building'),'غرفة العمليات'],['journey',mi('map'),'رحلة الطالب'],['halqat_ops',mi('mosque'),'الحلقات التشغيلي'],['finance_ops',mi('card'),'المالية والاشتراكات']]},
+    {label:'التحليل والقرارات', items:[['analytics',mi('chart'),'التحليلات'],['growth',mi('chart'),'النمو والتسويق'],['okrs',mi('star'),'OKRs الفصل'],['shared_decisions',mi('handshake')||mi('users'),'القرارات المشتركة'],['partnership',mi('handshake')||mi('users'),'قرارات الشراكة'],['deferred',mi('clock')||mi('calendar'),'قرارات مؤجَّلة']]},
+    {label:'الجودة والمتابعة', items:[['science_bridge',mi('book'),'نظرة القسم العلمي'],['complaints',mi('warning'),'الشكاوى'],['health',mi('shield'),'صحة المنصة']]},
+    {label:'الإشراف والفريق', items:[['team',mi('team'),'فريق الإشراف'],['staff',mi('teacher'),'المعلمون والحلقات'],['teacher_files',mi('star'),'ملفات المعلمين'],['students',mi('child'),'الطلاب'],['unassigned',mi('warning'),'طلاب بدون حلقة'],['leads',mi('clipboard'),'تسجيلات معلّقة']]},
     {label:'قسم القرآن', items:[['qsystems',mi('kaaba'),'أنظمة القرآن']]},
     {label:'المالية (سجل)', items:[['finance',mi('card'),'كل المدفوعات']]},
   ]},
@@ -11210,6 +11235,528 @@ PAGES.executive_partnership = function(){ return PAGES.admin_partnership(); };
 PAGES.executive_confirm = function(){ return PAGES.supervisor_confirm(); };
 PAGES.admin_confirm     = function(){ return PAGES.supervisor_confirm(); };
 PAGES.executive_chat = function(){ return PAGES.supervisor_chat ? PAGES.supervisor_chat() : chatPage(); };
+
+// ═══════════════════════════════════════════════════════════════════════════
+// المرحلة الثانية: باقي أقسام مواصفات المدير التنفيذي — كل قسم إما ببيانات
+// حقيقية من الجداول الموجودة، أو صفحة إفصاح صريحة عن التكامل المطلوب.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ─── القسم ٤: مركز الحلقات التشغيلي ────────────────────────────────────────
+// نظرة تنفيذية على كل الحلقات مع مؤشرات جودة سريعة + تنبيهات.
+PAGES.executive_halqat_ops = async function(){
+  setTop('مركز الحلقات التشغيلي','نظرة تنفيذية على كل حلقة — أداء وجودة وتنبيهات');
+  const iso7ago = new Date(Date.now()-7*86400000).toISOString().slice(0,10);
+  const iso30ago = new Date(Date.now()-30*86400000).toISOString().slice(0,10);
+  const [grpsR, studsR, sesR, ratR, tchsR] = await Promise.all([
+    sb.from('groups').select('id,name,teacher_id,is_private,meet_time').limit(500),
+    sb.from('students').select('id,group_id,enrollment_status,mastery').eq('enrollment_status','active'),
+    sb.from('sessions').select('id,group_id,session_date,status').gte('session_date', iso30ago).limit(3000),
+    sb.from('session_ratings').select('session_id,attendance,tajweed_score').limit(3000),
+    sb.from('profiles').select('id,full_name').eq('role','teacher').limit(200),
+  ]);
+  const grps = grpsR.data || [], studs = studsR.data || [], ses = sesR.data || [], rats = ratR.data || [], tchs = tchsR.data || [];
+  const tchById = {}; tchs.forEach(t => tchById[t.id] = t);
+  const ratedSet = new Set(rats.map(r => r.session_id));
+  // احسبة سريعة لكل حلقة
+  const rows = grps.map(g => {
+    const gStuds = studs.filter(s => s.group_id === g.id);
+    const gSes = ses.filter(s => s.group_id === g.id);
+    const gSes7 = gSes.filter(s => s.session_date >= iso7ago);
+    const gDone = gSes.filter(s => s.status === 'done');
+    const gUnrated = gDone.filter(s => !ratedSet.has(s.id));
+    const lastSes = gSes.reduce((mx,s) => s.session_date > mx ? s.session_date : mx, '');
+    const avgMastery = gStuds.length ? Math.round(gStuds.reduce((a,s)=>a+(s.mastery||0),0) / gStuds.length) : 0;
+    // تنبيهات
+    const alerts = [];
+    if(!lastSes || lastSes < iso7ago) alerts.push({t:'لا حصص هذا الأسبوع', c:'red'});
+    if(gUnrated.length >= 3) alerts.push({t:ar(gUnrated.length)+' حصص بلا تقييم', c:'gold'});
+    if(gStuds.length === 0) alerts.push({t:'لا طلاب', c:'red'});
+    if(avgMastery && avgMastery < 50) alerts.push({t:'إتقان منخفض ('+ar(avgMastery)+'٪)', c:'gold'});
+    return { g, teacher: tchById[g.teacher_id], studsCnt: gStuds.length, ses7: gSes7.length, unrated: gUnrated.length, lastSes, avgMastery, alerts };
+  });
+  // فرز: الحلقات الأكثر تنبيهًا أولاً
+  rows.sort((a,b) => b.alerts.length - a.alerts.length);
+  const tab = SESSION._execHopsTab || 'alerts';
+  const filtered = tab === 'alerts' ? rows.filter(r => r.alerts.length)
+                 : tab === 'private' ? rows.filter(r => r.g.is_private)
+                 : tab === 'public'  ? rows.filter(r => !r.g.is_private)
+                 : rows;
+  const tabBtn = (k,l,n) => `<button class="grpchip ${tab===k?'on':''}" onclick="_execHopsTab('${k}')">${esc(l)} <span>${ar(n)}</span></button>`;
+  const chips = `<div class="grpfilters" style="margin-bottom:14px">
+    ${tabBtn('alerts','تحتاج انتباهًا', rows.filter(r=>r.alerts.length).length)}
+    ${tabBtn('all','كل الحلقات', rows.length)}
+    ${tabBtn('public','عامة', rows.filter(r=>!r.g.is_private).length)}
+    ${tabBtn('private','خاصة', rows.filter(r=>r.g.is_private).length)}
+  </div>`;
+  const kpi = (l,v,s) => `<div class="exec-kpi"><div class="exec-kpi-label">${esc(l)}</div><div class="exec-kpi-value">${v}</div>${s?`<div class="exec-kpi-sub">${esc(s)}</div>`:''}</div>`;
+  const totalSes7 = rows.reduce((a,r)=>a+r.ses7,0);
+  const totalUnrated = rows.reduce((a,r)=>a+r.unrated,0);
+  const activeAvg = rows.filter(r=>r.avgMastery>0);
+  const overallAvg = activeAvg.length ? Math.round(activeAvg.reduce((a,r)=>a+r.avgMastery,0)/activeAvg.length) : 0;
+  const kpisHtml = `<div class="exec-kpis">
+    ${kpi('إجمالي الحلقات', ar(rows.length), ar(rows.filter(r=>!r.g.is_private).length)+' عامة • '+ar(rows.filter(r=>r.g.is_private).length)+' خاصة')}
+    ${kpi('حصص هذا الأسبوع', ar(totalSes7), 'منفّذة في آخر ٧ أيام')}
+    ${kpi('حصص بلا تقييم', ar(totalUnrated), 'تحتاج متابعة من المعلمين')}
+    ${kpi('متوسط الإتقان', overallAvg?ar(overallAvg)+'٪':'—', 'من الحلقات النشطة')}
+  </div>`;
+  const rowsHtml = filtered.length ? filtered.slice(0,80).map(r => `
+    <div class="exec-jrow">
+      <div class="exec-jrow-body">
+        <div class="exec-jrow-name">${esc(r.g.name)} <span style="font-size:11px;color:var(--muted);font-weight:500">${r.g.is_private?'🔒 خاصة':'🌐 عامة'}</span></div>
+        <div class="exec-jrow-meta">${r.teacher?esc(r.teacher.full_name):'بدون معلم'} • ${ar(r.studsCnt)} طالب • ${r.g.meet_time||'موعد غير محدد'} • آخر حصة: ${r.lastSes||'—'}</div>
+        ${r.alerts.length?`<div class="exec-jrow-reason">${r.alerts.map(a=>`<span class="chip ${a.c==='red'?'gold':'gold'}" style="background:${a.c==='red'?'#fce4e4':'#fff3d0'};color:${a.c==='red'?'#c92e2e':'#8a6c00'};margin-inline-end:6px">${esc(a.t)}</span>`).join('')}</div>`:''}
+      </div>
+      <div class="exec-jrow-act"><button class="btn ghost" onclick="adminViewHalqa(${r.g.id})">افتح الحلقة</button></div>
+    </div>`).join('') : `<div style="text-align:center;padding:30px;color:var(--muted)">${mi('check')||'✅'} لا حلقات في هذه الفئة</div>`;
+  return pageHead('مركز الحلقات التشغيلي','') + kpisHtml +
+    `<div class="card" style="margin-top:14px;padding:0;overflow:hidden">
+      <div style="padding:14px 18px;border-bottom:1px solid var(--line)"><b style="color:var(--navy-deep);font-size:15px">قائمة الحلقات</b></div>
+      <div style="padding:14px 18px">${chips}<div class="exec-jlist">${rowsHtml}</div></div>
+    </div>`;
+};
+function _execHopsTab(k){ SESSION._execHopsTab = k; navigate('halqat_ops'); }
+
+// ─── القسم ٥: النمو والتسويق ───────────────────────────────────────────────
+// من enroll_requests + students بحسب created_at + التحويلات. المصادر غير
+// مُتتبَّعة في القاعدة الحالية — نفصح صراحة بدل اختلاق قنوات وهمية.
+PAGES.executive_growth = async function(){
+  setTop('النمو والتسويق','تدفق التسجيلات — تحويلات — نمو شهري');
+  const iso180 = new Date(Date.now()-180*86400000).toISOString();
+  const [reqsR, studsR, paysR] = await Promise.all([
+    sb.from('enroll_requests').select('id,status,created_at,parent_id,teacher_id').gte('created_at', iso180).limit(3000),
+    sb.from('students').select('id,enrollment_status,created_at,sub_start').gte('created_at', iso180).limit(3000),
+    sb.from('payments').select('id,status,student_id,paid_at,created_at,amount,currency_code').gte('created_at', iso180).limit(3000),
+  ]);
+  const reqs = reqsR.data || [], studs = studsR.data || [], pays = paysR.data || [];
+  // القمع: طلبات → طلاب (مضاف) → طلاب (نشط) → دفع مؤكد
+  const reqsTotal = reqs.length;
+  const reqsApproved = reqs.filter(r => r.status === 'approved' || r.status === 'accepted').length;
+  const studsAdded = studs.length;
+  const studsActive = studs.filter(s => s.enrollment_status === 'active').length;
+  const firstPayStuds = new Set(pays.filter(p => p.status === 'paid').map(p => p.student_id).filter(Boolean)).size;
+  const funnelStep = (label, val, prev) => {
+    const pctv = prev && prev > 0 ? Math.round(val*100/prev) : null;
+    return `<div class="exec-funnel-step">
+      <div class="exec-funnel-label">${esc(label)}</div>
+      <div class="exec-funnel-bar" style="width:${prev?Math.max(6, val*100/(reqsTotal||1)):100}%"></div>
+      <div class="exec-funnel-val">${ar(val)}${pctv!==null?` <span style="color:var(--muted);font-size:11px">(${ar(pctv)}٪ من السابق)</span>`:''}</div>
+    </div>`;
+  };
+  // نمو شهري
+  const monthly = {};
+  studs.forEach(s => { const m = (s.created_at||'').slice(0,7); if(m) monthly[m] = (monthly[m]||0)+1; });
+  const months = Object.keys(monthly).sort();
+  const maxM = Math.max(1, ...Object.values(monthly));
+  const monthBars = months.slice(-6).map(m => {
+    const v = monthly[m]||0;
+    return `<div class="exec-mbar"><div class="exec-mbar-fill" style="height:${Math.max(4, v*100/maxM)}%"></div><div class="exec-mbar-lbl">${esc(m)}</div><div class="exec-mbar-val">${ar(v)}</div></div>`;
+  }).join('');
+  // نسبة تحويل عامة
+  const overallConv = reqsTotal ? Math.round(firstPayStuds*100/reqsTotal) : 0;
+  return pageHead('النمو والتسويق','آخر ١٨٠ يوم — الأرقام حقيقية من enroll_requests + students + payments') +
+    `<div class="exec-kpis" style="margin-top:14px">
+      <div class="exec-kpi"><div class="exec-kpi-label">طلبات التحاق (١٨٠ يوم)</div><div class="exec-kpi-value">${ar(reqsTotal)}</div><div class="exec-kpi-sub">${ar(reqsApproved)} قُبلت</div></div>
+      <div class="exec-kpi"><div class="exec-kpi-label">طلاب جدد (١٨٠ يوم)</div><div class="exec-kpi-value">${ar(studsAdded)}</div><div class="exec-kpi-sub">${ar(studsActive)} نشط الآن</div></div>
+      <div class="exec-kpi"><div class="exec-kpi-label">دفعوا (١٨٠ يوم)</div><div class="exec-kpi-value">${ar(firstPayStuds)}</div><div class="exec-kpi-sub">طالب أنجز الدفع الأول</div></div>
+      <div class="exec-kpi"><div class="exec-kpi-label">نسبة التحويل العامة</div><div class="exec-kpi-value">${ar(overallConv)}٪</div><div class="exec-kpi-sub">من الطلب إلى الدفع</div></div>
+    </div>
+    <div class="card" style="margin-top:14px;padding:18px">
+      <b style="color:var(--navy-deep);font-size:15px">قمع التحويل</b>
+      <p class="tagline-sm" style="margin:6px 0 14px">من الطلب إلى الطالب النشط الدافع</p>
+      <div class="exec-funnel">
+        ${funnelStep('طلبات ملتحقة', reqsTotal, null)}
+        ${funnelStep('طلبات مقبولة', reqsApproved, reqsTotal)}
+        ${funnelStep('طلاب مُضافون', studsAdded, reqsApproved||reqsTotal)}
+        ${funnelStep('طلاب نشطون', studsActive, studsAdded)}
+        ${funnelStep('طلاب دفعوا', firstPayStuds, studsActive)}
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px;padding:18px">
+      <b style="color:var(--navy-deep);font-size:15px">نمو الطلاب — آخر ٦ أشهر</b>
+      <div class="exec-mchart">${monthBars || '<div style="color:var(--muted);text-align:center;padding:20px">لا بيانات في هذه الفترة</div>'}</div>
+    </div>
+    <div class="card" style="margin-top:14px;padding:18px;background:#fff8e6;border-color:#e8c14d">
+      <b style="color:#8a6c00">${mi('info')||'ℹ️'} إفصاح: مصادر الاكتساب غير مُتتبَّعة</b>
+      <p style="margin:8px 0 0;font-size:13.5px;line-height:1.8;color:var(--text)">
+        القاعدة الحالية لا تحفظ من أين وصل كل طالب (إعلان — إحالة — بحث — سوشيال). لعرض «أفضل قناة تحويلاً» بحق نحتاج:
+        <br>• إضافة عمود <code>acquisition_source</code> إلى جدول <code>enroll_requests</code> أو <code>students</code>
+        <br>• حقل «كيف عرفت عنّا؟» في نموذج التسجيل
+        <br>• (اختياري) UTM parameters على الروابط التسويقية
+      </p>
+    </div>`;
+};
+
+// ─── القسم ٧: صحة المنصة — إفصاح صريح ─────────────────────────────────────
+PAGES.executive_health = async function(){
+  setTop('صحة المنصة','مؤشرات الأداء والاستقرار');
+  // نقيس ما يمكن قياسه من القاعدة نفسها: عدد الأخطاء المسجَّلة، حجم النشاط،
+  // آخر نشاط لكل جدول رئيسي — دون ادعاء uptime/latency بدون telemetry حقيقي.
+  const iso1d = new Date(Date.now()-86400000).toISOString();
+  const iso7d = new Date(Date.now()-7*86400000).toISOString();
+  const q = async (t, filter) => {
+    const b = sb.from(t).select('*',{count:'exact',head:true});
+    const r = filter ? await b.gte('created_at', filter) : await b;
+    return r.count || 0;
+  };
+  const [studs1d, studs7d, ses1d, ses7d, pays1d, pays7d, notifs1d] = await Promise.all([
+    q('students', iso1d), q('students', iso7d),
+    q('sessions', iso1d), q('sessions', iso7d),
+    q('payments', iso1d), q('payments', iso7d),
+    q('notifications', iso1d),
+  ]);
+  const kpi = (l,v,s) => `<div class="exec-kpi"><div class="exec-kpi-label">${esc(l)}</div><div class="exec-kpi-value">${v}</div>${s?`<div class="exec-kpi-sub">${esc(s)}</div>`:''}</div>`;
+  return pageHead('صحة المنصة','') +
+    `<div class="exec-kpis" style="margin-top:14px">
+      ${kpi('طلاب جدد (٢٤س)', ar(studs1d), 'آخر ٧ أيام: '+ar(studs7d))}
+      ${kpi('حصص مضافة (٢٤س)', ar(ses1d), 'آخر ٧ أيام: '+ar(ses7d))}
+      ${kpi('دفعات مسجَّلة (٢٤س)', ar(pays1d), 'آخر ٧ أيام: '+ar(pays7d))}
+      ${kpi('تنبيهات أُرسلت (٢٤س)', ar(notifs1d), 'مؤشر حيوية النظام')}
+    </div>
+    <div class="card" style="margin-top:14px;padding:20px;background:#fff8e6;border-color:#e8c14d">
+      <b style="color:#8a6c00;font-size:15px">${mi('warning')||'⚠️'} إفصاح صريح: هذه مؤشرات نشاط، لا مؤشرات صحة</b>
+      <p style="margin:10px 0 0;font-size:13.5px;line-height:1.9;color:var(--text)">
+        الأرقام أعلاه تُظهر أن التطبيق «مستخدَم» — لكنها لا تجيب على أسئلة الصحة الحقيقية:
+        <br>• هل الموقع متاح ٩٩٫٩٪ من الوقت؟ (يحتاج <b>uptime monitor</b> مثل UptimeRobot/Better Stack)
+        <br>• كم متوسط زمن الاستجابة؟ (يحتاج <b>APM</b> مثل Sentry Performance)
+        <br>• كم عدد الأخطاء التي تحدث للمستخدمين؟ (يحتاج <b>error tracking</b> مثل Sentry/LogRocket)
+        <br>• هل Edge Functions تعمل بلا فشل؟ (يحتاج قراءة <b>Supabase Logs API</b>)
+      </p>
+      <p style="margin:10px 0 0;font-size:13.5px;line-height:1.9;color:var(--text)">
+        <b>الخطوة الصادقة التالية:</b> ربط Sentry (مجاني للفرق الصغيرة) لتتبع الأخطاء الفعلية، ثم إضافة صفحة هنا تقرأ منه. بدون ذلك، عرض «uptime: 99.9٪» سيكون مجرد رقم مُختلق.
+      </p>
+    </div>`;
+};
+
+// ─── القسم ٨: القرارات المشتركة ────────────────────────────────────────────
+// تجميع لكل ما ينتظر قرارًا من المدير التنفيذي عبر content_approvals و
+// partnership_decisions — مكان واحد بدل التنقل بين صفحتين.
+PAGES.executive_shared_decisions = async function(){
+  setTop('القرارات المشتركة','كل ما ينتظر قرارك من الاعتمادات والشراكة');
+  const [caR, pdR] = await Promise.all([
+    sb.from('content_approvals').select('*').in('status',['in_review','awaiting_executive']).order('created_at',{ascending:false}).limit(200),
+    sb.from('partnership_decisions').select('*').eq('status','open').order('created_at',{ascending:false}).limit(200),
+  ]);
+  const cas = caR.data || [], pds = pdR.data || [];
+  const kpi = (l,v,s) => `<div class="exec-kpi"><div class="exec-kpi-label">${esc(l)}</div><div class="exec-kpi-value">${v}</div>${s?`<div class="exec-kpi-sub">${esc(s)}</div>`:''}</div>`;
+  const kpisHtml = `<div class="exec-kpis">
+    ${kpi('اعتمادات علمية بانتظار', ar(cas.filter(c=>c.status==='awaiting_executive').length), 'وصلت لمرحلة التنفيذي')}
+    ${kpi('اعتمادات قيد المراجعة', ar(cas.filter(c=>c.status==='in_review').length), 'عند المدير العلمي')}
+    ${kpi('قرارات شراكة مفتوحة', ar(pds.length), 'تحتاج تصويتك')}
+  </div>`;
+  const caRows = cas.length ? cas.slice(0,30).map(c => `
+    <div class="exec-jrow">
+      <div class="exec-jrow-body">
+        <div class="exec-jrow-name">${esc(c.title||'اعتماد')} <span style="font-size:11px;color:var(--muted)">• ${esc(c.kind||'')}</span></div>
+        <div class="exec-jrow-meta">${esc(c.summary||'—')}</div>
+        <div class="exec-jrow-reason"><span class="chip gold">${c.status==='awaiting_executive'?'ينتظر قرارك':'قيد المراجعة العلمية'}</span> • أُنشئ في ${(c.created_at||'').slice(0,10)}</div>
+      </div>
+      <div class="exec-jrow-act"><button class="btn ghost" onclick="navigate('approvals')">افتح</button></div>
+    </div>`).join('') : `<div style="text-align:center;padding:20px;color:var(--muted)">لا اعتمادات معلقة</div>`;
+  const pdRows = pds.length ? pds.slice(0,30).map(p => `
+    <div class="exec-jrow">
+      <div class="exec-jrow-body">
+        <div class="exec-jrow-name">${esc(p.title||'قرار شراكة')}</div>
+        <div class="exec-jrow-meta">${esc(p.summary||'—')}</div>
+        <div class="exec-jrow-reason"><span class="chip gold">مفتوح للتصويت</span> • أُنشئ في ${(p.created_at||'').slice(0,10)}</div>
+      </div>
+      <div class="exec-jrow-act"><button class="btn ghost" onclick="navigate('partnership')">افتح للتصويت</button></div>
+    </div>`).join('') : `<div style="text-align:center;padding:20px;color:var(--muted)">لا قرارات شراكة مفتوحة</div>`;
+  return pageHead('القرارات المشتركة','') + kpisHtml +
+    `<div class="card" style="margin-top:14px;padding:0;overflow:hidden">
+      <div style="padding:14px 18px;border-bottom:1px solid var(--line)"><b style="color:var(--navy-deep);font-size:15px">اعتمادات علمية تحتاج قرارًا</b></div>
+      <div style="padding:14px 18px"><div class="exec-jlist">${caRows}</div></div>
+    </div>
+    <div class="card" style="margin-top:14px;padding:0;overflow:hidden">
+      <div style="padding:14px 18px;border-bottom:1px solid var(--line)"><b style="color:var(--navy-deep);font-size:15px">قرارات شراكة تحتاج تصويتك</b></div>
+      <div style="padding:14px 18px"><div class="exec-jlist">${pdRows}</div></div>
+    </div>`;
+};
+
+// ─── القسم ٦: OKRs (أهداف الفصل ونتائجه) ───────────────────────────────────
+PAGES.executive_okrs = async function(){
+  setTop('OKRs — أهداف التنفيذ','أهداف قابلة للقياس بحسب الفصل الزمني');
+  const [okrR, tchR] = await Promise.all([
+    sb.from('executive_okrs').select('*').order('created_at',{ascending:false}).limit(200),
+    sb.from('profiles').select('id,full_name').in('role',['admin','executive','supervisor','teacher']).limit(300),
+  ]);
+  if(okrR.error && okrR.error.code !== 'PGRST116') return pageHead('OKRs','')+loadErrorCard(okrR.error);
+  const okrs = okrR.data || [];
+  const tchs = tchR.data || [];
+  const tchById = {}; tchs.forEach(t => tchById[t.id] = t);
+  // فرز حسب الفصل
+  const byQ = {};
+  okrs.forEach(o => { (byQ[o.quarter] = byQ[o.quarter] || []).push(o); });
+  const quarters = Object.keys(byQ).sort().reverse();
+  // Q الحالي (تقديري بحسب التاريخ)
+  const now = new Date(); const yr = now.getFullYear(); const m = now.getMonth();
+  const currentQ = yr + '-Q' + (Math.floor(m/3)+1);
+  const kpi = (l,v,s) => `<div class="exec-kpi"><div class="exec-kpi-label">${esc(l)}</div><div class="exec-kpi-value">${v}</div>${s?`<div class="exec-kpi-sub">${esc(s)}</div>`:''}</div>`;
+  const activeOkrs = okrs.filter(o => o.status === 'active');
+  const achievedOkrs = okrs.filter(o => o.status === 'achieved');
+  const avgProgress = activeOkrs.length ? Math.round(activeOkrs.reduce((a,o) => {
+    if(!o.target_value) return a;
+    return a + Math.min(100, (o.current_value||0)*100/o.target_value);
+  }, 0) / activeOkrs.length) : 0;
+  const kpisHtml = `<div class="exec-kpis">
+    ${kpi('أهداف نشطة', ar(activeOkrs.length), 'قيد التنفيذ')}
+    ${kpi('محقّقة', ar(achievedOkrs.length), 'وصلت للهدف')}
+    ${kpi('متوسط التقدم', ar(avgProgress)+'٪', 'من الأهداف النشطة')}
+    ${kpi('الفصل الحالي', currentQ, ar(byQ[currentQ]?.length||0)+' هدف')}
+  </div>`;
+  const okrCard = o => {
+    const pct = o.target_value ? Math.min(100, Math.round((o.current_value||0)*100/o.target_value)) : null;
+    const stColor = o.status==='achieved'?'#2E7D5B':o.status==='dropped'?'#c92e2e':o.status==='paused'?'#8a6c00':'#1a3a5c';
+    const owner = o.owner_id ? tchById[o.owner_id] : null;
+    return `<div class="exec-okr-card" style="border-inline-start:4px solid ${stColor}">
+      <div class="exec-okr-head">
+        <div><b style="color:var(--navy-deep)">${esc(o.objective)}</b>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">${esc(o.key_result)}</div></div>
+        <span class="chip" style="background:${stColor}22;color:${stColor}">${esc(o.status)}</span>
+      </div>
+      ${pct!==null?`<div class="exec-okr-bar"><div class="exec-okr-fill" style="width:${pct}%;background:${stColor}"></div></div>
+      <div style="font-size:12px;color:var(--muted);display:flex;justify-content:space-between;margin-top:4px"><span>${ar(o.current_value||0)} من ${ar(o.target_value)} ${esc(o.unit||'')}</span><span>${ar(pct)}٪</span></div>`:''}
+      <div style="font-size:11px;color:var(--muted);margin-top:8px">${owner?'مسؤول: '+esc(owner.full_name)+' • ':''}${esc(o.category||'')}${o.notes?' • '+esc(o.notes):''}</div>
+      <div style="display:flex;gap:6px;margin-top:10px">
+        <button class="btn-sm" onclick="_okrUpdate('${o.id}')">تحديث القيمة</button>
+        <button class="btn-sm ghost" onclick="_okrEdit('${o.id}')">تعديل</button>
+        <button class="btn-sm" style="background:#E74C3C" onclick="_okrDelete('${o.id}','${escJs(o.objective)}')">حذف</button>
+      </div>
+    </div>`;
+  };
+  const grid = quarters.length ? quarters.map(q => `
+    <div style="margin-top:20px">
+      <h3 style="color:var(--navy-deep);margin:0 0 10px;font-size:16px">${esc(q)} ${q===currentQ?'<span class="chip g" style="font-size:10px">الحالي</span>':''}</h3>
+      <div class="exec-okr-grid">${byQ[q].map(okrCard).join('')}</div>
+    </div>`).join('') : `<div class="card" style="text-align:center;padding:40px;color:var(--muted);margin-top:14px">لا أهداف مسجَّلة بعد. اضغط «+ هدف جديد» للبدء.</div>`;
+  return pageHead('OKRs — أهداف التنفيذ','') +
+    `<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-top:14px;margin-bottom:14px">
+      ${kpisHtml.replace('<div class="exec-kpis">','<div class="exec-kpis" style="flex:1">')}
+    </div>
+    <div style="text-align:end;margin-bottom:14px"><button class="btn" onclick="_okrNew()">+ هدف جديد</button></div>
+    ${grid}`;
+};
+function _okrNew(id){
+  const CATS = [['growth','النمو'],['quality','الجودة'],['financial','المالية'],['team','الفريق'],['operations','التشغيل']];
+  const now = new Date(); const yr = now.getFullYear(); const q = Math.floor(now.getMonth()/3)+1;
+  $('#modalHost').innerHTML = `<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:520px">
+    <h3 style="color:var(--navy-deep);margin:0 0 12px">${id?'تعديل هدف':'هدف جديد'}</h3>
+    <div class="field"><label>الفصل الزمني</label><input id="okQuarter" value="${yr}-Q${q}" placeholder="مثال: 2026-Q3" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px"></div>
+    <div class="field"><label>الهدف (Objective)</label><input id="okObj" placeholder="مثال: توسيع القاعدة الطلابية بجودة" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px"></div>
+    <div class="field"><label>النتيجة الرئيسية (Key Result)</label><input id="okKR" placeholder="مثال: زيادة الطلاب النشطين إلى 40" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px"></div>
+    <div class="field" style="display:flex;gap:10px">
+      <div style="flex:1"><label>الهدف الرقمي</label><input id="okTarget" type="number" placeholder="40" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px"></div>
+      <div style="flex:1"><label>الحالي</label><input id="okCurrent" type="number" value="0" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px"></div>
+      <div style="flex:1"><label>الوحدة</label><input id="okUnit" placeholder="طالب / % / EGP" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px"></div>
+    </div>
+    <div class="field"><label>الفئة</label><select id="okCat" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px">${CATS.map(c=>`<option value="${c[0]}">${c[1]}</option>`).join('')}</select></div>
+    <div class="field"><label>ملاحظات (اختياري)</label><textarea id="okNotes" rows="2" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px"></textarea></div>
+    <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إلغاء</button><button class="btn" onclick="_okrSave()">حفظ</button></div>
+  </div></div>`;
+}
+async function _okrSave(){
+  const rec = {
+    quarter: $('#okQuarter').value.trim(),
+    objective: $('#okObj').value.trim(),
+    key_result: $('#okKR').value.trim(),
+    target_value: +$('#okTarget').value || null,
+    current_value: +$('#okCurrent').value || 0,
+    unit: $('#okUnit').value.trim() || null,
+    category: $('#okCat').value,
+    notes: $('#okNotes').value.trim() || null,
+    created_by: ME.id,
+    owner_id: ME.id,
+  };
+  if(!rec.quarter || !rec.objective || !rec.key_result){ toast('أكمل الفصل والهدف والنتيجة'); return; }
+  const {error} = await sb.from('executive_okrs').insert(rec);
+  if(error){ toast('تعذر الحفظ: '+error.message); return; }
+  closeModal(); toast('✅ سُجّل الهدف'); navigate('okrs');
+}
+async function _okrUpdate(id){
+  const {data:o} = await sb.from('executive_okrs').select('*').eq('id',id).maybeSingle();
+  if(!o){ toast('تعذر جلب الهدف'); return; }
+  $('#modalHost').innerHTML = `<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:420px">
+    <h3 style="color:var(--navy-deep);margin:0 0 10px">تحديث ${esc(o.objective)}</h3>
+    <p style="color:var(--muted);font-size:12.5px;margin:0 0 12px">${esc(o.key_result)}</p>
+    <div class="field"><label>القيمة الحالية</label><input id="okuCur" type="number" value="${o.current_value||0}" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px"></div>
+    <div class="field"><label>الحالة</label><select id="okuStatus" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px">
+      <option value="active" ${o.status==='active'?'selected':''}>نشط</option>
+      <option value="paused" ${o.status==='paused'?'selected':''}>موقوف مؤقتًا</option>
+      <option value="achieved" ${o.status==='achieved'?'selected':''}>محقّق</option>
+      <option value="dropped" ${o.status==='dropped'?'selected':''}>مُلغى</option>
+    </select></div>
+    <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إلغاء</button><button class="btn" onclick="_okrUpdateSave('${id}')">حفظ</button></div>
+  </div></div>`;
+}
+async function _okrUpdateSave(id){
+  const cur = +$('#okuCur').value || 0;
+  const st = $('#okuStatus').value;
+  const {error} = await sb.from('executive_okrs').update({current_value:cur, status:st, updated_at: new Date().toISOString()}).eq('id',id);
+  if(error){ toast('تعذر الحفظ: '+error.message); return; }
+  closeModal(); toast('✅ حُدّث الهدف'); navigate('okrs');
+}
+function _okrEdit(id){ _okrNew(id); }
+async function _okrDelete(id, name){
+  if(!confirm('حذف الهدف: '+name+'؟')) return;
+  const {error} = await sb.from('executive_okrs').delete().eq('id',id);
+  if(error){ toast('تعذر الحذف: '+error.message); return; }
+  toast('🗑️ حُذف الهدف'); navigate('okrs');
+}
+
+// ─── القسم ١٠: الشكاوى والاعتراضات ─────────────────────────────────────────
+PAGES.executive_complaints = async function(){
+  setTop('الشكاوى والاعتراضات','قناة موثّقة لشكاوى الأولياء والطلاب والمعلمين');
+  const [cmpR, profR] = await Promise.all([
+    sb.from('complaints').select('*').order('created_at',{ascending:false}).limit(200),
+    sb.from('profiles').select('id,full_name').limit(500),
+  ]);
+  if(cmpR.error) return pageHead('الشكاوى','')+loadErrorCard(cmpR.error);
+  const cmps = cmpR.data || [];
+  const profs = profR.data || [];
+  const profById = {}; profs.forEach(p => profById[p.id] = p);
+  const tab = SESSION._execCmpTab || 'open';
+  const filtered = tab === 'all' ? cmps : cmps.filter(c => c.status === tab);
+  const kpi = (l,v,s) => `<div class="exec-kpi"><div class="exec-kpi-label">${esc(l)}</div><div class="exec-kpi-value">${v}</div>${s?`<div class="exec-kpi-sub">${esc(s)}</div>`:''}</div>`;
+  const kpisHtml = `<div class="exec-kpis">
+    ${kpi('مفتوحة', ar(cmps.filter(c=>c.status==='open').length), 'تحتاج تعيين')}
+    ${kpi('قيد التحقيق', ar(cmps.filter(c=>c.status==='investigating').length), 'بتُدرَس الآن')}
+    ${kpi('حرجة', ar(cmps.filter(c=>c.severity==='critical' && c.status!=='resolved').length), 'أولوية قصوى')}
+    ${kpi('حُلّت (٣٠ يوم)', ar(cmps.filter(c=>c.status==='resolved' && c.resolved_at && c.resolved_at >= new Date(Date.now()-30*86400000).toISOString()).length), '')}
+  </div>`;
+  const tabBtn = (k,l,n) => `<button class="grpchip ${tab===k?'on':''}" onclick="_cmpTab('${k}')">${esc(l)} <span>${ar(n)}</span></button>`;
+  const chips = `<div class="grpfilters" style="margin-bottom:14px">
+    ${tabBtn('open','مفتوحة', cmps.filter(c=>c.status==='open').length)}
+    ${tabBtn('investigating','قيد التحقيق', cmps.filter(c=>c.status==='investigating').length)}
+    ${tabBtn('resolved','محلولة', cmps.filter(c=>c.status==='resolved').length)}
+    ${tabBtn('all','الكل', cmps.length)}
+  </div>`;
+  const SEV = {low:['#8a6c00','منخفضة'], normal:['#1a3a5c','عادية'], high:['#c9a227','عالية'], critical:['#c92e2e','حرجة']};
+  const rowsHtml = filtered.length ? filtered.slice(0,60).map(c => {
+    const sev = SEV[c.severity||'normal'];
+    return `<div class="exec-jrow">
+      <div class="exec-jrow-body">
+        <div class="exec-jrow-name">${esc(c.subject)} <span class="chip" style="background:${sev[0]}22;color:${sev[0]};font-size:10px">${sev[1]}</span></div>
+        <div class="exec-jrow-meta">من: ${c.complainant_id && profById[c.complainant_id] ? esc(profById[c.complainant_id].full_name) : 'مستخدم'} • ${(c.created_at||'').slice(0,10)}${c.target_type?' • يخص: '+esc(c.target_type):''}</div>
+        ${c.body?`<div class="exec-jrow-reason">${esc(c.body).slice(0,180)}${c.body.length>180?'…':''}</div>`:''}
+      </div>
+      <div class="exec-jrow-act"><button class="btn ghost" onclick="_cmpOpen('${c.id}')">فتح</button></div>
+    </div>`;
+  }).join('') : `<div style="text-align:center;padding:30px;color:var(--muted)">${mi('check')||'✅'} لا شكاوى في هذه الفئة</div>`;
+  return pageHead('الشكاوى والاعتراضات','') + kpisHtml +
+    `<div style="text-align:end;margin-top:14px;margin-bottom:8px"><button class="btn" onclick="_cmpNew()">+ تسجيل شكوى</button></div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <div style="padding:14px 18px">${chips}<div class="exec-jlist">${rowsHtml}</div></div>
+    </div>`;
+};
+function _cmpTab(k){ SESSION._execCmpTab = k; navigate('complaints'); }
+function _cmpNew(){
+  const SEV = [['low','منخفضة'],['normal','عادية'],['high','عالية'],['critical','حرجة']];
+  const TT = [['teacher','معلم'],['group','حلقة'],['payment','دفع'],['content','محتوى'],['other','أخرى']];
+  $('#modalHost').innerHTML = `<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:520px">
+    <h3 style="color:var(--navy-deep);margin:0 0 12px">تسجيل شكوى</h3>
+    <div class="field"><label>الموضوع</label><input id="cmpSubj" placeholder="عنوان مختصر" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px"></div>
+    <div class="field"><label>التفاصيل</label><textarea id="cmpBody" rows="4" placeholder="اشرح الحالة بالتفصيل..." style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px"></textarea></div>
+    <div class="field" style="display:flex;gap:10px">
+      <div style="flex:1"><label>الخطورة</label><select id="cmpSev" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px">${SEV.map(s=>`<option value="${s[0]}" ${s[0]==='normal'?'selected':''}>${s[1]}</option>`).join('')}</select></div>
+      <div style="flex:1"><label>يخص</label><select id="cmpTT" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px"><option value="">—</option>${TT.map(t=>`<option value="${t[0]}">${t[1]}</option>`).join('')}</select></div>
+    </div>
+    <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إلغاء</button><button class="btn" onclick="_cmpSave()">تسجيل</button></div>
+  </div></div>`;
+}
+async function _cmpSave(){
+  const rec = {
+    complainant_id: ME.id,
+    subject: $('#cmpSubj').value.trim(),
+    body: $('#cmpBody').value.trim() || null,
+    severity: $('#cmpSev').value,
+    target_type: $('#cmpTT').value || null,
+  };
+  if(!rec.subject){ toast('أكمل الموضوع'); return; }
+  const {error} = await sb.from('complaints').insert(rec);
+  if(error){ toast('تعذر التسجيل: '+error.message); return; }
+  closeModal(); toast('✅ سُجّلت الشكوى'); navigate('complaints');
+}
+async function _cmpOpen(id){
+  const {data:c} = await sb.from('complaints').select('*').eq('id',id).maybeSingle();
+  if(!c){ toast('تعذر جلب الشكوى'); return; }
+  const {data:comp} = c.complainant_id ? await sb.from('profiles').select('full_name').eq('id',c.complainant_id).maybeSingle() : {data:null};
+  $('#modalHost').innerHTML = `<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:560px">
+    <h3 style="color:var(--navy-deep);margin:0 0 8px">${esc(c.subject)}</h3>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px">من: ${comp?esc(comp.full_name):'—'} • ${(c.created_at||'').slice(0,16)} • خطورة: ${esc(c.severity)}</div>
+    ${c.body?`<div style="background:var(--cream);padding:12px;border-radius:10px;font-size:13.5px;line-height:1.8;margin-bottom:14px">${esc(c.body)}</div>`:''}
+    ${c.resolution?`<div style="background:#e6f4ec;padding:12px;border-radius:10px;font-size:13px;margin-bottom:14px"><b style="color:#2E7D5B">الحل:</b> ${esc(c.resolution)}</div>`:''}
+    <div class="field"><label>تحديث الحالة</label>
+      <select id="cmpuStatus" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px">
+        <option value="open" ${c.status==='open'?'selected':''}>مفتوحة</option>
+        <option value="investigating" ${c.status==='investigating'?'selected':''}>قيد التحقيق</option>
+        <option value="resolved" ${c.status==='resolved'?'selected':''}>محلولة</option>
+        <option value="dismissed" ${c.status==='dismissed'?'selected':''}>مرفوضة</option>
+      </select></div>
+    <div class="field"><label>ملاحظة الحل (إن أُغلقت)</label><textarea id="cmpuRes" rows="2" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px">${esc(c.resolution||'')}</textarea></div>
+    <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إغلاق</button><button class="btn" onclick="_cmpResolve('${id}')">حفظ</button></div>
+  </div></div>`;
+}
+async function _cmpResolve(id){
+  const st = $('#cmpuStatus').value;
+  const res = $('#cmpuRes').value.trim() || null;
+  const upd = { status: st, resolution: res, updated_at: new Date().toISOString() };
+  if(st === 'resolved' || st === 'dismissed'){ upd.resolved_by = ME.id; upd.resolved_at = new Date().toISOString(); }
+  const {error} = await sb.from('complaints').update(upd).eq('id',id);
+  if(error){ toast('تعذر الحفظ: '+error.message); return; }
+  closeModal(); toast('✅ حُدّثت الشكوى'); navigate('complaints');
+}
+
+// ─── القسم ١٣: جسر مع المدير العلمي ────────────────────────────────────────
+// نظرة موحّدة على مؤشرات القسم العلمي للمدير التنفيذي (قراءة فقط —
+// القرارات العلمية تبقى للمدير العلمي).
+PAGES.executive_science_bridge = async function(){
+  setTop('نظرة القسم العلمي','مؤشرات علمية للتنفيذي — قراءة فقط');
+  const [caR, banksR, casesR, stdsR] = await Promise.all([
+    sb.from('content_approvals').select('id,status,kind,title,created_at').limit(200),
+    sb.from('test_banks').select('id,status,name,category').limit(200),
+    sb.from('quran_help_requests').select('id,status,created_at').limit(200).then(x=>x,()=>({data:[]})),
+    sb.from('content_approvals').select('id,status').eq('kind','standard').limit(200),
+  ]);
+  const cas = caR.data || [], banks = banksR.data || [], cases = casesR.data || [], stds = stdsR.data || [];
+  const kpi = (l,v,s,click) => `<div class="exec-kpi" ${click?`onclick="${click}"`:''} style="${click?'cursor:pointer':''}"><div class="exec-kpi-label">${esc(l)}</div><div class="exec-kpi-value">${v}</div>${s?`<div class="exec-kpi-sub">${esc(s)}</div>`:''}</div>`;
+  const kpisHtml = `<div class="exec-kpis">
+    ${kpi('اعتمادات علمية معلقة', ar(cas.filter(c=>['in_review','awaiting_executive','needs_edit'].includes(c.status)).length), 'قيد المراجعة', "navigate('approvals')")}
+    ${kpi('بنوك اختبارات نشطة', ar(banks.filter(b=>b.status==='active').length), ar(banks.filter(b=>b.status==='draft').length)+' مسودة', "navigate('tests')")}
+    ${kpi('معايير منشورة', ar(stds.filter(s=>s.status==='published').length), ar(stds.length)+' إجمالي', "navigate('standards')")}
+    ${kpi('حالات علمية نشطة', ar(cases.filter(c=>c.status==='open'||c.status==='in_progress').length), 'طلاب يحتاجون دعمًا', "navigate('science_cases')")}
+  </div>`;
+  return pageHead('نظرة القسم العلمي','') + kpisHtml +
+    `<div class="card" style="margin-top:14px;padding:18px;background:#f5f7fa">
+      <b style="color:var(--navy-deep);font-size:14px">${mi('info')||'ℹ️'} حدود الأدوار</b>
+      <p style="margin:8px 0 0;font-size:13px;line-height:1.8;color:var(--muted)">
+        هذه الصفحة عرض تنفيذي فقط. القرارات العلمية (اعتماد المناهج، الاختبارات، المعايير، المعالجة العلاجية)
+        تبقى مع <b>المدير العلمي</b> عبر «مكتبه العلمي». المدير التنفيذي يرى ليضمن أن ما يخصّه في التشغيل
+        متسق مع القرارات العلمية.
+      </p>
+    </div>`;
+};
+
+// ─── القسم ٩: ملفات المعلمين التنفيذية — alias للمركز الموجود ─────────────
+PAGES.executive_teacher_files = function(){ return PAGES.admin_teacher_quality ? PAGES.admin_teacher_quality() : PAGES.admin_teachers(); };
+// ─── القسم ١١: تقارير مالية شهرية — alias لصفحة المالية التشغيلية ─────────
+PAGES.executive_finance_reports = function(){ return PAGES.executive_finance_ops(); };
+// ─── القسم ١٢: قرارات مؤجَّلة — يستخدم partnership_decisions بحالة deferred ───
+PAGES.executive_deferred = async function(){
+  setTop('القرارات المؤجَّلة','قرارات شراكة أُجّلت — للمتابعة والحسم');
+  const {data:pds, error} = await sb.from('partnership_decisions').select('*').in('status',['deferred','pending']).order('created_at',{ascending:false}).limit(100);
+  if(error) return pageHead('القرارات المؤجَّلة','')+loadErrorCard(error);
+  if(!(pds||[]).length) return pageHead('القرارات المؤجَّلة','')+`<div class="card" style="text-align:center;padding:40px;color:var(--muted);margin-top:14px">${mi('check')||'✅'} لا قرارات مؤجَّلة الآن</div>`;
+  const rows = pds.map(p => `
+    <div class="exec-jrow">
+      <div class="exec-jrow-body">
+        <div class="exec-jrow-name">${esc(p.title||'قرار')}</div>
+        <div class="exec-jrow-meta">${esc(p.summary||'—')}</div>
+        <div class="exec-jrow-reason"><span class="chip gold">${esc(p.status)}</span> • أُنشئ في ${(p.created_at||'').slice(0,10)}</div>
+      </div>
+      <div class="exec-jrow-act"><button class="btn ghost" onclick="navigate('partnership')">افتح</button></div>
+    </div>`).join('');
+  return pageHead('القرارات المؤجَّلة','') + `<div class="card" style="margin-top:14px;padding:14px 18px"><div class="exec-jlist">${rows}</div></div>`;
+};
+
 // ═══ غرفة العمليات التنفيذية ═══════════════════════════════════════════════
 // إعادة بناء كاملة: كانت الصفحة أرقام عامة + قائمة "تنبيهات" وصفية بلا إجراء.
 // الآن الأولوية لقائمة العمل: طلاب بعد الدفع بلا تفعيل، طلاب اختاروا معلمًا بلا حلقة،
