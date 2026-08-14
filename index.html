@@ -11216,7 +11216,13 @@ PAGES.executive_chat = function(){ return PAGES.supervisor_chat ? PAGES.supervis
 // دفعات معلقة، اشتراكات قاربت الانتهاء، حلقات فوق طاقتها، حصص انتهت بلا تقييم.
 // كل عنصر بمشكلته وسببه ومسؤوله وإجراء واحد مباشر.
 PAGES.executive_dash = async function(){
-  const nm = (ME.full_name||'').split(' ')[0] || 'مديرنا';
+  // اسم مركّب: "عبد الرحمن" / "أبو بكر" / "أم كلثوم" — split على المسافة
+  // بيقطع الاسم لنصفين. نعالج المركّبات صراحةً ونأخذ التوكِنين، وإلا التوكِن الأول.
+  const _nmParts = (ME.full_name||'').trim().split(/\s+/);
+  const _compound = new Set(['عبد','عبدال','أبو','ابو','أم','ام','ابن','بن']);
+  const nm = _nmParts.length===0 ? 'مديرنا'
+           : (_compound.has(_nmParts[0]) && _nmParts[1]) ? _nmParts[0]+' '+_nmParts[1]
+           : _nmParts[0];
   setTop('غرفة العمليات', 'أهم ما يحتاج قرارك أو تدخّلك اليوم');
   const today = qTodayStr();
   const iso7 = new Date(Date.now()+7*86400000).toISOString().slice(0,10);
