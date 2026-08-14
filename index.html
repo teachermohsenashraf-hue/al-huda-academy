@@ -11581,28 +11581,41 @@ async function _execSuggest(studentId){
   const { data:st } = await sb.from('students').select('*').eq('id',studentId).maybeSingle();
   if(!st){ toast('تعذر جلب الطالب'); return; }
   const [{data:tchs},{data:grps}] = await Promise.all([
-    sb.from('profiles').select('id,full_name,is_available,max_students,age_range,weekly_slots,paths').eq('role','teacher').limit(200),
-    sb.from('groups').select('id,name,teacher_id,capacity,meet_time').limit(500),
+    sb.from('profiles').select('id,full_name,is_available,max_students,age_range,weekly_slots,paths,gender').eq('role','teacher').limit(200),
+    // ملاحظة: groups لا يحوي عمود capacity في السكيما الحالية — استخدم max_students
+    // من ملف المعلم كسعة، وأزل أي مرجع لعمود غير موجود يعطل الاستعلام.
+    sb.from('groups').select('id,name,teacher_id,meet_time').limit(500),
   ]);
   // احسب حمل كل معلم من الطلاب النشطين
   const {data:actives}=await sb.from('students').select('id,group_id').eq('enrollment_status','active');
   const load = {}; const grpMap={}; (grps||[]).forEach(g=>grpMap[g.id]=g);
   (actives||[]).forEach(s=>{ const g=grpMap[s.group_id]; if(g?.teacher_id) load[g.teacher_id]=(load[g.teacher_id]||0)+1; });
-  // رتّب المعلمين
-  const scored = (tchs||[]).filter(t=>t.is_available!==false).map(t => {
-    const cur = load[t.id] || 0; const max = t.max_students || 15;
-    const avail = max - cur;
-    let score = avail * 10;
-    // مطابقة المسار
+  // رتّب المعلمين — الفلترة القاسية أولاً (لا اقتراحات مخالفة للأعراف)
+  // ١) الجنس يجب أن يطابق جنس الطالب (ذكر↔ذكر / أنثى↔أنثى). لو جنس أحدهما
+  //    غير مسجل، نستبعد المعلم من الاقتراح صراحةً بدل تخمين خاطئ.
+  // ٢) لو max_students محدد ووصل، نستبعد المعلم (لا سعة).
+  const scored = (tchs||[]).filter(t => t.is_available !== false).filter(t => {
+    if(!st.gender || !t.gender) return false;
+    return t.gender === st.gender;
+  }).map(t => {
+    const cur = load[t.id] || 0;
+    const max = (typeof t.max_students === 'number' && t.max_students > 0) ? t.max_students : null;
+    const full = max !== null && cur >= max;
+    let score = 0;
+    if(max !== null) score += Math.max(0, (max - cur)) * 10;
+    else score += 5; // لا سقف محدد — درجة أساس صغيرة
     if(Array.isArray(t.paths) && st.quran_path && t.paths.includes(st.quran_path)) score += 30;
-    // مطابقة العمر
     if(t.age_range && st.age){
       const [lo,hi] = String(t.age_range).split('-').map(Number);
       if(!isNaN(lo)&&!isNaN(hi)&&st.age>=lo&&st.age<=hi) score += 15;
     }
-    return { t, cur, max, avail, score };
-  }).filter(x => x.avail > 0).sort((a,b)=>b.score-a.score).slice(0,5);
-  if(!scored.length){ toast('لا يوجد معلم متاح بطاقة شاغرة الآن'); return; }
+    return { t, cur, max, full, score };
+  }).filter(x => !x.full).sort((a,b)=>b.score-a.score).slice(0,5);
+  if(!scored.length){
+    const why = !st.gender ? 'جنس الطالب غير مسجَّل — سجّله أولاً لضمان مطابقة صحيحة'
+              : 'لا يوجد معلم '+(st.gender==='female'?'أنثى':'ذكر')+' متاح الآن';
+    toast(why); return;
+  }
   // نمط النافذة في هذا المشروع: كتابة مباشرة في #modalHost (لا يوجد openModal helper)
   $('#modalHost').innerHTML = `<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:520px">
     <div class="ch"><h3>${mi('users')||''} اقتراح توزيع — ${esc(st.full_name)}</h3></div>
@@ -11611,7 +11624,7 @@ async function _execSuggest(studentId){
       <div class="exec-sug-row">
         <div>
           <b>${esc(x.t.full_name)}</b>
-          <div style="font-size:12px;color:var(--muted)">${ar(x.cur)}/${ar(x.max)} طالب${x.t.age_range?' • فئة '+esc(x.t.age_range):''}${x.t.paths?.length?' • '+ar(x.t.paths.length)+' مسار':''}</div>
+          <div style="font-size:12px;color:var(--muted)">${x.max!==null?ar(x.cur)+'/'+ar(x.max)+' طالب':'معه '+ar(x.cur)+' طالب (لا سقف محدد)'}${x.t.gender?' • '+(x.t.gender==='female'?'معلّمة':'معلّم'):''}${x.t.age_range?' • فئة '+esc(x.t.age_range):''}${x.t.paths?.length?' • '+ar(x.t.paths.length)+' مسار':''}</div>
         </div>
         <button class="btn" onclick="_execAssignPick(${studentId},'${x.t.id}','${escJs(x.t.full_name)}')">اختر</button>
       </div>`).join('')}</div>
