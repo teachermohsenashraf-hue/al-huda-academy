@@ -449,6 +449,12 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 .src-fill{height:100%;border-radius:6px;transition:width .4s ease;min-width:6px}
 .src-val{color:var(--navy-deep);font-weight:700;font-family:'Tajawal',sans-serif;text-align:start;white-space:nowrap;font-size:13px}
 .src-pct{color:var(--muted);font-size:11px;margin-inline-start:4px}
+/* نضارة البيانات */
+.exec-fresh-list{display:flex;flex-direction:column}
+.exec-fresh-row{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;border-bottom:1px solid var(--line);font-size:13.5px}
+.exec-fresh-row:last-child{border-bottom:none}
+.exec-fresh-row span:first-child{color:var(--text);font-weight:600}
+.exec-fresh-row .mono{color:var(--muted);font-family:'Tajawal',sans-serif;font-size:12.5px}
 /* OKR كارد وشريط تقدم */
 .exec-okr-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
 .exec-okr-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;transition:.2s}
@@ -11263,6 +11269,11 @@ PAGES.executive_partnership = function(){ return PAGES.admin_partnership(); };
 // تأكيد المدفوعات — نفس شاشة المشرف (التنفيذي والأدمن يعتمدون الإيصالات كذلك)
 PAGES.executive_confirm = function(){ return PAGES.supervisor_confirm(); };
 PAGES.admin_confirm     = function(){ return PAGES.supervisor_confirm(); };
+// صفحات القسم العلمي: التنفيذي يقرأ ويصوّت — القرار النهائي للمدير العلمي
+PAGES.executive_approvals     = function(){ return PAGES.admin_approvals(); };
+PAGES.executive_tests         = function(){ return PAGES.admin_tests(); };
+PAGES.executive_standards     = function(){ return PAGES.admin_standards(); };
+PAGES.executive_science_cases = function(){ return PAGES.admin_science_cases(); };
 PAGES.executive_chat = function(){ return PAGES.supervisor_chat ? PAGES.supervisor_chat() : chatPage(); };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -11453,45 +11464,140 @@ PAGES.executive_growth = async function(){
     </div>`;
 };
 
-// ─── القسم ٧: صحة المنصة — إفصاح صريح ─────────────────────────────────────
+// ─── القسم ٧: صحة المنصة — مؤشرات حقيقية من القاعدة ────────────────────────
+// بدل الإفصاح، نقيس صحة فعلية من إشارات القاعدة نفسها:
+//   ١) سلامة البيانات: طلاب معلقون، حصص متأخرة، دفعات عالقة، حلقات بلا معلم
+//   ٢) حيوية العمليات: مقارنة حصص/دفعات/تنبيهات ٧ أيام مع الأسبوع السابق
+//   ٣) تفاعل المستخدمين: نسبة قراءة التنبيهات + مستخدمون نشطون فريدون
+//   ٤) نضارة البيانات: آخر نشاط لكل جدول رئيسي (data freshness)
+// كل مؤشر بحساب حقيقي + دلالة صحية (سليم/تحذير/حرج) + إجراء مباشر.
 PAGES.executive_health = async function(){
-  setTop('صحة المنصة','مؤشرات الأداء والاستقرار');
-  // نقيس ما يمكن قياسه من القاعدة نفسها: عدد الأخطاء المسجَّلة، حجم النشاط،
-  // آخر نشاط لكل جدول رئيسي — دون ادعاء uptime/latency بدون telemetry حقيقي.
-  const iso1d = new Date(Date.now()-86400000).toISOString();
-  const iso7d = new Date(Date.now()-7*86400000).toISOString();
-  const q = async (t, filter) => {
-    const b = sb.from(t).select('*',{count:'exact',head:true});
-    const r = filter ? await b.gte('created_at', filter) : await b;
-    return r.count || 0;
-  };
-  const [studs1d, studs7d, ses1d, ses7d, pays1d, pays7d, notifs1d] = await Promise.all([
-    q('students', iso1d), q('students', iso7d),
-    q('sessions', iso1d), q('sessions', iso7d),
-    q('payments', iso1d), q('payments', iso7d),
-    q('notifications', iso1d),
+  setTop('صحة المنصة','مؤشرات حقيقية من البيانات — سلامة، حيوية، تفاعل، نضارة');
+  const now = Date.now();
+  const iso1d  = new Date(now-86400000).toISOString();
+  const iso3d  = new Date(now-3*86400000).toISOString();
+  const iso7d  = new Date(now-7*86400000).toISOString();
+  const iso14d = new Date(now-14*86400000).toISOString();
+  const today  = new Date().toISOString().slice(0,10);
+  const iso7dDate = new Date(now-7*86400000).toISOString().slice(0,10);
+
+  const [studsR, grpsR, sesR, ratR, paysR, notifsCurR, notifsPrevR, notifsReadR] = await Promise.all([
+    sb.from('students').select('id,enrollment_status,group_id,created_at,login_id').limit(3000),
+    sb.from('groups').select('id,teacher_id,is_private').limit(500),
+    sb.from('sessions').select('id,session_date,status,group_id,created_at').gte('session_date', new Date(now-14*86400000).toISOString().slice(0,10)).limit(3000),
+    sb.from('session_ratings').select('session_id,created_at').gte('created_at', iso14d).limit(3000),
+    sb.from('payments').select('id,status,created_at,paid_at').limit(1500),
+    sb.from('notifications').select('id,user_id,is_read',{count:'exact'}).gte('created_at', iso7d).limit(3000),
+    sb.from('notifications').select('id',{count:'exact',head:true}).gte('created_at', iso14d).lt('created_at', iso7d),
+    sb.from('notifications').select('id',{count:'exact',head:true}).eq('is_read', true).gte('created_at', iso7d),
   ]);
-  const kpi = (l,v,s) => `<div class="exec-kpi"><div class="exec-kpi-label">${esc(l)}</div><div class="exec-kpi-value">${v}</div>${s?`<div class="exec-kpi-sub">${esc(s)}</div>`:''}</div>`;
-  return pageHead('صحة المنصة','') +
-    `<div class="exec-kpis" style="margin-top:14px">
-      ${kpi('طلاب جدد (٢٤س)', ar(studs1d), 'آخر ٧ أيام: '+ar(studs7d))}
-      ${kpi('حصص مضافة (٢٤س)', ar(ses1d), 'آخر ٧ أيام: '+ar(ses7d))}
-      ${kpi('دفعات مسجَّلة (٢٤س)', ar(pays1d), 'آخر ٧ أيام: '+ar(pays7d))}
-      ${kpi('تنبيهات أُرسلت (٢٤س)', ar(notifs1d), 'مؤشر حيوية النظام')}
+  const studs = studsR.data || [], grps = grpsR.data || [], ses = sesR.data || [], rats = ratR.data || [], pays = paysR.data || [];
+  const notifsCur  = notifsCurR.data || [];
+  const notifsCurC = notifsCurR.count || notifsCur.length;
+  const notifsPrevC = notifsPrevR.count || 0;
+  const notifsReadC = notifsReadR.count || 0;
+  const ratedSet = new Set(rats.map(r => r.session_id));
+
+  // ═══ ١) سلامة البيانات — كل مؤشر بحد صحي واضح ═══
+  const activeStuds       = studs.filter(s => s.enrollment_status === 'active');
+  const stranded          = activeStuds.filter(s => !s.group_id).length;
+  const scheduledPast     = ses.filter(s => s.status === 'scheduled' && s.session_date < today).length;
+  const doneUnrated       = ses.filter(s => s.status === 'done' && !ratedSet.has(s.id)).length;
+  const stuckPays         = pays.filter(p => p.status === 'pending' && p.created_at && p.created_at < iso3d).length;
+  const grpsNoTeacher     = grps.filter(g => !g.teacher_id).length;
+  const studsNoLogin      = activeStuds.filter(s => !s.login_id).length;
+
+  // ═══ ٢) حيوية العمليات — مقارنة أسبوعية ═══
+  const sesCur  = ses.filter(s => s.session_date >= iso7dDate).length;
+  const sesPrev = ses.filter(s => s.session_date < iso7dDate).length;
+  const sesTrend = sesPrev ? Math.round((sesCur - sesPrev) * 100 / sesPrev) : (sesCur ? 100 : 0);
+  const notifsTrend = notifsPrevC ? Math.round((notifsCurC - notifsPrevC) * 100 / notifsPrevC) : (notifsCurC ? 100 : 0);
+  const paysCur  = pays.filter(p => p.created_at >= iso7d).length;
+  const paysPrev = pays.filter(p => p.created_at >= iso14d && p.created_at < iso7d).length;
+  const paysTrend = paysPrev ? Math.round((paysCur - paysPrev) * 100 / paysPrev) : (paysCur ? 100 : 0);
+
+  // ═══ ٣) تفاعل المستخدمين ═══
+  const readRate  = notifsCurC ? Math.round(notifsReadC * 100 / notifsCurC) : 0;
+  const activeUsers7d = new Set(notifsCur.map(n => n.user_id).filter(Boolean)).size;
+
+  // ═══ ٤) نضارة البيانات — آخر نشاط لكل جدول ═══
+  const lastOf = (arr, field) => {
+    let mx = ''; arr.forEach(x => { const v = x[field]||x.created_at||''; if(v > mx) mx = v; });
+    return mx;
+  };
+  const relTime = iso => {
+    if(!iso) return '—';
+    const mins = Math.floor((now - new Date(iso).getTime()) / 60000);
+    if(mins < 1) return 'الآن';
+    if(mins < 60) return 'منذ '+ar(mins)+' دقيقة';
+    const hrs = Math.floor(mins/60); if(hrs < 24) return 'منذ '+ar(hrs)+' ساعة';
+    const days = Math.floor(hrs/24); return 'منذ '+ar(days)+' يوم';
+  };
+
+  // ═══ حساب درجة الصحة الكلية ═══
+  // نقاط تُخصم عن كل مشكلة، نبدأ من ١٠٠
+  let score = 100;
+  score -= Math.min(20, stranded * 3);
+  score -= Math.min(15, scheduledPast * 0.5);
+  score -= Math.min(15, doneUnrated * 1);
+  score -= Math.min(15, stuckPays * 5);
+  score -= Math.min(10, grpsNoTeacher * 3);
+  if(sesTrend < -20) score -= 10;
+  if(readRate < 30) score -= 5;
+  score = Math.max(0, Math.round(score));
+  const scoreColor = score >= 85 ? '#2E7D5B' : score >= 65 ? '#c9a227' : '#c92e2e';
+  const scoreLabel = score >= 85 ? 'سليم' : score >= 65 ? 'يحتاج انتباه' : 'حرج';
+
+  // ═══ عرض ═══
+  const kpi = (l,v,s,c,click) => `<div class="exec-kpi" ${click?`onclick="${click}"`:''} style="${click?'cursor:pointer;':''}${c?`border-inline-start:4px solid ${c}`:''}"><div class="exec-kpi-label">${esc(l)}</div><div class="exec-kpi-value" style="${c?`color:${c}`:''}">${v}</div>${s?`<div class="exec-kpi-sub">${esc(s)}</div>`:''}</div>`;
+  const trendArrow = t => t > 0 ? '<span style="color:#2E7D5B">▲ '+ar(t)+'٪</span>' : t < 0 ? '<span style="color:#c92e2e">▼ '+ar(Math.abs(t))+'٪</span>' : '<span style="color:var(--muted)">= ثابت</span>';
+  // درجة الصحة كبطاقة رأس
+  const heroHtml = `<div class="card" style="margin-top:14px;padding:22px;border-inline-start:6px solid ${scoreColor};display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px">
+    <div>
+      <div style="font-size:13px;color:var(--muted);font-weight:600">درجة صحة المنصة</div>
+      <div style="font-family:'Tajawal',sans-serif;font-size:44px;font-weight:800;color:${scoreColor};line-height:1;margin-top:6px">${ar(score)}<span style="font-size:22px;color:var(--muted);margin-inline-start:6px">/ ١٠٠</span></div>
+      <div style="margin-top:8px"><span class="chip" style="background:${scoreColor}22;color:${scoreColor};font-weight:700">${esc(scoreLabel)}</span></div>
     </div>
-    <div class="card" style="margin-top:14px;padding:20px;background:#fff8e6;border-color:#e8c14d">
-      <b style="color:#8a6c00;font-size:15px">${mi('warning')||'⚠️'} إفصاح صريح: هذه مؤشرات نشاط، لا مؤشرات صحة</b>
-      <p style="margin:10px 0 0;font-size:13.5px;line-height:1.9;color:var(--text)">
-        الأرقام أعلاه تُظهر أن التطبيق «مستخدَم» — لكنها لا تجيب على أسئلة الصحة الحقيقية:
-        <br>• هل الموقع متاح ٩٩٫٩٪ من الوقت؟ (يحتاج <b>uptime monitor</b> مثل UptimeRobot/Better Stack)
-        <br>• كم متوسط زمن الاستجابة؟ (يحتاج <b>APM</b> مثل Sentry Performance)
-        <br>• كم عدد الأخطاء التي تحدث للمستخدمين؟ (يحتاج <b>error tracking</b> مثل Sentry/LogRocket)
-        <br>• هل Edge Functions تعمل بلا فشل؟ (يحتاج قراءة <b>Supabase Logs API</b>)
-      </p>
-      <p style="margin:10px 0 0;font-size:13.5px;line-height:1.9;color:var(--text)">
-        <b>الخطوة الصادقة التالية:</b> ربط Sentry (مجاني للفرق الصغيرة) لتتبع الأخطاء الفعلية، ثم إضافة صفحة هنا تقرأ منه. بدون ذلك، عرض «uptime: 99.9٪» سيكون مجرد رقم مُختلق.
-      </p>
-    </div>`;
+    <div style="text-align:end;font-size:13px;color:var(--muted);line-height:1.9;max-width:340px">
+      <b style="color:var(--navy-deep)">المنهجية:</b> نبدأ من ١٠٠ وننقص نقاطًا عن كل مشكلة حقيقية في القاعدة (طلاب عالقون، حصص متأخرة، دفعات لم تُراجَع، اتجاه هابط). الحساب شفاف بالكامل — كل مؤشر أدناه هو استعلام حقيقي.
+    </div>
+  </div>`;
+
+  return pageHead('صحة المنصة','') + heroHtml +
+    `<h3 style="color:var(--navy-deep);margin:22px 0 10px;font-size:16px">${mi('warning')||'⚠️'} سلامة البيانات — إشارات تحتاج تدخّلاً</h3>
+    <div class="exec-kpis">
+      ${kpi('طلاب عالقون بلا حلقة', ar(stranded), 'نشط + مفعّل بلا مجموعة', stranded>3?'#c92e2e':stranded>0?'#c9a227':'#2E7D5B', "navigate('journey')")}
+      ${kpi('حصص متأخرة بلا حالة', ar(scheduledPast), 'مجدولة وتاريخها فات', scheduledPast>10?'#c92e2e':scheduledPast>0?'#c9a227':'#2E7D5B', "navigate('halqat_ops')")}
+      ${kpi('حصص انتهت بلا تقييم', ar(doneUnrated), 'حالتها done والتقييم ناقص', doneUnrated>10?'#c92e2e':doneUnrated>0?'#c9a227':'#2E7D5B', "navigate('halqat_ops')")}
+      ${kpi('دفعات عالقة (>٣ أيام)', ar(stuckPays), 'pending ولم تُراجَع', stuckPays>2?'#c92e2e':stuckPays>0?'#c9a227':'#2E7D5B', "navigate('confirm')")}
+      ${kpi('حلقات بلا معلم', ar(grpsNoTeacher), 'مجموعة بلا teacher_id', grpsNoTeacher>0?'#c9a227':'#2E7D5B', "navigate('staff')")}
+      ${kpi('طلاب نشطون بلا حساب', ar(studsNoLogin), 'لا يوجد login_id', studsNoLogin>3?'#c9a227':'#2E7D5B', "navigate('students')")}
+    </div>
+    <h3 style="color:var(--navy-deep);margin:22px 0 10px;font-size:16px">${mi('chart')||'📊'} حيوية العمليات — اتجاه أسبوعي</h3>
+    <div class="exec-kpis">
+      ${kpi('حصص هذا الأسبوع', ar(sesCur), 'مقابل '+ar(sesPrev)+' الأسبوع السابق — '+trendArrow(sesTrend))}
+      ${kpi('دفعات هذا الأسبوع', ar(paysCur), 'مقابل '+ar(paysPrev)+' الأسبوع السابق — '+trendArrow(paysTrend))}
+      ${kpi('تنبيهات هذا الأسبوع', ar(notifsCurC), 'مقابل '+ar(notifsPrevC)+' الأسبوع السابق — '+trendArrow(notifsTrend))}
+    </div>
+    <h3 style="color:var(--navy-deep);margin:22px 0 10px;font-size:16px">${mi('users')||'👥'} تفاعل المستخدمين</h3>
+    <div class="exec-kpis">
+      ${kpi('مستخدمون نشطون (٧ أيام)', ar(activeUsers7d), 'استلموا تنبيهًا واحدًا على الأقل')}
+      ${kpi('نسبة قراءة التنبيهات', ar(readRate)+'٪', ar(notifsReadC)+' مقروءة من '+ar(notifsCurC), readRate<30?'#c9a227':'#2E7D5B')}
+      ${kpi('متوسط تنبيهات/مستخدم', activeUsers7d?ar(Math.round(notifsCurC*10/activeUsers7d)/10):'—', 'خلال ٧ أيام')}
+    </div>
+    <h3 style="color:var(--navy-deep);margin:22px 0 10px;font-size:16px">${mi('clock')||'🕐'} نضارة البيانات — آخر نشاط في كل جدول</h3>
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="exec-fresh-list">
+        <div class="exec-fresh-row"><span>الطلاب</span><span class="mono">${esc(relTime(lastOf(studs,'created_at')))}</span></div>
+        <div class="exec-fresh-row"><span>الحصص</span><span class="mono">${esc(relTime(lastOf(ses,'created_at')))}</span></div>
+        <div class="exec-fresh-row"><span>التقييمات</span><span class="mono">${esc(relTime(lastOf(rats,'created_at')))}</span></div>
+        <div class="exec-fresh-row"><span>الدفعات</span><span class="mono">${esc(relTime(lastOf(pays,'paid_at')||lastOf(pays,'created_at')))}</span></div>
+        <div class="exec-fresh-row"><span>التنبيهات</span><span class="mono">${esc(relTime(lastOf(notifsCur,'created_at')))}</span></div>
+      </div>
+    </div>
+    <p style="margin:18px 0 0;font-size:11.5px;color:var(--muted);text-align:center;line-height:1.7">
+      كل الأرقام أعلاه من استعلامات حقيقية على القاعدة الحية. الصفحة لا تدّعي uptime ولا latency (يحتاجان telemetry خارجي كـ UptimeRobot/Sentry) — بل تقيس ما يدل فعلاً على صحة عمليات الأكاديمية.
+    </p>`;
 };
 
 // ─── القسم ٨: القرارات المشتركة ────────────────────────────────────────────
