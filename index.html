@@ -11204,6 +11204,8 @@ PAGES.executive_analytics = function(){ return PAGES.admin_analytics(); };
 PAGES.executive_staff = function(){ return PAGES.admin_staff(); };
 PAGES.executive_students = function(){ return PAGES.admin_users(); };
 PAGES.executive_finance = function(){ return PAGES.admin_finance(); };
+// قرارات الشراكة — نفس صفحة الشريك المؤسس (المدير التنفيذي يشارك في التصويت)
+PAGES.executive_partnership = function(){ return PAGES.admin_partnership(); };
 PAGES.executive_chat = function(){ return PAGES.supervisor_chat ? PAGES.supervisor_chat() : chatPage(); };
 // ═══ غرفة العمليات التنفيذية ═══════════════════════════════════════════════
 // إعادة بناء كاملة: كانت الصفحة أرقام عامة + قائمة "تنبيهات" وصفية بلا إجراء.
@@ -11601,7 +11603,9 @@ async function _execSuggest(studentId){
     return { t, cur, max, avail, score };
   }).filter(x => x.avail > 0).sort((a,b)=>b.score-a.score).slice(0,5);
   if(!scored.length){ toast('لا يوجد معلم متاح بطاقة شاغرة الآن'); return; }
-  const html = `<div class="ch"><h3>${mi('users')||''} اقتراح توزيع — ${esc(st.full_name)}</h3></div>
+  // نمط النافذة في هذا المشروع: كتابة مباشرة في #modalHost (لا يوجد openModal helper)
+  $('#modalHost').innerHTML = `<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:520px">
+    <div class="ch"><h3>${mi('users')||''} اقتراح توزيع — ${esc(st.full_name)}</h3></div>
     <p class="tagline-sm" style="margin:0 0 12px">أفضل ${ar(scored.length)} معلمين حسب المسار والعمر والطاقة</p>
     <div class="exec-sug-list">${scored.map(x=>`
       <div class="exec-sug-row">
@@ -11611,8 +11615,8 @@ async function _execSuggest(studentId){
         </div>
         <button class="btn" onclick="_execAssignPick(${studentId},'${x.t.id}','${escJs(x.t.full_name)}')">اختر</button>
       </div>`).join('')}</div>
-    <div class="cactions"><button class="btn ghost" onclick="closeModal()">إلغاء</button></div>`;
-  openModal(html);
+    <div class="modal-actions" style="margin-top:14px"><button class="btn ghost" onclick="closeModal()">إلغاء</button></div>
+  </div></div>`;
 }
 async function _execAssignPick(studentId, teacherId, teacherName){
   // نضع chosen_teacher_id — قرار التثبيت في حلقة بعينها يبقى على المشرف
