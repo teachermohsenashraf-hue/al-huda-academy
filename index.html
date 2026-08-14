@@ -11552,11 +11552,34 @@ PAGES.admin_programs = async function(){
     <h3 style="color:var(--navy-deep);margin:0 0 8px">لا أنظمة في هذه الفئة</h3>
     <p style="font-size:13px">ابدأ بإنشاء نظام جديد أو استخدم قالبًا جاهزًا</p>
   </div>`;
+  // ── قسم الأنظمة القرآنية القديمة (للاطلاع فقط داخل هذه الواجهة) ──
+  const {data:legacyQ} = await sb.from('quran_systems').select('id,name,plan_type').limit(20).then(x=>x,()=>({data:[]}));
+  const legacyCards = (legacyQ||[]).length ? `
+    <details style="margin-top:20px">
+      <summary style="cursor:pointer;padding:12px 16px;background:#f5f7fa;border-radius:10px;font-weight:600;color:var(--navy-deep)">📜 الأنظمة القرآنية الكلاسيكية (${ar((legacyQ||[]).length)}) — للاطلاع والوصول السريع</summary>
+      <div class="prog-grid" style="margin-top:12px">
+        ${legacyQ.map(q => `<div class="prog-card" style="border-top:3px solid #8A6C00">
+          <div class="prog-head">
+            <div class="prog-icon" style="background:#8A6C0022;color:#8A6C00">🕋</div>
+            <div class="prog-body">
+              <b>${esc(q.name)}</b>
+              <div class="prog-meta">نظام قرآني كلاسيكي • ${esc(q.plan_type||'—')}</div>
+              <p class="prog-desc">مبني على المحرك القديم (quran_systems). للتعديل الكامل استخدم صفحة «أنظمة القرآن (كلاسيكي)».</p>
+            </div>
+          </div>
+          <div class="prog-foot">
+            <span class="chip" style="background:#8A6C0022;color:#8A6C00">كلاسيكي</span>
+            <button class="btn-sm ghost" onclick="navigate('qsystems')">افتح في المحرر القديم</button>
+          </div>
+        </div>`).join('')}
+      </div>
+    </details>` : '';
+
   return pageHead('الأنظمة والبرامج التعليمية','') +
     `<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px;flex-wrap:wrap">
       <button class="btn ghost" onclick="_progTemplates()">${mi('books')||''} استعراض القوالب</button>
       <button class="btn" onclick="_progNew()">+ إنشاء نظام جديد</button>
-    </div>` + kpisHtml + chips + `<div class="prog-grid">${cards}</div>`;
+    </div>` + kpisHtml + chips + `<div class="prog-grid">${cards}</div>` + legacyCards;
 };
 PAGES.executive_programs = PAGES.admin_programs;
 
@@ -11751,12 +11774,17 @@ PAGES.admin_programs_detail = async function(){
   setTop(p.name, esc(dom[1])+' • '+esc(st[0]));
   const tab = SESSION._progTab || 'overview';
   const tabBtn = (k,l) => `<button class="grpchip ${tab===k?'on':''}" onclick="_progTab('${k}')">${esc(l)}</button>`;
-  const tabsBar = `<div class="grpfilters" style="margin:14px 0">
+  const tabsBar = `<div class="grpfilters" style="margin:14px 0;overflow-x:auto">
     ${tabBtn('overview','نظرة عامة')}
     ${tabBtn('structure','المسارات والمحطات')}
     ${tabBtn('activities','الأنشطة')}
     ${tabBtn('approval','الاعتماد والنشر')}
     ${tabBtn('ops','التشغيل')}
+    ${tabBtn('students','الطلاب والحلقات')}
+    ${tabBtn('analytics','التحليلات')}
+    ${tabBtn('versions','النسخ والتغييرات')}
+    ${tabBtn('audit','سجل التدقيق')}
+    ${tabBtn('permissions','الصلاحيات')}
   </div>`;
   let body = '';
   if(tab==='overview'){
@@ -11826,6 +11854,126 @@ PAGES.admin_programs_detail = async function(){
         <div class="field"><label>عدد الحصص الأسبوعية</label><input id="opWeekly" type="number" value="${p.ops_config?.weekly_sessions||''}" placeholder="3"></div>
         <div class="modal-actions"><button class="btn" onclick="_progSaveOps('${p.id}')">حفظ الإعدادات التشغيلية</button></div>
       ` : `<div style="color:var(--muted);text-align:center;padding:20px">⚠️ يجب اعتماد النظام علميًا أولاً قبل الإعدادات التشغيلية.</div>`}
+    </div>`;
+  } else if(tab==='students'){
+    // ── الطلاب والحلقات: قائمة الاشتراكات الحقيقية + زر إسناد ──
+    const {data:enrolls} = await sb.from('edu_program_enrollments').select('*, students(full_name,initials,enrollment_status), groups(name,teacher_id)').eq('program_id',p.id).order('enrolled_at',{ascending:false});
+    const rows = (enrolls||[]);
+    if(p.status !== 'published' && p.status !== 'paused'){
+      body = `<div class="card" style="padding:20px;text-align:center;color:var(--muted)">
+        <div style="font-size:32px;margin-bottom:10px">⚠️</div>
+        <b style="color:var(--navy-deep)">النظام لم يُنشر بعد</b>
+        <p style="font-size:13px;margin-top:6px">لا يمكن إسناد طلاب لنظام غير منشور. انشره من تبويب «الاعتماد والنشر» أولاً.</p>
+      </div>`;
+    } else {
+      const kpi = (l,v) => `<div class="exec-kpi"><div class="exec-kpi-label">${esc(l)}</div><div class="exec-kpi-value">${v}</div></div>`;
+      const kpis = `<div class="exec-kpis">
+        ${kpi('طلاب نشطون', ar(rows.filter(r=>r.status==='active').length))}
+        ${kpi('مكتملون', ar(rows.filter(r=>r.status==='completed').length))}
+        ${kpi('موقوفون', ar(rows.filter(r=>r.status==='paused').length))}
+        ${kpi('انسحبوا', ar(rows.filter(r=>r.status==='withdrawn').length))}
+      </div>`;
+      const rowsHtml = rows.length ? rows.map(r => `
+        <div class="exec-jrow">
+          <div class="exec-jrow-body">
+            <div class="exec-jrow-name">${esc(r.students?.full_name||'طالب')}${r.groups?` <span style="font-size:11px;color:var(--muted);font-weight:500">• حلقة: ${esc(r.groups.name)}</span>`:''}</div>
+            <div class="exec-jrow-meta">التحق: ${(r.enrolled_at||'').slice(0,10)} • تقدم: ${ar(r.progress_pct||0)}٪</div>
+            ${r.notes?`<div class="exec-jrow-reason">${esc(r.notes)}</div>`:''}
+          </div>
+          <div class="exec-jrow-act">
+            <span class="chip" style="background:${r.status==='active'?'#2E7D5B22':r.status==='paused'?'#c9a22722':'#66666622'};color:${r.status==='active'?'#2E7D5B':r.status==='paused'?'#c9a227':'#666'};margin-inline-end:6px">${esc(r.status)}</span>
+            <button class="btn-sm ghost" onclick="_progUnenroll('${r.id}')">إلغاء</button>
+          </div>
+        </div>`).join('') : `<div style="text-align:center;padding:30px;color:var(--muted)">لا طلاب مسنَدون بعد</div>`;
+      body = `<div style="display:flex;justify-content:flex-end;margin-bottom:12px"><button class="btn" onclick="_progEnrollStudent('${p.id}')">+ إسناد طالب</button></div>${kpis}<div class="card" style="margin-top:14px;padding:14px 18px"><div class="exec-jlist">${rowsHtml}</div></div>`;
+    }
+  } else if(tab==='analytics'){
+    // ── التحليلات: نسبة الإتمام، أكثر محطة تعثرًا، نشاط ──
+    const {data:enrolls} = await sb.from('edu_program_enrollments').select('*').eq('program_id',p.id);
+    const rows = enrolls || [];
+    const total = rows.length;
+    const active = rows.filter(r=>r.status==='active').length;
+    const done = rows.filter(r=>r.status==='completed').length;
+    const avgProg = total ? Math.round(rows.reduce((a,r)=>a+(r.progress_pct||0),0)/total) : 0;
+    const compRate = total ? Math.round(done*100/total) : 0;
+    // أكثر محطة توقفًا: نجمّع الطلاب حسب current_station_id
+    const stuckAt = {}; rows.filter(r=>r.status==='active' && r.current_station_id).forEach(r => stuckAt[r.current_station_id] = (stuckAt[r.current_station_id]||0)+1);
+    const stuckList = Object.entries(stuckAt).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([sid,cnt]) => {
+      const s = sts.find(x=>x.id===sid);
+      return {name:s?.name||'محطة محذوفة', count:cnt};
+    });
+    const kpi = (l,v,s) => `<div class="exec-kpi"><div class="exec-kpi-label">${esc(l)}</div><div class="exec-kpi-value">${v}</div>${s?`<div class="exec-kpi-sub">${esc(s)}</div>`:''}</div>`;
+    body = `<div class="exec-kpis">
+      ${kpi('إجمالي المسنَدين', ar(total))}
+      ${kpi('نشطون', ar(active), total?ar(Math.round(active*100/total))+'٪ من الإجمالي':'')}
+      ${kpi('نسبة الإتمام', ar(compRate)+'٪', ar(done)+' من '+ar(total))}
+      ${kpi('متوسط التقدم', ar(avgProg)+'٪')}
+    </div>
+    <div class="card" style="margin-top:14px;padding:18px">
+      <b style="color:var(--navy-deep)">أكثر ٥ محطات يتعثر عندها الطلاب</b>
+      ${stuckList.length?`<div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">${stuckList.map(x=>`<div style="display:flex;justify-content:space-between;padding:10px 14px;background:#f8f9fa;border-radius:8px"><span>${esc(x.name)}</span><b style="color:#c9a227">${ar(x.count)} طالب</b></div>`).join('')}</div>`:'<p style="margin:10px 0 0;color:var(--muted);font-size:13px">لا بيانات كافية بعد</p>'}
+    </div>
+    <div class="card" style="margin-top:14px;padding:14px 18px;background:#f5f7fa;font-size:12.5px;color:var(--muted);line-height:1.8">
+      💡 التحليلات ستُغنى تلقائيًا مع كل تسجيل حصة وتقدُّم للطلاب. البيانات أعلاه هي الحالة الآن من قاعدة edu_program_enrollments.
+    </div>`;
+  } else if(tab==='versions'){
+    // ── النسخ: كل نسخة من هذا النظام (parent/children) ──
+    const {data:children} = await sb.from('edu_programs').select('id,name,version,status,created_at,created_by').eq('parent_program_id',p.id).order('created_at',{ascending:false});
+    const {data:parent} = p.parent_program_id ? await sb.from('edu_programs').select('id,name,version,status').eq('id',p.parent_program_id).maybeSingle() : {data:null};
+    body = `<div class="card" style="padding:18px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+        <div>
+          <b style="color:var(--navy-deep)">النسخة الحالية: v${esc(p.version||'1.0')}</b>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">أُنشئت في ${(p.created_at||'').slice(0,10)}</div>
+        </div>
+        <button class="btn" onclick="_progNewVersion('${p.id}')">+ إنشاء نسخة جديدة</button>
+      </div>
+      <p style="margin:0 0 10px;font-size:13px;color:var(--muted);line-height:1.8">
+        إنشاء نسخة جديدة يحافظ على خطط الطلاب الحاليين على النسخة القديمة. النسخة الجديدة تبدأ كمسودة يمكنك تعديلها ثم اعتمادها ونشرها للطلاب الجدد.
+      </p>
+      ${parent?`<div style="margin-top:14px;padding:12px;background:#f0f4f8;border-radius:8px;border-inline-start:3px solid #1a3a5c">
+        <div style="font-size:12px;color:var(--muted)">النسخة الأصلية:</div>
+        <a onclick="_progOpen('${parent.id}')" style="cursor:pointer;color:var(--navy-deep);font-weight:600">${esc(parent.name)} — v${esc(parent.version||'1.0')} (${esc(EDU_STATUS[parent.status]?.[0]||parent.status)})</a>
+      </div>`:''}
+    </div>
+    ${(children||[]).length?`<div class="card" style="margin-top:14px;padding:0;overflow:hidden">
+      <div style="padding:14px 18px;border-bottom:1px solid var(--line)"><b style="color:var(--navy-deep)">النسخ المشتقة (${ar(children.length)})</b></div>
+      <div class="exec-fresh-list">
+        ${children.map(c=>{const st=EDU_STATUS[c.status]||['—','#666',''];return `<div class="exec-fresh-row"><span><a onclick="_progOpen('${c.id}')" style="cursor:pointer;color:var(--navy-deep);font-weight:600">${esc(c.name)}</a> — v${esc(c.version||'1.0')}</span><span><span class="chip" style="background:${st[1]}22;color:${st[1]};font-size:11px">${esc(st[0])}</span> <span class="mono">${(c.created_at||'').slice(0,10)}</span></span></div>`;}).join('')}
+      </div>
+    </div>`:'<p style="margin:14px 0 0;color:var(--muted);text-align:center;font-size:13px">لا نسخ مشتقة بعد</p>'}`;
+  } else if(tab==='audit'){
+    // ── سجل التدقيق: من content_approvals للنظام + آخر تحديث ──
+    const {data:apps} = await sb.from('content_approvals').select('id,status,summary,requested_by,created_at,updated_at').eq('target_type','edu_program').eq('target_id',p.id).order('created_at',{ascending:false});
+    const events = [];
+    events.push({when:p.created_at, what:'أُنشئ النظام', by:p.created_by, kind:'create'});
+    if(p.approved_at) events.push({when:p.approved_at, what:'اعتُمد علميًا', by:p.approved_by, kind:'approve'});
+    if(p.published_at) events.push({when:p.published_at, what:'نُشر النظام', by:null, kind:'publish'});
+    if(p.archived_at) events.push({when:p.archived_at, what:'أُرشف النظام', by:null, kind:'archive'});
+    (apps||[]).forEach(a => events.push({when:a.created_at, what:'طلب اعتماد: '+(a.summary||''), by:a.requested_by, kind:'approval', status:a.status}));
+    events.sort((a,b) => (b.when||'').localeCompare(a.when||''));
+    body = `<div class="card" style="padding:0;overflow:hidden">
+      <div style="padding:14px 18px;border-bottom:1px solid var(--line)"><b style="color:var(--navy-deep)">سجل الأحداث (${ar(events.length)})</b></div>
+      <div class="exec-fresh-list">
+        ${events.length?events.map(e=>`<div class="exec-fresh-row"><span>${esc(e.what)}${e.status?' — '+esc(e.status):''}</span><span class="mono">${(e.when||'').slice(0,16).replace('T',' ')}</span></div>`).join(''):'<div style="padding:20px;text-align:center;color:var(--muted)">لا أحداث مسجَّلة</div>'}
+      </div>
+    </div>
+    <p style="margin:12px 0 0;font-size:11.5px;color:var(--muted);text-align:center">السجل يجمع: إنشاء + اعتماد + نشر + أرشفة + كل طلبات content_approvals المتعلقة بهذا النظام</p>`;
+  } else if(tab==='permissions'){
+    // ── الصلاحيات: عرض حدود الأدوار الحالية على هذا النظام ──
+    body = `<div class="card" style="padding:18px">
+      <b style="color:var(--navy-deep);font-size:15px">الصلاحيات المطبَّقة على هذا النظام</b>
+      <p style="margin:6px 0 14px;font-size:13px;color:var(--muted)">الصلاحيات تُطبَّق على مستوى RLS في القاعدة — لا تُخترق من الواجهة.</p>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="prog-station"><span class="prog-stn-num">1</span><div style="flex:1"><b>المدير العلمي</b> <span style="font-size:11px;color:var(--muted)">(is_scientific_director)</span><div style="font-size:12.5px;color:var(--text);margin-top:3px">إنشاء + تعديل الهيكل + اعتماد المحتوى + رفض/إعادة + إيقاف علمي + حذف</div></div><span class="chip g">صلاحية كاملة</span></div>
+        <div class="prog-station"><span class="prog-stn-num" style="background:#c9a227">2</span><div style="flex:1"><b>المدير التنفيذي</b> <span style="font-size:11px;color:var(--muted)">(role=executive)</span><div style="font-size:12.5px;color:var(--text);margin-top:3px">إعدادات تشغيلية بعد الاعتماد + إسناد الطلاب + نشر بعد جهوز التشغيل</div></div><span class="chip gold">تشغيلي</span></div>
+        <div class="prog-station"><span class="prog-stn-num" style="background:#1a3a5c">3</span><div style="flex:1"><b>الأدمن</b> <span style="font-size:11px;color:var(--muted)">(is_admin)</span><div style="font-size:12.5px;color:var(--text);margin-top:3px">كل ما سبق + حذف نهائي + تجاوز أعطال</div></div><span class="chip g">صلاحية كاملة</span></div>
+        <div class="prog-station"><span class="prog-stn-num" style="background:#666">4</span><div style="flex:1"><b>المشرف والمعلم</b><div style="font-size:12.5px;color:var(--text);margin-top:3px">قراءة فقط — يرون النظام والهيكل لكن لا يعدّلون</div></div><span class="chip">قراءة</span></div>
+        <div class="prog-station"><span class="prog-stn-num" style="background:#999">5</span><div style="flex:1"><b>الطلاب النشطون</b><div style="font-size:12.5px;color:var(--text);margin-top:3px">يرون فقط الأنظمة التي بحالة <b>published</b> — لا يرون المسودات ولا الأرشيف</div></div><span class="chip">قراءة محدودة</span></div>
+      </div>
+      <div style="margin-top:16px;padding:12px;background:#fff8e6;border-radius:8px;border-inline-start:3px solid #c9a227;font-size:12.5px;line-height:1.7;color:#8a6c00">
+        💡 <b>حدود مهمة:</b> التنفيذي لا يستطيع اعتماد المحتوى العلمي وحده. المدير العلمي وحده يعتمد. أي تعديل جوهري بعد النشر يجب أن يمر بنسخة جديدة (تبويب «النسخ») حفاظًا على خطط الطلاب.
+      </div>
     </div>`;
   }
   return `<div style="margin-bottom:10px"><button class="btn-sm ghost" onclick="navigate('programs')">← عودة للقائمة</button></div>` +
@@ -11954,6 +12102,83 @@ async function _progClone(id){
   if(actInserts.length) await sb.from('edu_program_activities').insert(actInserts);
   toast('✅ نُسخ النظام'); _progOpen(np.id);
 }
+// ── إسناد طالب لنظام منشور ──
+async function _progEnrollStudent(programId){
+  const [{data:studs},{data:tracks},{data:groups}] = await Promise.all([
+    sb.from('students').select('id,full_name,enrollment_status,group_id').eq('enrollment_status','active').order('full_name').limit(500),
+    sb.from('edu_program_tracks').select('id,name').eq('program_id',programId).order('order_index'),
+    sb.from('groups').select('id,name').order('name').limit(500),
+  ]);
+  // استبعد من هم مسنَدون فعلًا
+  const {data:existing} = await sb.from('edu_program_enrollments').select('student_id').eq('program_id',programId).in('status',['active','paused']);
+  const takenIds = new Set((existing||[]).map(e=>e.student_id));
+  const available = (studs||[]).filter(s=>!takenIds.has(s.id));
+  if(!available.length){ toast('كل الطلاب النشطين مسنَدون بالفعل لهذا النظام'); return; }
+  $('#modalHost').innerHTML = `<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:520px">
+    <h3 style="color:var(--navy-deep);margin:0 0 12px">إسناد طالب لهذا النظام</h3>
+    <div class="field"><label>الطالب</label><select id="enrStud">${available.map(s=>`<option value="${s.id}">${esc(s.full_name)}</option>`).join('')}</select></div>
+    ${(tracks||[]).length?`<div class="field"><label>المسار</label><select id="enrTrack"><option value="">— بدون تحديد —</option>${tracks.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('')}</select></div>`:''}
+    <div class="field"><label>الحلقة (اختياري)</label><select id="enrGroup"><option value="">— بدون حلقة —</option>${(groups||[]).map(g=>`<option value="${g.id}">${esc(g.name)}</option>`).join('')}</select></div>
+    <div class="field"><label>ملاحظة (اختياري)</label><textarea id="enrNote" rows="2" placeholder="سبب الإسناد أو أي ملاحظة"></textarea></div>
+    <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إلغاء</button><button class="btn" onclick="_progSaveEnroll('${programId}')">إسناد</button></div>
+  </div></div>`;
+}
+async function _progSaveEnroll(programId){
+  const rec = {
+    program_id: programId,
+    student_id: +$('#enrStud').value,
+    track_id: $('#enrTrack')?.value || null,
+    group_id: $('#enrGroup').value ? +$('#enrGroup').value : null,
+    notes: $('#enrNote').value.trim() || null,
+    enrolled_by: ME.id,
+    status: 'active',
+  };
+  const {error} = await sb.from('edu_program_enrollments').insert(rec);
+  if(error){ toast('تعذر الإسناد: '+error.message); return; }
+  // نبّه الطالب لو له حساب
+  const {data:st} = await sb.from('students').select('login_id,full_name,parent_id').eq('id',rec.student_id).maybeSingle();
+  const {data:prog} = await sb.from('edu_programs').select('name').eq('id',programId).maybeSingle();
+  if(st?.login_id && prog) await pushNotif(st.login_id, 'التحاق ببرنامج جديد', 'تم إلحاقك ببرنامج: '+prog.name, 'enrollment', programId).catch(()=>{});
+  if(st?.parent_id && prog) await pushNotif(st.parent_id, 'ابنك التحق ببرنامج جديد', prog.name, 'enrollment', programId).catch(()=>{});
+  closeModal(); toast('✅ أُسند الطالب'); navigate('programs_detail');
+}
+async function _progUnenroll(enrollId){
+  if(!confirm('إلغاء إسناد هذا الطالب؟ سيُسجَّل كـwithdrawn.')) return;
+  const {error} = await sb.from('edu_program_enrollments').update({status:'withdrawn', updated_at:new Date().toISOString()}).eq('id',enrollId);
+  if(error){ toast('تعذر: '+error.message); return; }
+  toast('تم الإلغاء'); navigate('programs_detail');
+}
+
+// ── إنشاء نسخة جديدة (v1.1) بدون كسر خطط الطلاب على النسخة القديمة ──
+async function _progNewVersion(parentId){
+  const {data:p} = await sb.from('edu_programs').select('*').eq('id',parentId).maybeSingle();
+  if(!p) return;
+  const bump = (v) => { const parts = String(v||'1.0').split('.'); const minor = (+parts[1]||0)+1; return parts[0]+'.'+minor; };
+  const newVersion = prompt('رقم النسخة الجديدة:', bump(p.version));
+  if(!newVersion) return;
+  const rec = {...p, id:undefined, version:newVersion, status:'draft', parent_program_id:p.id, approved_by:null, approved_at:null, published_at:null, archived_at:null, created_by:ME.id};
+  delete rec.id; delete rec.created_at; delete rec.updated_at;
+  const {data:np, error} = await sb.from('edu_programs').insert(rec).select().single();
+  if(error){ toast('تعذر: '+error.message); return; }
+  // انسخ الهيكل بالكامل (مثل _progClone)
+  const {data:trs} = await sb.from('edu_program_tracks').select('*').eq('program_id',parentId);
+  const trMap = {};
+  for(const t of (trs||[])){
+    const {data:nt} = await sb.from('edu_program_tracks').insert({program_id:np.id, name:t.name, description:t.description, order_index:t.order_index}).select().single();
+    if(nt) trMap[t.id] = nt.id;
+  }
+  const {data:sts} = await sb.from('edu_program_stations').select('*').eq('program_id',parentId);
+  const stMap = {};
+  for(const s of (sts||[])){
+    const {data:ns} = await sb.from('edu_program_stations').insert({program_id:np.id, track_id:trMap[s.track_id], name:s.name, description:s.description, order_index:s.order_index, mastery_threshold_pct:s.mastery_threshold_pct}).select().single();
+    if(ns) stMap[s.id] = ns.id;
+  }
+  const {data:acs} = await sb.from('edu_program_activities').select('*, edu_program_stations!inner(program_id)').eq('edu_program_stations.program_id',parentId);
+  const actInserts = (acs||[]).map(a => ({station_id:stMap[a.station_id], kind:a.kind, title:a.title, description:a.description, points:a.points, order_index:a.order_index})).filter(a=>a.station_id);
+  if(actInserts.length) await sb.from('edu_program_activities').insert(actInserts);
+  toast('✅ أُنشئت النسخة الجديدة كمسودة'); _progOpen(np.id);
+}
+
 async function _progSaveOps(id){
   const ops = {
     fee: +$('#opFee').value || null,
