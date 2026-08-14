@@ -11206,6 +11206,9 @@ PAGES.executive_students = function(){ return PAGES.admin_users(); };
 PAGES.executive_finance = function(){ return PAGES.admin_finance(); };
 // قرارات الشراكة — نفس صفحة الشريك المؤسس (المدير التنفيذي يشارك في التصويت)
 PAGES.executive_partnership = function(){ return PAGES.admin_partnership(); };
+// تأكيد المدفوعات — نفس شاشة المشرف (التنفيذي والأدمن يعتمدون الإيصالات كذلك)
+PAGES.executive_confirm = function(){ return PAGES.supervisor_confirm(); };
+PAGES.admin_confirm     = function(){ return PAGES.supervisor_confirm(); };
 PAGES.executive_chat = function(){ return PAGES.supervisor_chat ? PAGES.supervisor_chat() : chatPage(); };
 // ═══ غرفة العمليات التنفيذية ═══════════════════════════════════════════════
 // إعادة بناء كاملة: كانت الصفحة أرقام عامة + قائمة "تنبيهات" وصفية بلا إجراء.
