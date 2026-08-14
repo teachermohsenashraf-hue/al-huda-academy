@@ -426,18 +426,29 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 .exec-sug-list{display:flex;flex-direction:column;gap:8px;margin-top:10px}
 .exec-sug-row{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:12px 14px;border:1px solid var(--line);border-radius:10px}
 .exec-sug-row b{color:var(--navy-deep,#1a3a5c)}
-/* قمع التحويل (النمو) */
-.exec-funnel{display:flex;flex-direction:column;gap:8px;margin-top:8px}
-.exec-funnel-step{display:grid;grid-template-columns:130px 1fr auto;gap:12px;align-items:center;font-size:13px}
-.exec-funnel-label{color:var(--text);font-weight:600}
-.exec-funnel-bar{height:22px;background:linear-gradient(90deg,var(--emerald,#2E7D5B),var(--emerald-light,#4CAF7B));border-radius:6px;min-width:24px;transition:.3s}
-.exec-funnel-val{color:var(--navy-deep);font-weight:700;font-family:'Tajawal',sans-serif}
-/* مخطط النمو الشهري */
-.exec-mchart{display:flex;align-items:flex-end;gap:12px;height:180px;padding:16px 8px 8px;border-bottom:1px solid var(--line);margin-top:10px}
-.exec-mbar{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;position:relative;min-width:0}
-.exec-mbar-fill{width:100%;max-width:60px;background:linear-gradient(180deg,var(--emerald,#2E7D5B),var(--emerald-deep,#1B4D3E));border-radius:8px 8px 0 0;min-height:6px;transition:.3s}
-.exec-mbar-lbl{font-size:10.5px;color:var(--muted);white-space:nowrap}
-.exec-mbar-val{position:absolute;top:-18px;font-size:11px;font-weight:700;color:var(--navy-deep);font-family:'Tajawal',sans-serif}
+/* قمع التحويل (النمو) — الشريط داخل track بعرض ثابت عشان ما يفيضش على السطر */
+.exec-funnel{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+.exec-funnel-step{display:grid;grid-template-columns:130px 1fr 90px;gap:12px;align-items:center;font-size:13px}
+.exec-funnel-label{color:var(--text);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.exec-funnel-track{background:#f0f0f0;border-radius:8px;height:22px;overflow:hidden;position:relative;width:100%}
+.exec-funnel-bar{height:100%;background:linear-gradient(90deg,var(--emerald,#2E7D5B),var(--emerald-light,#4CAF7B));border-radius:8px;transition:width .4s ease;min-width:8px}
+.exec-funnel-val{color:var(--navy-deep);font-weight:700;font-family:'Tajawal',sans-serif;text-align:start;white-space:nowrap;display:flex;flex-direction:column;line-height:1.2}
+.exec-funnel-pct{color:var(--muted);font-size:10.5px;font-weight:600;margin-top:2px}
+/* مخطط النمو الشهري — العمود بعرض متساوٍ والقيمة فوق الشريط لا مطلقة */
+.exec-mchart{display:flex;align-items:flex-end;justify-content:space-around;gap:8px;height:200px;padding:20px 8px 12px;border-bottom:2px solid var(--line);margin-top:14px;background:linear-gradient(180deg,transparent 0%,rgba(46,125,91,0.02) 100%);border-radius:8px 8px 0 0}
+.exec-mbar{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:0;min-width:0;height:100%;max-width:80px}
+.exec-mbar-val{font-size:12px;font-weight:700;color:var(--navy-deep);font-family:'Tajawal',sans-serif;margin-bottom:4px;min-height:16px}
+.exec-mbar-fill{width:70%;max-width:52px;background:linear-gradient(180deg,var(--emerald,#2E7D5B),var(--emerald-deep,#1B4D3E));border-radius:6px 6px 0 0;min-height:2px;transition:height .4s ease;box-shadow:0 -2px 4px rgba(46,125,91,0.15)}
+.exec-mbar-lbl{font-size:11px;color:var(--muted);white-space:nowrap;margin-top:6px;font-weight:600}
+/* مصادر الاكتساب */
+.src-list{display:flex;flex-direction:column;gap:8px}
+.src-row{display:grid;grid-template-columns:140px 1fr 90px;gap:12px;align-items:center;font-size:13px}
+.src-name{display:flex;align-items:center;gap:8px;color:var(--text);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.src-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.src-track{background:#f0f0f0;border-radius:6px;height:14px;overflow:hidden}
+.src-fill{height:100%;border-radius:6px;transition:width .4s ease;min-width:6px}
+.src-val{color:var(--navy-deep);font-weight:700;font-family:'Tajawal',sans-serif;text-align:start;white-space:nowrap;font-size:13px}
+.src-pct{color:var(--muted);font-size:11px;margin-inline-start:4px}
 /* OKR كارد وشريط تقدم */
 .exec-okr-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
 .exec-okr-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;transition:.2s}
@@ -446,8 +457,14 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 .exec-okr-bar{height:8px;background:#f0f0f0;border-radius:4px;overflow:hidden}
 .exec-okr-fill{height:100%;border-radius:4px;transition:.4s}
 @media (max-width:640px){
-  .exec-funnel-step{grid-template-columns:100px 1fr auto;gap:8px;font-size:12px}
-  .exec-mchart{height:140px;gap:6px}
+  .exec-funnel-step{grid-template-columns:90px 1fr 70px;gap:8px;font-size:12px}
+  .exec-funnel-label{font-size:11.5px}
+  .exec-funnel-val{font-size:12px}
+  .src-row{grid-template-columns:110px 1fr 70px;gap:8px;font-size:12px}
+  .src-name{font-size:11.5px}
+  .exec-mchart{height:160px;gap:4px;padding:16px 4px 10px}
+  .exec-mbar-fill{width:80%}
+  .exec-mbar-lbl{font-size:10px}
   .exec-okr-grid{grid-template-columns:1fr}
 }
 @media (max-width:640px){
@@ -11214,12 +11231,24 @@ async function chooseTeacher(tid,tname){
     <div class="field"><label>العمر</label><input id="crAge" type="number" placeholder="٩"></div>
     <div class="field"><label>المسار</label><select id="crTrack"><option value="both">المساران</option><option value="quran">الحفظ</option><option value="tarbiya">التربية</option></select></div>
     <div class="field"><label>الموعد المفضّل</label><select id="crTime">${(slots&&slots.length)?slots.map(s=>`<option value="${days[s.weekday]} ${s.time_label}">${days[s.weekday]} — ${s.time_label}</option>`).join(''):'<option>سيُحدَّد لاحقاً</option>'}</select></div>
+    <div class="field"><label>كيف عرفت عنّا؟</label><select id="crSource">
+      <option value="unknown">— اختر —</option>
+      <option value="friend">صديق أو معرفة</option>
+      <option value="facebook">فيسبوك</option>
+      <option value="instagram">إنستغرام</option>
+      <option value="tiktok">تيك توك</option>
+      <option value="google">بحث Google</option>
+      <option value="ad">إعلان</option>
+      <option value="mosque">المسجد</option>
+      <option value="school">المدرسة</option>
+      <option value="other">أخرى</option>
+    </select></div>
     <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">إلغاء</button><button class="btn gold" onclick="submitRequest('${tid}')">إرسال الطلب</button></div>
   </div></div>`;
 }
 async function submitRequest(tid){
   const name=$('#crName').value.trim(); if(!name){ toast('أدخل اسم الطالب'); return; }
-  await sb.from('enroll_requests').insert({ parent_id:ME.id, student_name:name, age:+$('#crAge').value||9, track:$('#crTrack').value, teacher_id:tid, preferred_time:$('#crTime').value, status:'new' });
+  await sb.from('enroll_requests').insert({ parent_id:ME.id, student_name:name, age:+$('#crAge').value||9, track:$('#crTrack').value, teacher_id:tid, preferred_time:$('#crTime').value, status:'new', acquisition_source: $('#crSource')?.value || 'unknown' });
   closeModal(); toast('✅ أُرسل طلبك، وستصلك موافقة الإدارة قريباً');
 }
 
@@ -11317,43 +11346,88 @@ PAGES.executive_halqat_ops = async function(){
 function _execHopsTab(k){ SESSION._execHopsTab = k; navigate('halqat_ops'); }
 
 // ─── القسم ٥: النمو والتسويق ───────────────────────────────────────────────
-// من enroll_requests + students بحسب created_at + التحويلات. المصادر غير
-// مُتتبَّعة في القاعدة الحالية — نفصح صراحة بدل اختلاق قنوات وهمية.
+// من enroll_requests + students بحسب created_at + التحويلات + مصدر الاكتساب
+// (بعد إضافة عمود acquisition_source في migration 024 وحقل «كيف عرفت عنّا؟»
+// في نموذج التسجيل).
 PAGES.executive_growth = async function(){
-  setTop('النمو والتسويق','تدفق التسجيلات — تحويلات — نمو شهري');
+  setTop('النمو والتسويق','تدفق التسجيلات — تحويلات — نمو شهري — مصادر الاكتساب');
   const iso180 = new Date(Date.now()-180*86400000).toISOString();
   const [reqsR, studsR, paysR] = await Promise.all([
-    sb.from('enroll_requests').select('id,status,created_at,parent_id,teacher_id').gte('created_at', iso180).limit(3000),
-    sb.from('students').select('id,enrollment_status,created_at,sub_start').gte('created_at', iso180).limit(3000),
+    sb.from('enroll_requests').select('id,status,created_at,parent_id,teacher_id,acquisition_source').gte('created_at', iso180).limit(3000)
+      .then(x=>x, ()=>sb.from('enroll_requests').select('id,status,created_at,parent_id,teacher_id').gte('created_at', iso180).limit(3000)),
+    sb.from('students').select('id,enrollment_status,created_at,sub_start,acquisition_source').gte('created_at', iso180).limit(3000)
+      .then(x=>x, ()=>sb.from('students').select('id,enrollment_status,created_at,sub_start').gte('created_at', iso180).limit(3000)),
     sb.from('payments').select('id,status,student_id,paid_at,created_at,amount,currency_code').gte('created_at', iso180).limit(3000),
   ]);
   const reqs = reqsR.data || [], studs = studsR.data || [], pays = paysR.data || [];
-  // القمع: طلبات → طلاب (مضاف) → طلاب (نشط) → دفع مؤكد
   const reqsTotal = reqs.length;
   const reqsApproved = reqs.filter(r => r.status === 'approved' || r.status === 'accepted').length;
   const studsAdded = studs.length;
   const studsActive = studs.filter(s => s.enrollment_status === 'active').length;
   const firstPayStuds = new Set(pays.filter(p => p.status === 'paid').map(p => p.student_id).filter(Boolean)).size;
-  const funnelStep = (label, val, prev) => {
+  // ── القمع: عرض تناسبي مع الحد الأقصى للخطوة الأولى، مع clamp دائم ــ
+  // البق السابق: العرض كان val*100/reqsTotal — لو val > reqsTotal (وارد جدًا
+  // لما studsAdded/studsActive أكبر من reqsTotal لأن بعض الطلاب اتضافوا يدويًا)
+  // النتيجة كانت شريط بيطلع فوق ٪١٠٠ وبيفيض على السطر التالي. الحل: نحسب
+  // maxVal من كل الخطوات ونطبع النسبة عليه ونمسك السقف عند ٩٧٪ لضمان مساحة
+  // للرقم على اليسار.
+  const steps = [
+    {label:'طلبات ملتحقة', val:reqsTotal, prev:null},
+    {label:'طلبات مقبولة', val:reqsApproved, prev:reqsTotal},
+    {label:'طلاب مُضافون', val:studsAdded, prev:reqsApproved||reqsTotal},
+    {label:'طلاب نشطون', val:studsActive, prev:studsAdded||reqsTotal},
+    {label:'طلاب دفعوا', val:firstPayStuds, prev:studsActive||reqsTotal},
+  ];
+  const maxVal = Math.max(1, ...steps.map(s => s.val));
+  const funnelStep = ({label,val,prev}) => {
     const pctv = prev && prev > 0 ? Math.round(val*100/prev) : null;
+    const w = Math.max(4, Math.min(97, val*100/maxVal));
     return `<div class="exec-funnel-step">
       <div class="exec-funnel-label">${esc(label)}</div>
-      <div class="exec-funnel-bar" style="width:${prev?Math.max(6, val*100/(reqsTotal||1)):100}%"></div>
-      <div class="exec-funnel-val">${ar(val)}${pctv!==null?` <span style="color:var(--muted);font-size:11px">(${ar(pctv)}٪ من السابق)</span>`:''}</div>
+      <div class="exec-funnel-track"><div class="exec-funnel-bar" style="width:${w}%"></div></div>
+      <div class="exec-funnel-val">${ar(val)}${pctv!==null?`<span class="exec-funnel-pct">${ar(pctv)}٪</span>`:''}</div>
     </div>`;
   };
-  // نمو شهري
+  // نمو شهري: املأ الأشهر الفارغة عشان الشارت ما يكونش أعمدة منفصلة
   const monthly = {};
   studs.forEach(s => { const m = (s.created_at||'').slice(0,7); if(m) monthly[m] = (monthly[m]||0)+1; });
-  const months = Object.keys(monthly).sort();
-  const maxM = Math.max(1, ...Object.values(monthly));
-  const monthBars = months.slice(-6).map(m => {
+  const now = new Date();
+  const monthKeys = [];
+  for(let i=5; i>=0; i--){
+    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+    monthKeys.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));
+  }
+  const maxM = Math.max(1, ...monthKeys.map(m => monthly[m]||0));
+  const MO_AR = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+  const monthBars = monthKeys.map(m => {
     const v = monthly[m]||0;
-    return `<div class="exec-mbar"><div class="exec-mbar-fill" style="height:${Math.max(4, v*100/maxM)}%"></div><div class="exec-mbar-lbl">${esc(m)}</div><div class="exec-mbar-val">${ar(v)}</div></div>`;
+    const [yr,mo] = m.split('-');
+    return `<div class="exec-mbar" title="${esc(m)}: ${ar(v)} طالب">
+      <div class="exec-mbar-val">${v?ar(v):''}</div>
+      <div class="exec-mbar-fill" style="height:${v?Math.max(6, v*100/maxM):2}%"></div>
+      <div class="exec-mbar-lbl">${esc(MO_AR[+mo-1])}</div>
+    </div>`;
   }).join('');
-  // نسبة تحويل عامة
+  // ── مصادر الاكتساب — بيانات حقيقية بعد migration 024 ──
+  const SRC_LABEL = {friend:'صديق أو معرفة',facebook:'فيسبوك',instagram:'إنستغرام',tiktok:'تيك توك',google:'بحث Google',ad:'إعلان',mosque:'المسجد',school:'المدرسة',other:'أخرى',unknown:'غير محدد'};
+  const SRC_COLOR = {friend:'#2E7D5B',facebook:'#1877F2',instagram:'#C13584',tiktok:'#000',google:'#4285F4',ad:'#c9a227',mosque:'#8A6C00',school:'#1a3a5c',other:'#666',unknown:'#999'};
+  const bySrc = {}; reqs.forEach(r => { const s = r.acquisition_source||'unknown'; bySrc[s]=(bySrc[s]||0)+1; });
+  const srcRows = Object.entries(bySrc).sort((a,b)=>b[1]-a[1]);
+  const totalSrc = srcRows.reduce((a,[,v])=>a+v,0) || 1;
+  const knownSrcs = srcRows.filter(([k])=>k!=='unknown').reduce((a,[,v])=>a+v,0);
+  const srcHtml = srcRows.length ? `
+    <div class="src-list">${srcRows.map(([k,v])=>{
+      const pct = Math.round(v*100/totalSrc);
+      const c = SRC_COLOR[k]||'#999';
+      return `<div class="src-row">
+        <div class="src-name"><span class="src-dot" style="background:${c}"></span>${esc(SRC_LABEL[k]||k)}</div>
+        <div class="src-track"><div class="src-fill" style="width:${Math.max(3,pct)}%;background:${c}"></div></div>
+        <div class="src-val">${ar(v)} <span class="src-pct">${ar(pct)}٪</span></div>
+      </div>`;
+    }).join('')}</div>` : '<div style="color:var(--muted);padding:16px;text-align:center">لا طلبات في هذه الفترة</div>';
+  const knownPct = totalSrc ? Math.round(knownSrcs*100/totalSrc) : 0;
   const overallConv = reqsTotal ? Math.round(firstPayStuds*100/reqsTotal) : 0;
-  return pageHead('النمو والتسويق','آخر ١٨٠ يوم — الأرقام حقيقية من enroll_requests + students + payments') +
+  return pageHead('النمو والتسويق','آخر ١٨٠ يوم — أرقام حقيقية من enroll_requests + students + payments') +
     `<div class="exec-kpis" style="margin-top:14px">
       <div class="exec-kpi"><div class="exec-kpi-label">طلبات التحاق (١٨٠ يوم)</div><div class="exec-kpi-value">${ar(reqsTotal)}</div><div class="exec-kpi-sub">${ar(reqsApproved)} قُبلت</div></div>
       <div class="exec-kpi"><div class="exec-kpi-label">طلاب جدد (١٨٠ يوم)</div><div class="exec-kpi-value">${ar(studsAdded)}</div><div class="exec-kpi-sub">${ar(studsActive)} نشط الآن</div></div>
@@ -11362,27 +11436,20 @@ PAGES.executive_growth = async function(){
     </div>
     <div class="card" style="margin-top:14px;padding:18px">
       <b style="color:var(--navy-deep);font-size:15px">قمع التحويل</b>
-      <p class="tagline-sm" style="margin:6px 0 14px">من الطلب إلى الطالب النشط الدافع</p>
-      <div class="exec-funnel">
-        ${funnelStep('طلبات ملتحقة', reqsTotal, null)}
-        ${funnelStep('طلبات مقبولة', reqsApproved, reqsTotal)}
-        ${funnelStep('طلاب مُضافون', studsAdded, reqsApproved||reqsTotal)}
-        ${funnelStep('طلاب نشطون', studsActive, studsAdded)}
-        ${funnelStep('طلاب دفعوا', firstPayStuds, studsActive)}
-      </div>
+      <p class="tagline-sm" style="margin:6px 0 14px">من الطلب إلى الطالب النشط الدافع — النسبة على أعلى خطوة، والنسبة الصغيرة بين قوسين تحسب نسبة التحويل من الخطوة السابقة</p>
+      <div class="exec-funnel">${steps.map(funnelStep).join('')}</div>
     </div>
     <div class="card" style="margin-top:14px;padding:18px">
       <b style="color:var(--navy-deep);font-size:15px">نمو الطلاب — آخر ٦ أشهر</b>
-      <div class="exec-mchart">${monthBars || '<div style="color:var(--muted);text-align:center;padding:20px">لا بيانات في هذه الفترة</div>'}</div>
+      <div class="exec-mchart">${monthBars}</div>
     </div>
-    <div class="card" style="margin-top:14px;padding:18px;background:#fff8e6;border-color:#e8c14d">
-      <b style="color:#8a6c00">${mi('info')||'ℹ️'} إفصاح: مصادر الاكتساب غير مُتتبَّعة</b>
-      <p style="margin:8px 0 0;font-size:13.5px;line-height:1.8;color:var(--text)">
-        القاعدة الحالية لا تحفظ من أين وصل كل طالب (إعلان — إحالة — بحث — سوشيال). لعرض «أفضل قناة تحويلاً» بحق نحتاج:
-        <br>• إضافة عمود <code>acquisition_source</code> إلى جدول <code>enroll_requests</code> أو <code>students</code>
-        <br>• حقل «كيف عرفت عنّا؟» في نموذج التسجيل
-        <br>• (اختياري) UTM parameters على الروابط التسويقية
-      </p>
+    <div class="card" style="margin-top:14px;padding:18px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+        <b style="color:var(--navy-deep);font-size:15px">مصادر الاكتساب</b>
+        <span class="chip ${knownPct>=50?'g':'gold'}" style="font-size:11px">${ar(knownPct)}٪ من الطلبات مصنَّفة</span>
+      </div>
+      ${srcHtml}
+      ${knownPct<50?`<p style="margin:14px 0 0;font-size:12.5px;color:var(--muted);line-height:1.7">💡 لزيادة دقة التحليل: الحقل «كيف عرفت عنّا؟» متاح الآن في نموذج التسجيل — كل طلب جديد سيُصنَّف تلقائيًا.</p>`:''}
     </div>`;
 };
 
