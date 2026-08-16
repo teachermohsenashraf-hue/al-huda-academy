@@ -6606,13 +6606,18 @@ PAGES.supervisor_dash = async function(){
     });
   });
   studsNoPlan.slice(0,3).forEach(s => {
-    decisionRows.push({
-      priority:'follow_up',
-      icon:'📋',
-      title:'طالب في حلقة بلا خطة نشطة',
-      subtitle: esc(s.full_name),
-      actions: `<button class="sup-btn" onclick="_supCreatePlan(${s.id})">إنشاء خطة</button><button class="sup-btn ghost" onclick="_supViewStudent(${s.id})">عرض</button>`,
-    });
+    // من هو معلم الطالب؟ الخطة يُنشئها المعلم، دور المشرف تنبيهه.
+    const g = grps.find(x=>x.id===s.group_id);
+    const t = g?.teacher_id ? tchs.find(x=>x.id===g.teacher_id) : null;
+    const subtitle = esc(s.full_name) + (g?' • حلقة '+esc(g.name):'') + (t?' • المعلم: '+esc(t.full_name):' • بلا معلم');
+    let action;
+    if(t){
+      action = `<button class="sup-btn" onclick="_supNudgePlan(${s.id},'${t.id}','${escJs(s.full_name)}','${escJs(t.full_name)}')">تنبيه المعلم لإنشاء خطة</button><button class="sup-btn ghost" onclick="_supViewStudent(${s.id})">عرض</button>`;
+    } else {
+      // لا معلم — الحالة الفعلية «بلا معلم»، الحل يوزَّع أولاً
+      action = `<button class="sup-btn" onclick="_supAssignNow(${s.id})">وزّع على معلم أولاً</button>`;
+    }
+    decisionRows.push({priority:'follow_up', icon:'📋', title:'طالب في حلقة بلا خطة نشطة', subtitle, actions:action});
   });
   const decisionHtml = decisionRows.length ? `<div class="sup-list">${decisionRows.map(_supRenderRow).join('')}</div>` : _supEmpty('لا شيء يحتاج قرارك الآن.', 'كل الحالات المفتوحة تُتابَع بشكل طبيعي.');
 
@@ -6919,9 +6924,30 @@ async function _supAssignNow(studentId){
 async function _supViewStudent(studentId){
   SESSION._openStudent = studentId; navigate('students');
 }
+async function _supNudgePlan(studentId, teacherId, studentName, teacherName){
+  // المشرف لا يُنشئ خطة الطالب بنفسه — المعلم هو من يُنشئها من واجهته.
+  // دور المشرف هنا: تنبيه المعلم صراحةً بالحاجة، مع سجل تدقيق + محادثة مباشرة.
+  const defaultMsg = 'أخي المعلم '+teacherName+'، الطالب '+studentName+' في حلقتك بلا خطة نشطة بعد. فضلاً أنشئ له الخطة من "خطط طلابي" في أقرب وقت. شكرًا لك.';
+  const custom = prompt('رسالة للمعلم (اضغط موافق لإرسال الرسالة الافتراضية):', defaultMsg);
+  if(custom === null) return;
+  const msg = custom.trim() || defaultMsg;
+  try{
+    await pushNotif(teacherId, '📋 طلب إنشاء خطة لطالب', 'الطالب '+studentName+' بلا خطة نشطة. راجع «خطط طلابي».', 'system', studentId);
+    await _supAudit('contact','student',studentId, 'تنبيه '+teacherName+' لإنشاء خطة '+studentName, null, {teacher_id:teacherId}, msg);
+  }catch(_){}
+  toast('✅ أُرسل التنبيه للمعلم');
+  // نفتح المحادثة مباشرة لو المشرف يريد إضافة سياق أو الرد
+  if(typeof startChatWith === 'function') startChatWith(teacherId, teacherName);
+}
+// alias للتوافق الرجعي
 async function _supCreatePlan(studentId){
-  SESSION._createPlanFor = studentId; navigate('groups');
-  toast('افتح ملف الطالب من الحلقة لإنشاء خطة');
+  // نستدعي التنبيه بحسب الطالب — نحمّل بياناته لجلب المعلم
+  const {data:s} = await sb.from('students').select('full_name,group_id').eq('id',studentId).maybeSingle();
+  if(!s?.group_id){ toast('الطالب بلا حلقة — وزّعه أولاً'); return; }
+  const {data:g} = await sb.from('groups').select('teacher_id').eq('id',s.group_id).maybeSingle();
+  if(!g?.teacher_id){ toast('الحلقة بلا معلم مُعيَّن'); return; }
+  const {data:t} = await sb.from('profiles').select('full_name').eq('id',g.teacher_id).maybeSingle();
+  _supNudgePlan(studentId, g.teacher_id, s.full_name, t?.full_name||'المعلم');
 }
 function _supFilter(kind){ SESSION._supCasesFilter = kind; navigate('cases'); }
 function casesBlock(s){
