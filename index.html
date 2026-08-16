@@ -6503,7 +6503,7 @@ PAGES.supervisor_dash = async function(){
   let tchQ = sb.from('profiles').select('id,full_name,initials,gender,max_students,is_available').eq('role','teacher');
   if(!seesAll && myG) tchQ = tchQ.eq('gender', myG);
 
-  const [studsR, tchsR, grpsR, sesR, ratR, payR, planR, wardR, casesR, reqsR, appsR, notifsR] = await Promise.all([
+  const [studsR, tchsR, grpsR, sesR, ratR, payR, planR, wardR, casesR, reqsR, transfersR, notifsR] = await Promise.all([
     studQ,
     tchQ,
     sb.from('groups').select('id,name,teacher_id,is_private,meet_time,student_id'),
@@ -6514,7 +6514,9 @@ PAGES.supervisor_dash = async function(){
     sb.from('quran_mark_ward').select('student_id,due_date,progress').lt('due_date', today).neq('progress','done').limit(3000).then(x=>x,()=>({data:[]})),
     sb.from('supervisor_cases').select('*').eq('status','open').or('status.eq.reopened').limit(500),
     sb.from('quran_help_requests').select('id,student_id,teacher_id,status,created_at,note').eq('status','open').limit(200).then(x=>x,()=>({data:[]})),
-    sb.from('content_approvals').select('id,kind,title,status,created_at,requested_by').in('status',['in_review']).limit(200),
+    // طلبات نقل الطلاب المعلقة — هذه من اختصاص المشرف. الاعتمادات العلمية
+    // (content_approvals) ليست من اختصاصه — أُخرجت عمدًا من قائمته.
+    sb.from('student_transfers').select('id,student_id,from_teacher_id,to_teacher_id,reason,status,created_at').eq('status','pending').limit(200).then(x=>x,()=>({data:[]})),
     sb.from('notifications').select('id,type,created_at').gte('created_at', prevVisit || iso7).limit(500),
   ]);
 
@@ -6533,7 +6535,7 @@ PAGES.supervisor_dash = async function(){
   const lateByStud = {}; (wardR.data||[]).forEach(w => { lateByStud[w.student_id] = (lateByStud[w.student_id]||0)+1; });
   const cases = casesR.data || [];
   const helpReqs = reqsR.data || [];
-  const contentApps = appsR.data || [];
+  const pendingTransfers = transfersR.data || [];
   const paidStudIds = new Set(pays.map(p=>p.student_id).filter(Boolean));
 
   // ═ اكتشاف الحالات + مزامنتها مع supervisor_cases (دي-دوب) ═
@@ -6549,7 +6551,7 @@ PAGES.supervisor_dash = async function(){
   const urgent = openCases.filter(c => c.priority === 'urgent');
   const followUp = openCases.filter(c => c.priority === 'follow_up');
   const pendingReview = openCases.filter(c => c.priority === 'review');
-  const pendingRequests = helpReqs.length + contentApps.length;
+  const pendingRequests = helpReqs.length + pendingTransfers.length;
   const finishedUnrated = ses.filter(s => s.status==='done' && !ratedSet.has(s.id));
   const scheduledPastToday = ses.filter(s => s.status==='scheduled' && s.session_date < today);
   const problematicSessions = finishedUnrated.length + scheduledPastToday.length;
@@ -6644,14 +6646,19 @@ PAGES.supervisor_dash = async function(){
   const opsHtml = `<div class="sup-ops-summary">${ar(todaySes.length)} حصة اليوم • ${ar(doneToday)} تمت • ${ar(upcoming)} قادمة • ${ar(scheduledPastToday.length)} متأخرة • ${ar(finishedUnrated.length)} بلا تقييم</div>
     ${opsRows.length ? `<div class="sup-list">${opsRows.map(_supRenderRow).join('')}</div>` : _supEmpty('لا حالات غير طبيعية اليوم.', 'الحصص تسير كما هو مجدول.')}`;
 
-  // ═ Section 3: طلبات تنتظر القرار ═
+  // ═ Section 3: طلبات تنتظر قرار المشرف ═
+  // ملاحظة: الاعتمادات العلمية (content_approvals) قصدًا مستبعدة من قائمة
+  // المشرف — هي اختصاص المدير العلمي، ولا صفحة supervisor_approvals مسجَّلة.
   const requestRows = [];
-  contentApps.slice(0,4).forEach(a => {
+  pendingTransfers.slice(0,5).forEach(t => {
+    const s = studs.find(x=>x.id===t.student_id);
+    const fromT = tchs.find(x=>x.id===t.from_teacher_id);
+    const toT   = tchs.find(x=>x.id===t.to_teacher_id);
     requestRows.push({
-      priority:'review', icon:'📄',
-      title: esc(a.title||'طلب اعتماد'),
-      subtitle: 'نوع: '+esc(a.kind||'—')+' • أُنشئ في '+((a.created_at||'').slice(0,10)),
-      actions: `<button class="sup-btn ghost" onclick="navigate('approvals')">افتح الاعتماد</button>`,
+      priority:'follow_up', icon:'🔄',
+      title:'طلب نقل طالب',
+      subtitle: (s?esc(s.full_name):'طالب')+' '+(fromT?'من '+esc(fromT.full_name):'')+(toT?' → '+esc(toT.full_name):'')+' • '+((t.created_at||'').slice(0,10))+(t.reason?' • '+esc(t.reason.slice(0,60)):''),
+      actions: s ? `<button class="sup-btn" onclick="_supViewStudent(${s.id})">افتح الطالب</button>` : '',
     });
   });
   helpReqs.slice(0,4).forEach(r => {
@@ -6663,7 +6670,7 @@ PAGES.supervisor_dash = async function(){
       actions: s ? `<button class="sup-btn" onclick="_supViewStudent(${s.id})">افتح الطالب</button>` : '',
     });
   });
-  const requestsHtml = requestRows.length ? `<div class="sup-list">${requestRows.map(_supRenderRow).join('')}</div>` : _supEmpty('لا طلبات تنتظر قرارًا.', 'ستظهر هنا طلبات النقل والاعتماد والدعم عند وصولها.');
+  const requestsHtml = requestRows.length ? `<div class="sup-list">${requestRows.map(_supRenderRow).join('')}</div>` : _supEmpty('لا طلبات تنتظر قرارًا.', 'ستظهر هنا طلبات النقل ودعم الطلاب عند وصولها.');
 
   // ═ Section 4: سعة المعلمين ═
   const studsPerTeacher = {};
