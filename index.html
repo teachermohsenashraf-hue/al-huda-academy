@@ -5775,6 +5775,8 @@ async function doTransfer(studentId, studentName){
   const { error }=await sb.from('student_transfers').insert({ student_id:studentId, from_teacher_id:st?.chosen_teacher_id||null, to_teacher_id:tid, reason:reason||null, status:'pending', requested_by:ME.id });
   if(error){ $('#trBtn').disabled=false; $('#trBtn').textContent='إرسال طلب النقل'; alert('تعذّر إرسال طلب النقل: '+error.message+(error.message&&error.message.includes('relation')?' — يلزم إنشاء جدول student_transfers أولاً':'')); return; }
   try{ await pushNotif(tid,'✨ طلب نقل طالب جديد',studentName+' مُقترَح نقله إليك'+(reason?' — السبب: '+reason:'')+'. راجع «طلاب جدد» للقبول أو الرفض.','enrollment',studentId); }catch(e){}
+  // audit: نقل طالب — من قِبل المشرف/الأدمن
+  if(typeof _supAudit === 'function') try{ await _supAudit('transfer_student','student',studentId, 'طلب نقل: '+studentName+' → '+tname, {from_teacher_id:st?.chosen_teacher_id||null}, {to_teacher_id:tid}, reason||null); }catch(_){}
   $('#trBtn').disabled=false; closeModal();
   await navigate(SESSION.page||'transfer'); toast('✅ أُرسل طلب النقل، بانتظار قبول المعلم الجديد');
 }
@@ -5789,12 +5791,15 @@ async function acceptTransfer(reqId, studentId, studentName, fromTeacherId){
     if(st?.login_id) await pushNotif(st.login_id,'🔄 تغيّر معلمك','أصبح معلمك الآن '+ME.full_name+'. سينسّق معك موعد حلقتك.','enrollment',studentId);
     if(st?.parent_id) await pushNotif(st.parent_id,'🔄 تغيّر معلم ابنك','أصبح معلم ابنك الآن '+ME.full_name+'.','enrollment',studentId);
   }catch(e){}
+  // audit: تنفيذ فعلي للنقل بعد قبول المعلم الجديد
+  if(typeof _supAudit === 'function') try{ await _supAudit('approve_request','student',studentId, 'تم قبول نقل: '+studentName, {from_teacher_id:fromTeacherId, prev_group_id:st?.group_id}, {chosen_teacher_id:ME.id}, null); }catch(_){}
   toast('✅ تم قبول الطالب ونقله إليك'); await navigate('newstudents');
 }
 async function rejectTransfer(reqId, studentName, fromTeacherId){
   if(!confirm('رفض نقل '+studentName+'؟'))return;
   await sb.from('student_transfers').update({ status:'rejected' }).eq('id',reqId);
   try{ if(fromTeacherId) await pushNotif(fromTeacherId,'❌ رُفض طلب النقل',studentName+' — رفض المعلم المقترَح استقباله. يمكنك اختيار معلم آخر.','enrollment',null); }catch(e){}
+  if(typeof _supAudit === 'function') try{ await _supAudit('reject_request','transfer',reqId, 'رفض نقل: '+studentName, null, {status:'rejected'}, null); }catch(_){}
   toast('تم رفض طلب النقل'); await navigate('newstudents');
 }
 // ===== الربط ثنائي الاتجاه =====
@@ -6950,13 +6955,20 @@ async function supSaveGroup(editId){
   const name=$('#sgName').value.trim(); if(!name){toast('أدخل اسم الحلقة');return;}
   $('#sgBtn').disabled=true;
   const rec={name, teacher_id:$('#sgTeacher').value||null, age_range:$('#sgAge').value.trim()||null, meet_time:$('#sgTime').value.trim()||null, track:$('#sgTrack').value};
+  // نجلب البيانات القديمة للـaudit قبل التعديل
+  let before = null;
+  if(editId){ const {data} = await sb.from('groups').select('*').eq('id',editId).maybeSingle(); before = data; }
   const { error }=editId?await sb.from('groups').update(rec).eq('id',editId):await sb.from('groups').insert(rec);
   if(error){ $('#sgBtn').disabled=false; alert('تعذّر: '+error.message); return; }
+  if(typeof _supAudit === 'function') try{ await _supAudit(editId?'edit_halqa':'create_halqa','halqa',editId||name, (editId?'تعديل حلقة: ':'إنشاء حلقة: ')+name, before, rec, null); }catch(_){}
   closeModal(); await navigate('groups'); toast(editId?'✅ تم التعديل':'✅ تم إنشاء الحلقة');
 }
 async function supDelGroup(id,name){
   if(!confirm(`حذف حلقة "${name}"؟ سيُفقد الطلاب ارتباطهم بها.`))return;
-  await sb.from('groups').delete().eq('id',id); await navigate('groups'); toast('تم الحذف');
+  const {data:before} = await sb.from('groups').select('*').eq('id',id).maybeSingle();
+  await sb.from('groups').delete().eq('id',id);
+  if(typeof _supAudit === 'function') try{ await _supAudit('edit_halqa','halqa',id, 'حذف حلقة: '+name, before, {deleted:true}, null); }catch(_){}
+  await navigate('groups'); toast('تم الحذف');
 }
 // ===== تقارير الحلقات (مشرف) =====
 PAGES.supervisor_groupreport=async function(){ setTop('تقارير الحلقات','أداء كل حلقة بالتفصيل');
@@ -14431,10 +14443,14 @@ async function _execSetGender(studentId, gender){
 }
 async function _execAssignPick(studentId, teacherId, teacherName){
   // نضع chosen_teacher_id — قرار التثبيت في حلقة بعينها يبقى على المشرف
+  const {data:before} = await sb.from('students').select('chosen_teacher_id,full_name').eq('id',studentId).maybeSingle();
   const {error}=await sb.from('students').update({chosen_teacher_id:teacherId}).eq('id',studentId);
   if(error){ toast('تعذر الحفظ: '+error.message); return; }
   await pushNotif(teacherId,'مدير الأكاديمية اقترح توزيعك على طالب','فضلاً تواصل مع المشرف لتثبيت الحلقة','assign',studentId).catch(()=>{});
-  closeModal(); toast('تم — بانتظار المشرف لتثبيت الحلقة'); navigate('journey');
+  if(typeof _supAudit === 'function') try{ await _supAudit('assign_student','student',studentId, 'اقتراح توزيع: '+(before?.full_name||'طالب')+' → '+teacherName, {chosen_teacher_id:before?.chosen_teacher_id||null}, {chosen_teacher_id:teacherId}, null); }catch(_){}
+  closeModal(); toast('تم — بانتظار المشرف لتثبيت الحلقة');
+  // نبقى في نفس الصفحة لو المشرف يستخدمها؛ التنفيذي ينتقل لرحلة الطالب
+  navigate(SESSION.page||'journey');
 }
 
 // ═══ مركز المالية والاشتراكات ═══════════════════════════════════════════════
