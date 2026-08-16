@@ -455,6 +455,67 @@ input,button,textarea,select{font-family:'Cairo',sans-serif}
 .exec-fresh-row:last-child{border-bottom:none}
 .exec-fresh-row span:first-child{color:var(--text);font-weight:600}
 .exec-fresh-row .mono{color:var(--muted);font-family:'Tajawal',sans-serif;font-size:12.5px}
+/* ═══ مركز قيادة المشرف ═══ */
+.sup-hero{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:18px 22px;background:#fff;border:1px solid var(--line);border-radius:14px;margin-top:8px;flex-wrap:wrap;border-inline-start:4px solid var(--emerald,#2E7D5B)}
+.sup-hero-hi{font-family:'Amiri',serif;font-size:22px;color:var(--navy-deep,#1a3a5c);font-weight:700}
+.sup-hero-line{color:var(--text);font-size:14px;margin-top:4px;line-height:1.7}
+.sup-hero-line b{color:var(--emerald-deep,#1B4D3E);font-family:'Tajawal',sans-serif;font-size:16px}
+.sup-hero-side{color:var(--muted);font-size:12px;text-align:end;line-height:1.9;max-width:280px}
+.sup-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:14px}
+.sup-kpi{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;transition:.2s;text-align:center}
+.sup-kpi:hover{border-color:var(--emerald,#2E7D5B);box-shadow:0 3px 10px rgba(0,0,0,.04)}
+.sup-kpi.urgent{border-color:#c92e2e;background:#fff5f5}
+.sup-kpi.gold{border-color:#e8c14d;background:#fffaf0}
+.sup-kpi-val{font-family:'Tajawal',sans-serif;font-size:26px;font-weight:800;color:var(--navy-deep,#1a3a5c);line-height:1.1}
+.sup-kpi.urgent .sup-kpi-val{color:#c92e2e}
+.sup-kpi.gold .sup-kpi-val{color:#8a6c00}
+.sup-kpi-lbl{font-size:11.5px;color:var(--muted);margin-top:4px;font-weight:600}
+.sup-kpi-sub{font-size:10.5px;color:var(--muted);margin-top:2px}
+.sup-since{background:#f0f4f8;border-inline-start:3px solid #1a3a5c;padding:10px 14px;border-radius:8px;margin-top:14px;font-size:13px;color:var(--text);line-height:1.7}
+.sup-since b{color:var(--navy-deep,#1a3a5c)}
+.sup-section{margin-top:22px}
+.sup-h3{color:var(--navy-deep,#1a3a5c);font-size:15px;font-weight:700;margin:0 0 10px;padding-inline-start:8px;border-inline-start:3px solid var(--emerald,#2E7D5B)}
+.sup-list{display:flex;flex-direction:column;gap:8px}
+.sup-row{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;background:#fff;border:1px solid var(--line);border-radius:10px;transition:.2s}
+.sup-row:hover{border-color:var(--emerald,#2E7D5B);background:#fafcfb}
+.sup-row-ic{font-size:20px;flex-shrink:0;width:32px;text-align:center}
+.sup-row-body{flex:1;min-width:0}
+.sup-row-title{color:var(--navy-deep,#1a3a5c);font-weight:700;font-size:13.5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.sup-pr{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:10px}
+.sup-row-sub{color:var(--muted);font-size:12.5px;margin-top:3px}
+.sup-reason{color:var(--text);font-size:12px;margin-top:4px;padding:4px 8px;background:#f8f9fa;border-radius:6px;display:inline-block;margin-inline-end:4px}
+.sup-row-act{display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;align-items:flex-start}
+.sup-btn{padding:6px 12px;background:var(--emerald,#2E7D5B);color:#fff;border:none;border-radius:8px;font-family:'Cairo',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:.2s;white-space:nowrap}
+.sup-btn:hover{background:var(--emerald-deep,#1B4D3E)}
+.sup-btn.ghost{background:#fff;color:var(--emerald,#2E7D5B);border:1px solid var(--emerald,#2E7D5B)}
+.sup-btn.ghost:hover{background:var(--emerald,#2E7D5B);color:#fff}
+.sup-ops-summary{padding:10px 14px;background:#f5f7fa;border-radius:8px;font-size:13px;color:var(--muted);margin-bottom:10px;font-weight:500}
+.sup-empty{text-align:center;padding:30px 14px;background:#fff;border:1px dashed var(--line);border-radius:10px}
+.sup-empty-ic{font-size:32px;margin-bottom:6px}
+.sup-empty b{color:var(--navy-deep,#1a3a5c);font-size:14px;display:block}
+.sup-empty p{color:var(--muted);font-size:12.5px;margin:4px 0 0}
+/* سعة المعلمين */
+.sup-cap-list{display:flex;flex-direction:column;gap:6px}
+.sup-cap-row{display:grid;grid-template-columns:1fr 140px 90px;gap:12px;align-items:center;padding:10px 14px;background:#fff;border:1px solid var(--line);border-radius:8px;font-size:13px}
+.sup-cap-info b{color:var(--navy-deep,#1a3a5c);font-size:13.5px}
+.sup-cap-meta{color:var(--muted);font-size:11.5px;margin-top:2px}
+.sup-cap-bar{background:#f0f0f0;border-radius:5px;height:8px;overflow:hidden}
+.sup-cap-fill{height:100%;transition:width .4s ease;min-width:4px}
+/* Timeline */
+.sup-timeline{display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;padding:8px;background:#fafafa;border-radius:8px}
+.sup-tl-item{padding:8px 10px;background:#fff;border-inline-start:3px solid var(--emerald,#2E7D5B);border-radius:6px;font-size:12.5px}
+.sup-tl-item b{color:var(--navy-deep,#1a3a5c);font-size:12.5px;display:block}
+.sup-tl-item small{color:var(--muted);font-size:10.5px}
+.sup-tl-item p{margin:4px 0 0;font-size:12px;color:var(--text)}
+@media (max-width:640px){
+  .sup-hero{padding:14px}
+  .sup-hero-side{max-width:100%;text-align:start}
+  .sup-cap-row{grid-template-columns:1fr auto;gap:8px}
+  .sup-cap-bar{grid-column:1/-1}
+  .sup-row{flex-direction:column}
+  .sup-row-act{align-self:stretch}
+  .sup-row-act .sup-btn{flex:1}
+}
 /* الأنظمة والبرامج التعليمية */
 .prog-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;margin-top:14px}
 .prog-card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;transition:.2s;display:flex;flex-direction:column}
@@ -6359,28 +6420,447 @@ PAGES.teacher_content=async function(){ return contentPage(); };
 /* ============================================================
    المشرف
    ============================================================ */
-PAGES.supervisor_dash=async function(){ setTop('أهلاً '+ME.full_name+' 👋','نظرة إشرافية شاملة.');
-  // المشرف يرى بيانات نفس جنسه فقط (خلافاً للمدير/التنفيذي اللذين يريان الكل) — سياسة الفصل بين الجنسين
-  const seesAll=seesAllGenders();
-  const myG=seesAll?null:await myGender();
-  let studQ=sb.from('students').select('*');
-  if(!seesAll&&myG) studQ=studQ.eq('gender',myG);
-  const { data:studs }=await studQ;
-  let teacherQ=sb.from('profiles').select('*',{count:'exact',head:true}).eq('role','teacher');
-  if(!seesAll&&myG) teacherQ=teacherQ.eq('gender',myG);
-  const { count:tc }=await teacherQ;
-  const { data:allGroups }=await sb.from('groups').select('id, teacher:profiles!groups_teacher_id_fkey(gender)');
-  const gc=(!seesAll&&myG) ? (allGroups||[]).filter(g=>!g.teacher||g.teacher.gender===myG).length : (allGroups||[]).length;
-  const s=studs||[]; const tot=s.length||1;
-  const avgMastery=Math.round(s.reduce((a,x)=>a+(x.mastery||0),0)/tot);
-  const lowAtt=s.filter(x=>(x.attendance||100)<70).length;
-  return pageHead('نظرة عامة','مؤشرات القسم الحالية')+
-  `<div class="stats">${statCard(mi('teacher'),'n',ar(tc||0),'المعلمون')}${statCard(mi('users'),'e',ar(gc||0),'الحلقات')}${statCard(mi('child'),'g',ar(s.length),'الطلاب')}${statCard(mi('trendUp'),'e',pct(avgMastery),'متوسط الإتقان')}</div>
-  <div class="grid2">
-    <div class="card"><div class="ch"><h3>أداء الحلقات</h3><button class="more" onclick="navigate('groups')">الكل ←</button></div>${await groupsTable()}</div>
-    <div class="card"><div class="ch"><h3>${mi('warning')} حالات تحتاج انتباه</h3><button class="more" onclick="navigate('cases')">الكل ←</button></div>${casesBlock(s)}</div>
+// ═══════════════════════════════════════════════════════════════════════════
+// مركز قيادة المشرف — إعادة بناء كاملة (migration 027)
+// ─────────────────────────────────────────────────────────────────────────────
+// كل عنصر في الصفحة يحقق واحدًا من ٣ فقط:
+//   ١) يحتاج قرارًا الآن   ٢) يحتاج متابعة   ٣) يغيّر أولوية اليوم
+// ═══════════════════════════════════════════════════════════════════════════
+
+PAGES.supervisor_dash = async function(){
+  const nm = _compoundName(ME.full_name);
+  setTop('مركز اليوم — '+esc(nm), qTodayStr()+' • مركز قيادة تشغيلي');
+  const seesAll = seesAllGenders();
+  const myG = seesAll ? null : await myGender();
+
+  // ═ سجل الزيارة الحالية للحصول على prev_visited_at (للـ«منذ آخر دخول») ═
+  const prevVisit = await _supRecordVisit();
+
+  // ═ الاستعلامات الأساسية بالتوازي ═
+  const iso7  = new Date(Date.now()-7*86400000).toISOString();
+  const iso14 = new Date(Date.now()-14*86400000).toISOString();
+  const iso14d = new Date(Date.now()-14*86400000).toISOString().slice(0,10);
+  const today = qTodayStr();
+
+  let studQ = sb.from('students').select('id,full_name,initials,gender,group_id,quran_path,mastery,attendance,sub_end,enrollment_status,created_at,sub_start,login_id,parent_id');
+  if(!seesAll && myG) studQ = studQ.eq('gender', myG);
+  let tchQ = sb.from('profiles').select('id,full_name,initials,gender,max_students,is_available').eq('role','teacher');
+  if(!seesAll && myG) tchQ = tchQ.eq('gender', myG);
+
+  const [studsR, tchsR, grpsR, sesR, ratR, payR, planR, wardR, casesR, reqsR, appsR, notifsR] = await Promise.all([
+    studQ,
+    tchQ,
+    sb.from('groups').select('id,name,teacher_id,is_private,meet_time,student_id'),
+    sb.from('sessions').select('id,group_id,session_date,session_time,status,teacher_id,duration_min').gte('session_date', iso14d).limit(2000),
+    sb.from('session_ratings').select('session_id,created_at').gte('created_at', iso14).limit(2000),
+    sb.from('payments').select('student_id,status,paid_at,created_at').eq('status','paid').limit(2000),
+    sb.from('quran_student_plans').select('student_id,status').eq('status','active').then(x=>x,()=>({data:[]})),
+    sb.from('quran_mark_ward').select('student_id,due_date,progress').lt('due_date', today).neq('progress','done').limit(3000).then(x=>x,()=>({data:[]})),
+    sb.from('supervisor_cases').select('*').eq('status','open').or('status.eq.reopened').limit(500),
+    sb.from('quran_help_requests').select('id,student_id,teacher_id,status,created_at,note').eq('status','open').limit(200).then(x=>x,()=>({data:[]})),
+    sb.from('content_approvals').select('id,kind,title,status,created_at,requested_by').in('status',['in_review']).limit(200),
+    sb.from('notifications').select('id,type,created_at').gte('created_at', prevVisit || iso7).limit(500),
+  ]);
+
+  const studs = studsR.data || [];
+  const tchs = tchsR.data || [];
+  let grps = grpsR.data || [];
+  if(!seesAll && myG){
+    const tchIds = new Set(tchs.map(t=>t.id));
+    grps = grps.filter(g => !g.teacher_id || tchIds.has(g.teacher_id));
+  }
+  const ses = sesR.data || [];
+  const rats = ratR.data || [];
+  const ratedSet = new Set(rats.map(r=>r.session_id));
+  const pays = payR.data || [];
+  const activePlanIds = new Set((planR.data||[]).map(p=>p.student_id));
+  const lateByStud = {}; (wardR.data||[]).forEach(w => { lateByStud[w.student_id] = (lateByStud[w.student_id]||0)+1; });
+  const cases = casesR.data || [];
+  const helpReqs = reqsR.data || [];
+  const contentApps = appsR.data || [];
+  const paidStudIds = new Set(pays.map(p=>p.student_id).filter(Boolean));
+
+  // ═ اكتشاف الحالات + مزامنتها مع supervisor_cases (دي-دوب) ═
+  await _supDetectAndSync({studs, grps, ses, ratedSet, lateByStud, paidStudIds, activePlanIds, tchs});
+
+  // إعادة قراءة الحالات بعد المزامنة
+  const {data:freshCases} = await sb.from('supervisor_cases').select('*').in('status',['open','reopened']).order('priority').order('last_seen',{ascending:false}).limit(200);
+  const openCases = freshCases || cases;
+
+  // ═ KPIs تشغيلية ═
+  const paidNoGroup = studs.filter(s => s.enrollment_status==='active' && !s.group_id && paidStudIds.has(s.id));
+  const studsNoPlan = studs.filter(s => s.enrollment_status==='active' && s.group_id && !activePlanIds.has(s.id));
+  const urgent = openCases.filter(c => c.priority === 'urgent');
+  const followUp = openCases.filter(c => c.priority === 'follow_up');
+  const pendingReview = openCases.filter(c => c.priority === 'review');
+  const pendingRequests = helpReqs.length + contentApps.length;
+  const finishedUnrated = ses.filter(s => s.status==='done' && !ratedSet.has(s.id));
+  const scheduledPastToday = ses.filter(s => s.status==='scheduled' && s.session_date < today);
+  const problematicSessions = finishedUnrated.length + scheduledPastToday.length;
+
+  const kpi = (l,v,c,click,sub) => `<div class="sup-kpi ${c||''}" ${click?`onclick="${click}"`:''} style="${click?'cursor:pointer':''}">
+    <div class="sup-kpi-val">${v}</div>
+    <div class="sup-kpi-lbl">${esc(l)}</div>
+    ${sub?`<div class="sup-kpi-sub">${esc(sub)}</div>`:''}
   </div>`;
+  const totalActionable = urgent.length + followUp.length + paidNoGroup.length + studsNoPlan.length + pendingRequests;
+  const headerHtml = `<div class="sup-hero">
+    <div>
+      <div class="sup-hero-hi">${_supGreet()}, ${esc(nm)}</div>
+      <div class="sup-hero-line">${totalActionable ? `لديك <b>${ar(totalActionable)}</b> أمر يحتاج تدخّلك اليوم` : 'كل شيء يعمل بصورة طبيعية — لا حالات عاجلة الآن.'}</div>
+    </div>
+    <div class="sup-hero-side">${ar(tchs.length)} معلم · ${ar(grps.length)} حلقة · ${ar(studs.filter(s=>s.enrollment_status==='active').length)} طالب نشط · متوسط الإتقان ${pct(Math.round((studs.reduce((a,x)=>a+(x.mastery||0),0)/(studs.length||1))))}</div>
+  </div>`;
+  const kpisHtml = `<div class="sup-kpis">
+    ${kpi('يحتاج تدخّلك اليوم', ar(urgent.length + followUp.length), urgent.length?'urgent':'', "_supSection('cases')")}
+    ${kpi('طلاب بلا حلقة', ar(paidNoGroup.length), paidNoGroup.length?'gold':'', "navigate('unassigned')")}
+    ${kpi('طلاب بلا خطة', ar(studsNoPlan.length), studsNoPlan.length?'gold':'', "_supFilter('no_plan')")}
+    ${kpi('حصص بها مشكلة', ar(problematicSessions), problematicSessions?'gold':'', "_supSection('today')")}
+    ${kpi('طلبات تنتظر قرارًا', ar(pendingRequests), pendingRequests?'gold':'', "_supSection('requests')")}
+  </div>`;
+
+  // ═ Section 1: ما يحتاج قرارك الآن ═
+  const decisionRows = [];
+  paidNoGroup.slice(0,5).forEach(s => {
+    const days = _daysSince(s.sub_start || s.created_at);
+    decisionRows.push({
+      priority:'urgent',
+      icon:'👥',
+      title:'طالب دفع ولم يُوزَّع',
+      subtitle: esc(s.full_name)+(s.quran_path?' • '+pathName(s.quran_path):'')+(days?' • منذ '+ar(days)+' يوم':''),
+      actions: `<button class="sup-btn" onclick="_supAssignNow(${s.id})">توزيع الآن</button><button class="sup-btn ghost" onclick="_supViewStudent(${s.id})">عرض</button>`,
+    });
+  });
+  urgent.slice(0,6).forEach(c => {
+    const s = c.subject_type==='student' ? studs.find(x=>String(x.id)===String(c.subject_id)) : null;
+    const t = c.subject_type==='teacher' ? tchs.find(x=>x.id===c.subject_id) : null;
+    const label = s?.full_name || t?.full_name || 'حالة';
+    const g = s?.group_id ? grps.find(x=>x.id===s.group_id) : null;
+    const teacher = g?.teacher_id ? tchs.find(x=>x.id===g.teacher_id) : null;
+    const reasonsHtml = (c.reasons||[]).slice(0,3).map(r=>`<div class="sup-reason">${esc(r.detail||r.code)}</div>`).join('');
+    decisionRows.push({
+      priority:'urgent',
+      icon: c.kind==='no_teacher'?'🚫':c.kind==='no_plan'?'📋':c.kind==='attendance_drop'?'📉':c.kind==='mastery_drop'?'📉':c.kind==='late_wards'?'⏰':'⚠️',
+      title: _supCaseTitle(c.kind),
+      subtitle: esc(label)+(g?' • حلقة '+esc(g.name):'')+(teacher?' • المعلم: '+esc(teacher.full_name):''),
+      body: reasonsHtml,
+      actions: `<button class="sup-btn" onclick="_supCaseOpen('${c.id}')">فتح الحالة</button><button class="sup-btn ghost" onclick="_supCaseProcess('${c.id}')">تمت المعالجة</button>`,
+    });
+  });
+  studsNoPlan.slice(0,3).forEach(s => {
+    decisionRows.push({
+      priority:'follow_up',
+      icon:'📋',
+      title:'طالب في حلقة بلا خطة نشطة',
+      subtitle: esc(s.full_name),
+      actions: `<button class="sup-btn" onclick="_supCreatePlan(${s.id})">إنشاء خطة</button><button class="sup-btn ghost" onclick="_supViewStudent(${s.id})">عرض</button>`,
+    });
+  });
+  const decisionHtml = decisionRows.length ? `<div class="sup-list">${decisionRows.map(_supRenderRow).join('')}</div>` : _supEmpty('لا شيء يحتاج قرارك الآن.', 'كل الحالات المفتوحة تُتابَع بشكل طبيعي.');
+
+  // ═ Section 2: تشغيل اليوم ═
+  const todaySes = ses.filter(s => s.session_date === today);
+  const doneToday = todaySes.filter(s=>s.status==='done').length;
+  const upcoming = todaySes.filter(s=>s.status==='scheduled' && s.session_date >= today).length;
+  const opsRows = [];
+  scheduledPastToday.slice(0,4).forEach(s => {
+    const g = grps.find(x=>x.id===s.group_id);
+    const t = tchs.find(x=>x.id===s.teacher_id || x.id===g?.teacher_id);
+    opsRows.push({
+      priority:'urgent',
+      icon:'⏱️',
+      title:'حصة تجاوزت موعدها بلا تحديث',
+      subtitle: (g?'حلقة '+esc(g.name):'حلقة')+(t?' • '+esc(t.full_name):'')+' • '+s.session_date,
+      actions: `${t?`<button class="sup-btn" onclick="startChatWith('${t.id}','${escJs(t.full_name||'')}')">تواصل مع المعلم</button>`:''}${g?`<button class="sup-btn ghost" onclick="adminViewHalqa(${g.id})">افتح الحلقة</button>`:''}`,
+    });
+  });
+  finishedUnrated.slice(0,3).forEach(s => {
+    const g = grps.find(x=>x.id===s.group_id);
+    const t = tchs.find(x=>x.id===s.teacher_id || x.id===g?.teacher_id);
+    opsRows.push({
+      priority:'follow_up',
+      icon:'📝',
+      title:'حصة انتهت بلا تقييم',
+      subtitle: (g?'حلقة '+esc(g.name):'حلقة')+(t?' • '+esc(t.full_name):'')+' • '+s.session_date,
+      actions: t?`<button class="sup-btn ghost" onclick="startChatWith('${t.id}','${escJs(t.full_name||'')}')">تنبيه المعلم</button>`:'',
+    });
+  });
+  const opsHtml = `<div class="sup-ops-summary">${ar(todaySes.length)} حصة اليوم • ${ar(doneToday)} تمت • ${ar(upcoming)} قادمة • ${ar(scheduledPastToday.length)} متأخرة • ${ar(finishedUnrated.length)} بلا تقييم</div>
+    ${opsRows.length ? `<div class="sup-list">${opsRows.map(_supRenderRow).join('')}</div>` : _supEmpty('لا حالات غير طبيعية اليوم.', 'الحصص تسير كما هو مجدول.')}`;
+
+  // ═ Section 3: طلبات تنتظر القرار ═
+  const requestRows = [];
+  contentApps.slice(0,4).forEach(a => {
+    requestRows.push({
+      priority:'review', icon:'📄',
+      title: esc(a.title||'طلب اعتماد'),
+      subtitle: 'نوع: '+esc(a.kind||'—')+' • أُنشئ في '+((a.created_at||'').slice(0,10)),
+      actions: `<button class="sup-btn ghost" onclick="navigate('approvals')">افتح الاعتماد</button>`,
+    });
+  });
+  helpReqs.slice(0,4).forEach(r => {
+    const s = studs.find(x=>x.id===r.student_id);
+    requestRows.push({
+      priority:'follow_up', icon:'🆘',
+      title:'طلب دعم علمي',
+      subtitle: (s?esc(s.full_name):'طالب')+' • '+((r.created_at||'').slice(0,10))+(r.note?' • '+esc(r.note.slice(0,80)):''),
+      actions: s ? `<button class="sup-btn" onclick="_supViewStudent(${s.id})">افتح الطالب</button>` : '',
+    });
+  });
+  const requestsHtml = requestRows.length ? `<div class="sup-list">${requestRows.map(_supRenderRow).join('')}</div>` : _supEmpty('لا طلبات تنتظر قرارًا.', 'ستظهر هنا طلبات النقل والاعتماد والدعم عند وصولها.');
+
+  // ═ Section 4: سعة المعلمين ═
+  const studsPerTeacher = {};
+  studs.forEach(s => {
+    if(!s.group_id) return;
+    const g = grps.find(x=>x.id===s.group_id);
+    if(g?.teacher_id) studsPerTeacher[g.teacher_id] = (studsPerTeacher[g.teacher_id]||0)+1;
+  });
+  const capacityRows = tchs.filter(t=>t.is_available!==false).map(t => {
+    const cur = studsPerTeacher[t.id]||0;
+    const max = (typeof t.max_students==='number' && t.max_students>0) ? t.max_students : null;
+    const pctFill = max ? Math.min(100, Math.round(cur*100/max)) : null;
+    const state = !max ? 'unset' : pctFill>=100 ? 'full' : pctFill>=80 ? 'near' : 'available';
+    const stLbl = state==='full'?'ممتلئ':state==='near'?'شبه ممتلئ':state==='available'?'متاح':'لم يُحدَّد سقف';
+    const stCol = state==='full'?'#c92e2e':state==='near'?'#c9a227':state==='available'?'#2E7D5B':'#666';
+    return {t, cur, max, pctFill, state, stLbl, stCol};
+  }).sort((a,b) => (a.state==='available'?-1:1) - (b.state==='available'?-1:1) || (b.pctFill||0)-(a.pctFill||0)).slice(0,10);
+  const capacityHtml = capacityRows.length ? `<div class="sup-cap-list">${capacityRows.map(r => `
+    <div class="sup-cap-row" style="border-inline-start:3px solid ${r.stCol}">
+      <div class="sup-cap-info">
+        <b>${esc(r.t.full_name)}</b>
+        <div class="sup-cap-meta">${r.max?ar(r.cur)+'/'+ar(r.max)+' طالب':ar(r.cur)+' طالب (بلا سقف)'}${r.t.gender?' • '+(r.t.gender==='female'?'معلّمة':'معلّم'):''}</div>
+      </div>
+      ${r.pctFill!==null?`<div class="sup-cap-bar"><div class="sup-cap-fill" style="width:${r.pctFill}%;background:${r.stCol}"></div></div>`:'<div class="sup-cap-bar"></div>'}
+      <span class="chip" style="background:${r.stCol}22;color:${r.stCol};font-size:11px;white-space:nowrap">${esc(r.stLbl)}</span>
+    </div>`).join('')}</div>` : _supEmpty('لا معلمين ضمن نطاقك.', '');
+
+  // ═ Section 5: منذ آخر دخول ═
+  let sinceHtml = '';
+  if(prevVisit){
+    const newNotifs = (notifsR.data||[]).length;
+    const newStuds = studs.filter(s => s.created_at > prevVisit).length;
+    const newGrps = grps.filter(g => g.id).length; // مبسّط
+    const newHelp = helpReqs.filter(r => r.created_at > prevVisit).length;
+    const closedRecently = openCases.filter(c => c.processed_at && c.processed_at > prevVisit).length;
+    const items = [];
+    if(newStuds) items.push(`${ar(newStuds)} طالب جديد سُجّل`);
+    if(newHelp) items.push(`${ar(newHelp)} طلب دعم جديد`);
+    if(newNotifs) items.push(`${ar(newNotifs)} تنبيه`);
+    if(closedRecently) items.push(`${ar(closedRecently)} حالة عُولجت`);
+    const prev = new Date(prevVisit);
+    const relPrev = _relTimeShort(prevVisit);
+    sinceHtml = `<div class="sup-since"><b>منذ آخر دخول (${esc(relPrev)}):</b> ${items.length?items.join(' · '):'لا تغييرات ملحوظة.'}</div>`;
+  }
+
+  return pageHead('مركز اليوم', '')+
+    headerHtml + kpisHtml + sinceHtml +
+    _supSection('ما يحتاج قرارك الآن', decisionHtml) +
+    _supSection('تشغيل اليوم', opsHtml) +
+    _supSection('طلبات تنتظر القرار', requestsHtml) +
+    _supSection('سعة المعلمين', capacityHtml);
 };
+
+// ═══ Helpers لمركز المشرف ═══
+function _supGreet(){ const h = new Date().getHours(); return h<12?'صباح الخير':h<18?'مساء الخير':'مساء الخير'; }
+function _compoundName(fn){
+  const parts = (fn||'').trim().split(/\s+/);
+  const cmp = new Set(['عبد','عبدال','أبو','ابو','أم','ام','ابن','بن']);
+  if(!parts.length) return 'مشرفنا';
+  return (cmp.has(parts[0]) && parts[1]) ? parts[0]+' '+parts[1] : parts[0];
+}
+function _daysSince(iso){ if(!iso) return null; return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000); }
+function _relTimeShort(iso){
+  const mins = Math.floor((Date.now() - new Date(iso).getTime())/60000);
+  if(mins < 60) return 'منذ '+ar(mins)+' دقيقة';
+  const hrs = Math.floor(mins/60); if(hrs < 24) return 'منذ '+ar(hrs)+' ساعة';
+  return 'منذ '+ar(Math.floor(hrs/24))+' يوم';
+}
+function _supSection(title, body){ return `<div class="sup-section"><h3 class="sup-h3">${esc(title)}</h3>${body}</div>`; }
+function _supEmpty(main, sub){ return `<div class="sup-empty"><div class="sup-empty-ic">✅</div><b>${esc(main)}</b>${sub?`<p>${esc(sub)}</p>`:''}</div>`; }
+function _supRenderRow(r){
+  const prCol = r.priority==='urgent'?'#c92e2e':r.priority==='follow_up'?'#c9a227':'#2E7D5B';
+  const prLbl = r.priority==='urgent'?'عاجل':r.priority==='follow_up'?'متابعة':'مراجعة';
+  return `<div class="sup-row" style="border-inline-start:3px solid ${prCol}">
+    <div class="sup-row-ic">${r.icon||'•'}</div>
+    <div class="sup-row-body">
+      <div class="sup-row-title">${r.title}<span class="sup-pr" style="background:${prCol}22;color:${prCol}">${esc(prLbl)}</span></div>
+      <div class="sup-row-sub">${r.subtitle||''}</div>
+      ${r.body||''}
+    </div>
+    <div class="sup-row-act">${r.actions||''}</div>
+  </div>`;
+}
+function _supCaseTitle(kind){
+  return {
+    late_wards:'أوراد متأخرة كثيرة',
+    attendance_drop:'انخفاض حضور',
+    mastery_drop:'تراجع في الإتقان',
+    no_teacher:'طالب في حلقة بلا معلم',
+    no_plan:'طالب بلا خطة نشطة',
+    paid_no_group:'دفع ولم يُوزَّع',
+    teacher_no_report:'معلم لم يسجّل تقارير',
+    teacher_no_session:'معلم لم يسجّل حصة',
+  }[kind] || 'حالة تحتاج انتباه';
+}
+
+// ═══ تسجيل زيارة المشرف — تُعيد prev_visited_at (قبل آخر تحديث) ═══
+async function _supRecordVisit(){
+  const {data:cur} = await sb.from('supervisor_visits').select('*').eq('supervisor_id',ME.id).maybeSingle();
+  const prev = cur?.last_visited_at || null;
+  const now = new Date().toISOString();
+  if(cur){
+    await sb.from('supervisor_visits').update({prev_visited_at:prev, last_visited_at:now, updated_at:now}).eq('supervisor_id',ME.id);
+  } else {
+    await sb.from('supervisor_visits').insert({supervisor_id:ME.id, last_visited_at:now});
+  }
+  return cur?.prev_visited_at || prev;
+}
+
+// ═══ اكتشاف الحالات + upsert مع دي-دوب ═══
+async function _supDetectAndSync({studs, grps, ses, ratedSet, lateByStud, paidStudIds, activePlanIds, tchs}){
+  const detected = [];
+  const now = new Date().toISOString();
+  // ١) طلاب دفعوا بلا حلقة
+  studs.filter(s => s.enrollment_status==='active' && !s.group_id && paidStudIds.has(s.id)).forEach(s => {
+    const days = _daysSince(s.sub_start||s.created_at);
+    detected.push({subject_type:'student', subject_id:String(s.id), kind:'paid_no_group',
+      priority: (days||0) > 2 ? 'urgent' : 'follow_up',
+      reasons:[{code:'paid_no_group', detail:`دفع منذ ${ar(days||0)} يوم بلا توزيع`}]});
+  });
+  // ٢) طالب في حلقة بلا خطة
+  studs.filter(s => s.enrollment_status==='active' && s.group_id && !activePlanIds.has(s.id)).forEach(s => {
+    detected.push({subject_type:'student', subject_id:String(s.id), kind:'no_plan', priority:'follow_up',
+      reasons:[{code:'no_plan', detail:'موزَّع على حلقة لكن بلا خطة قرآن نشطة'}]});
+  });
+  // ٣) طلاب بأوراد متأخرة كثيرة
+  Object.entries(lateByStud).filter(([sid,cnt]) => cnt >= 5).forEach(([sid,cnt]) => {
+    const s = studs.find(x=>String(x.id)===sid); if(!s) return;
+    detected.push({subject_type:'student', subject_id:sid, kind:'late_wards',
+      priority: cnt>=10?'urgent':'follow_up',
+      reasons:[{code:'late_wards', detail:`${ar(cnt)} ورد متأخر بلا إنجاز`, value:cnt}]});
+  });
+  // ٤) طلاب بإتقان منخفض
+  studs.filter(s => (s.mastery||100) < 50 && s.enrollment_status==='active').forEach(s => {
+    detected.push({subject_type:'student', subject_id:String(s.id), kind:'mastery_drop',
+      priority: (s.mastery||100)<35?'urgent':'follow_up',
+      reasons:[{code:'mastery_drop', detail:`إتقان حالي: ${pct(s.mastery||0)}`, value:s.mastery||0}]});
+  });
+  // ٥) طلاب بحضور منخفض
+  studs.filter(s => (s.attendance||100) < 60 && s.enrollment_status==='active').forEach(s => {
+    detected.push({subject_type:'student', subject_id:String(s.id), kind:'attendance_drop',
+      priority:'follow_up',
+      reasons:[{code:'attendance_drop', detail:`حضور حالي: ${pct(s.attendance||0)}`}]});
+  });
+  // ٦) حلقات بلا معلم
+  grps.filter(g => !g.teacher_id).forEach(g => {
+    detected.push({subject_type:'halqa', subject_id:String(g.id), kind:'no_teacher', priority:'urgent',
+      reasons:[{code:'no_teacher', detail:'حلقة قائمة بلا معلم مُعيَّن'}]});
+  });
+  // ٧) معلمون لم يسجّلوا حصة منذ ٧ أيام رغم وجود طلاب
+  const iso7d = new Date(Date.now()-7*86400000).toISOString().slice(0,10);
+  tchs.forEach(t => {
+    const gIds = grps.filter(g=>g.teacher_id===t.id).map(g=>g.id);
+    if(!gIds.length) return;
+    const recentSes = ses.filter(s => gIds.includes(s.group_id) && s.session_date >= iso7d);
+    if(!recentSes.length){
+      detected.push({subject_type:'teacher', subject_id:t.id, kind:'teacher_no_session', priority:'follow_up',
+        reasons:[{code:'teacher_no_session', detail:'لم يسجّل حصة في آخر ٧ أيام'}]});
+    }
+  });
+
+  // Upsert مع الحفاظ على الحالات المُعالَجة كما هي
+  for(const c of detected){
+    try{
+      const {data:existing} = await sb.from('supervisor_cases').select('id,status').eq('subject_type',c.subject_type).eq('subject_id',c.subject_id).eq('kind',c.kind).maybeSingle();
+      if(!existing){
+        await sb.from('supervisor_cases').insert({...c, first_seen:now, last_seen:now});
+      } else if(existing.status === 'processed'){
+        // إعادة فتح تلقائي — المشكلة عادت
+        await sb.from('supervisor_cases').update({status:'reopened', reopened_at:now, last_seen:now, priority:c.priority, reasons:c.reasons, updated_at:now}).eq('id',existing.id);
+      } else if(existing.status === 'open' || existing.status === 'reopened'){
+        await sb.from('supervisor_cases').update({priority:c.priority, reasons:c.reasons, last_seen:now, updated_at:now}).eq('id',existing.id);
+      }
+    }catch(_){}
+  }
+}
+
+// ═══ audit trail helper ═══
+async function _supAudit(kind, target_type, target_id, summary, before_data, after_data, note){
+  try{
+    await sb.from('supervisor_actions').insert({supervisor_id:ME.id, kind, target_type, target_id:String(target_id||''), summary, before_data:before_data||null, after_data:after_data||null, note:note||null});
+  }catch(_){}
+}
+
+// ═══ فتح حالة — تفاصيل + إجراءات + timeline ═══
+async function _supCaseOpen(caseId){
+  const {data:c} = await sb.from('supervisor_cases').select('*').eq('id',caseId).maybeSingle();
+  if(!c){ toast('تعذر جلب الحالة'); return; }
+  let subject = null;
+  if(c.subject_type==='student'){
+    const {data} = await sb.from('students').select('*').eq('id',+c.subject_id).maybeSingle();
+    subject = data;
+  } else if(c.subject_type==='teacher'){
+    const {data} = await sb.from('profiles').select('full_name,initials,phone').eq('id',c.subject_id).maybeSingle();
+    subject = data;
+  }
+  // تاريخ الأحداث لهذه الحالة
+  const {data:events} = await sb.from('supervisor_actions').select('*').eq('target_type','case').eq('target_id',caseId).order('created_at',{ascending:false}).limit(30);
+  const reasonsHtml = (c.reasons||[]).map(r=>`<li>${esc(r.detail||r.code)}</li>`).join('');
+  const evHtml = (events||[]).length ? `<div class="sup-timeline">${events.map(e=>`<div class="sup-tl-item"><b>${esc(e.summary||e.kind)}</b><small>${_relTimeShort(e.created_at)}</small>${e.note?`<p>${esc(e.note)}</p>`:''}</div>`).join('')}</div>` : '<p style="color:var(--muted);font-size:13px;text-align:center;padding:14px">لا سجل تدخّلات سابق</p>';
+  $('#modalHost').innerHTML = `<div class="modal-bg show" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:600px;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <h3 style="margin:0;color:var(--navy-deep)">${esc(_supCaseTitle(c.kind))}</h3>
+      <button class="btn-sm ghost" onclick="closeModal()">×</button>
+    </div>
+    <div style="background:#f5f7fa;padding:12px 14px;border-radius:10px;margin-bottom:14px">
+      <b style="color:var(--navy-deep)">${esc(subject?.full_name||'الحالة')}</b>
+      <div style="font-size:12px;color:var(--muted);margin-top:3px">اكتُشفت: ${_relTimeShort(c.first_seen)} • آخر رصد: ${_relTimeShort(c.last_seen)} • الحالة: ${esc(c.status)}</div>
+    </div>
+    <div class="field"><label>الأسباب المُكتشفة</label><ul style="margin:6px 0 0;padding-inline-start:20px;font-size:13.5px;line-height:1.9">${reasonsHtml}</ul></div>
+    ${c.processed_note?`<div class="field"><label>ملاحظة المعالجة السابقة</label><div style="background:#e6f4ec;padding:10px;border-radius:8px;font-size:13px">${esc(c.processed_note)}</div></div>`:''}
+    <div class="field"><label>سجل التدخّلات</label>${evHtml}</div>
+    <div class="field"><label>ملاحظة تدخّلك (اختياري)</label><textarea id="supCaseNote" rows="2" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px" placeholder="ما الذي فعلته؟"></textarea></div>
+    <div class="modal-actions" style="flex-wrap:wrap;gap:8px">
+      <button class="btn ghost" onclick="closeModal()">إغلاق</button>
+      ${subject?.login_id?`<button class="sup-btn" onclick="startChatWith('${subject.login_id}','${escJs(subject.full_name)}');closeModal()">تواصل مع الطالب</button>`:''}
+      ${c.subject_type==='teacher'?`<button class="sup-btn" onclick="startChatWith('${c.subject_id}','${escJs(subject?.full_name||'المعلم')}');closeModal()">تواصل مع المعلم</button>`:''}
+      <button class="sup-btn" onclick="_supCaseNote('${c.id}')">تسجيل ملاحظة</button>
+      <button class="btn" style="background:var(--emerald,#2E7D5B);color:#fff" onclick="_supCaseProcess('${c.id}')">تمت المعالجة</button>
+    </div>
+  </div></div>`;
+}
+async function _supCaseNote(caseId){
+  const note = $('#supCaseNote')?.value.trim();
+  if(!note){ toast('اكتب ملاحظة'); return; }
+  await _supAudit('note','case',caseId,'ملاحظة تدخّل',null,null,note);
+  await sb.from('supervisor_cases').update({last_seen:new Date().toISOString()}).eq('id',caseId);
+  closeModal(); toast('✅ سُجّلت الملاحظة');
+}
+async function _supCaseProcess(caseId){
+  const note = ($('#supCaseNote')?.value||'').trim() || null;
+  const {data:c} = await sb.from('supervisor_cases').select('status,kind,subject_type,subject_id').eq('id',caseId).maybeSingle();
+  const now = new Date().toISOString();
+  await sb.from('supervisor_cases').update({status:'processed', processed_by:ME.id, processed_at:now, processed_note:note, updated_at:now}).eq('id',caseId);
+  await _supAudit('close_case','case',caseId,'تمت معالجة: '+_supCaseTitle(c?.kind), {status:c?.status}, {status:'processed'}, note);
+  closeModal(); toast('✅ سُجّلت المعالجة — الحالة ستعود تلقائيًا لو المشكلة استمرت');
+  navigate('dash');
+}
+
+// ═══ إجراءات سريعة ═══
+async function _supAssignNow(studentId){
+  // نستخدم نفس تدفق _execSuggest لو موجود، وإلا نفتح صفحة unassigned
+  if(typeof _execSuggest === 'function'){ _execSuggest(studentId); return; }
+  SESSION._unassignedFocus = studentId; navigate('unassigned');
+}
+async function _supViewStudent(studentId){
+  SESSION._openStudent = studentId; navigate('students');
+}
+async function _supCreatePlan(studentId){
+  SESSION._createPlanFor = studentId; navigate('groups');
+  toast('افتح ملف الطالب من الحلقة لإنشاء خطة');
+}
+function _supFilter(kind){ SESSION._supCasesFilter = kind; navigate('cases'); }
 function casesBlock(s){
   const cases=s.filter(x=>(x.attendance||100)<70 || (x.mastery||100)<60 || (x.far_review||100)<50)
     .map(x=>{ let p=(x.attendance||100)<70?'غياب متكرر':(x.mastery||100)<60?'تراجع في الإتقان':'ضعف المراجعة'; let c=(x.attendance||100)<70?'r':'gold'; return {name:x.full_name,initials:x.initials,p,c}; }).slice(0,8);
