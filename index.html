@@ -8727,7 +8727,7 @@ PAGES.admin_partner_view = async function(){
   const studs = studAllR.data || [];
   const teachers = teachersR.data || [];
   // الإيراد المحصّل آخر ٣٠ يوم
-  const confirmed30 = pays.filter(p => p.status==='confirmed' && p.paid_at && p.paid_at >= iso30);
+  const confirmed30 = pays.filter(p => p.status==='paid' && p.paid_at && p.paid_at >= iso30);
   const revenue30 = confirmed30.reduce((a,p)=>a+(+p.amount||0),0);
   // مدفوعات معلّقة
   const pending = pays.filter(p => p.status==='pending').length;
@@ -8738,7 +8738,7 @@ PAGES.admin_partner_view = async function(){
   // معلمون متاحون
   const teachersAvail = teachers.filter(t => t.is_available !== false).length;
   // معدل تجديد تقريبي: طلاب دفعوا > مرة
-  const paysByStudent = {}; pays.filter(p=>p.status==='confirmed').forEach(p => { const sid = p.student_id||'x'; paysByStudent[sid] = (paysByStudent[sid]||0)+1; });
+  const paysByStudent = {}; pays.filter(p=>p.status==='paid').forEach(p => { const sid = p.student_id||'x'; paysByStudent[sid] = (paysByStudent[sid]||0)+1; });
   const renewers = Object.values(paysByStudent).filter(n => n >= 2).length;
   const payingStuds = Object.keys(paysByStudent).length;
   const renewalRate = payingStuds ? Math.round(renewers/payingStuds*100) : null;
@@ -14286,7 +14286,7 @@ PAGES.executive_dash = async function(){
     sb.from('students').select('id,full_name,group_id,chosen_teacher_id,enrollment_status,sub_end,created_at,quran_path,login_id').limit(2000),
     sb.from('payments').select('id,amount,status,currency_code,student_id,created_at,paid_at').limit(2000),
     sb.from('sessions').select('id,group_id,session_date,session_time,duration_min,status').neq('status','cancelled').gte('session_date',new Date(Date.now()-30*86400000).toISOString().slice(0,10)).limit(2000),
-    sb.from('groups').select('id,name,teacher_id,is_private,capacity,meet_time').limit(500),
+    sb.from('groups').select('id,name,teacher_id,is_private,meet_time').limit(500),
     sb.from('profiles').select('id,full_name,role,is_available,max_students').eq('role','teacher').limit(200),
   ]);
   const studs = studsR.data || [];
