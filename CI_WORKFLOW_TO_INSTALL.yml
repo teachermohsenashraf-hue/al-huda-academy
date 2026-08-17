@@ -1,0 +1,36 @@
+name: CI — بوابة النشر
+
+# البوابة الكاملة قبل النشر: فحوصات ثابتة سريعة + اختبارات دخان حقيقية.
+# الفحوصات الثابتة (~ثانية واحدة) تلتقط الأخطاء الصامتة (parse، أعمدة شبح،
+# navigate يذهب لصفحة قيد التطوير، توازن العلامات) قبل الاختبارات الحيّة
+# (~دقائق) التي تعمل على مشروع Supabase staging منفصل.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  static:
+    name: فحوصات ثابتة
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: تشغيل الفحوصات الثابتة (parse + navigate + توازن + أعمدة شبح)
+        run: node scripts/static-checks.mjs
+
+  smoke:
+    name: اختبارات دخان (staging)
+    runs-on: ubuntu-latest
+    needs: static
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: تشغيل smoke tests على مشروع staging
+        run: node tests/smoke.staging.mjs
